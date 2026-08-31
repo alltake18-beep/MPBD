@@ -12,8 +12,6 @@ const preset = require(path.join(root, "boss-duel-story-preset-v1.js"));
 const ActionCore = require(path.join(root, "boss-duel-action-tree-core.js"));
 
 assert.equal(preset.version, "natural-story-preset-v10");
-assert.equal(preset.directed, undefined);
-assert.equal(preset.directedDiagnostics, undefined);
 
 for (const asset of [
   "dice-first-core.js", "boss-duel-poker-arrangement-lab-core.js", "boss-duel-rules.js",
@@ -95,7 +93,6 @@ for (const required of [
   /buildNaturalStoryPoolFromPreset/, /selectedStoryExperience/, /openStoryExperience/, /storyMode/
 ]) assert.match(combined, required, `missing new model contract ${required}`);
 
-assert.doesNotMatch(html, /<option value="DIRECTED">/);
 assert.doesNotMatch(html, /記憶點故事目前隱藏|記憶點故事保留在檔案/);
 assert.match(html, /贏多：總派彩 ÷ 總押 ≥ 3x/);
 assert.match(html, /贏少：1x ≤ 總派彩 ÷ 總押 &lt; 3x/);

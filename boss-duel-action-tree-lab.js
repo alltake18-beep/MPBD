@@ -24,7 +24,6 @@
   }
   config.modelId = "natural-story-v4-full-class-ticket";
   config.versions.storyPool = "natural-240000-boss-plan-v10-score-ticket";
-  config.storyPool.directedMixPct = 0;
   let design = null;
   let storyPoolCells = [];
   let catalogPool = null;
@@ -125,7 +124,6 @@
     config.storyPool.ticketPreferencePct = { win: 1, push: 1, lose: 1 };
     config.storyPool.ticketBasis = number($("ticketBasis").value, 1000000);
     config.storyPool.maxCandidateAttempts = number($("maxCandidateAttempts").value, 10000);
-    config.storyPool.directedMixPct = 0;
     config.ticketMode = "DYNAMIC";
     config.seedMode = "FIXED";
     const seedText = $("seed").value.trim();
@@ -1098,7 +1096,6 @@
     config = Core.sanitizeConfig(Core.DEFAULT_CONFIG);
     config.modelId = "natural-story-v4-full-class-ticket";
     config.versions.storyPool = "natural-240000-boss-plan-v10-score-ticket";
-    config.storyPool.directedMixPct = 0;
     storyPoolCells = [];
     simulationResult = null;
     catalogPool = null;

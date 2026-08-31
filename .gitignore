@@ -14,7 +14,7 @@ tools/*
 !tools/test-runtime-deviation-suppression.js
 !tools/test-natural-story-preset.js
 !tools/test-full-story-preset.js
-!tools/test-natural-directed-story-core.js
+!tools/test-natural-story-core.js
 !tools/test-action-tree-tool-schema.js
 !tools/test-frontend-flow-contract.js
 !tools/test-html-contracts.js

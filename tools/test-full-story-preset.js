@@ -15,10 +15,7 @@ assert.equal(pool.fromPreset, true);
 assert.equal(preset.version, "natural-story-preset-v10");
 assert.equal(summaryPreset.version, "natural-story-summary-preset-v5");
 assert.equal(summaryPreset.format, "compact-summary-v1");
-assert.equal(preset.directed, undefined);
-assert.equal(preset.directedDiagnostics, undefined);
 assert.equal(pool.naturalStories, 240000);
-assert.equal(pool.directedStories, 0);
 assert.equal(pool.totalStories, 240000);
 
 const storyKeys = StoryCore.STORY_KEYS;
@@ -33,7 +30,6 @@ for (let star = 1; star <= 8; star += 1) {
     for (const story of natural) {
       assert.equal(story.classKey, classKey);
       assert.equal(story.sourcePool, "NATURAL");
-      assert.equal(story.director, null);
       assert.ok(Math.abs(story.returnX - story.payoutX / story.spendX) < 1e-12);
       assert.ok(Math.abs(story.netX - (story.payoutX - story.spendX)) < 1e-12);
       assert.equal(StoryCore.storyClass(story.returnX, config), classKey);

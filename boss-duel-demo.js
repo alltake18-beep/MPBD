@@ -1246,7 +1246,6 @@
       storyPool: {
         seed: 20260824,
         storiesPerClass: 10000,
-        directedStoriesPerCell: 0,
         winMinReturnX: 3,
         pushMinReturnX: 1,
         smartMaxDraws: 9
@@ -1277,8 +1276,8 @@
       },
       suppression: loadSuppressionPolicy(),
       storyPool: {
-        seed: 20260824, storiesPerClass: 10000, directedStoriesPerCell: 0,
-        directedMixPct: 0, winMinReturnX: 3, pushMinReturnX: 1,
+        seed: 20260824, storiesPerClass: 10000,
+        winMinReturnX: 3, pushMinReturnX: 1,
         ticketPreferencePct: { win: 1, push: 1, lose: 1 },
         ticketBasis: 1000000, ticketSearchAttempts: 64, ticketCandidateTournamentSize: 1, ticketEarlyExitDeviationPp: 0.05,
         smartMaxDraws: 9, maxCandidateAttempts: 10000

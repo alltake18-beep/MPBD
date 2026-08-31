@@ -9,9 +9,7 @@ const ActionCore = require("../boss-duel-action-tree-core.js");
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
 assert.equal(config.storiesPerClass, 10000);
 assert.equal(config.storiesPerStar, 30000);
-assert.equal(config.directedStoriesPerCell, 0);
 assert.equal(8 * config.storiesPerStar, 240000);
-assert.equal(config.directedMixPct, 0);
 assert.equal(config.rewardFloorPct, 10);
 assert.equal(config.rewardCeilingMultiple, 1000);
 assert.equal(config.playerBadHighRerollPct, 50);
@@ -56,22 +54,21 @@ assert.equal(straightFlushDamage.flat, 6);
 assert.equal(straightFlushDamage.total, 156);
 
 const candidates = [
-  { id: "W", classKey: "win", sourcePool: "DIRECTED", spendX: 10, payoutX: 30, netX: 20, director: { archetype: "FAST_REDRAW" } },
-  { id: "P", classKey: "push", sourcePool: "DIRECTED", spendX: 10, payoutX: 19, netX: 9, director: { archetype: "POKER_STREAK" } },
-  { id: "L", classKey: "lose", sourcePool: "DIRECTED", spendX: 10, payoutX: 0, netX: -10, director: { archetype: "DRAMATIC_TWIST" } }
+  { id: "W", classKey: "win", sourcePool: "NATURAL", spendX: 10, payoutX: 30, netX: 20 },
+  { id: "P", classKey: "push", sourcePool: "NATURAL", spendX: 10, payoutX: 19, netX: 9 },
+  { id: "L", classKey: "lose", sourcePool: "NATURAL", spendX: 10, payoutX: 0, netX: -10 }
 ];
 const solved = StoryCore.solveCandidateProbabilities(candidates, 96);
 assert(solved);
 assert(Math.abs(solved.rtpPct - 96) < 1e-10);
 assert(Object.values(solved.probabilities).every((probability) => probability > 0));
 
-const directedPool = {
-  config: { directedMixPct: 100, maxCandidateAttempts: 10 },
-  naturalCells: { 1: { win: [candidates[0]], push: [candidates[1]], lose: [candidates[2]] } },
-  directedCells: { 1: { win: [candidates[0]], push: [candidates[1]], lose: [candidates[2]] } }
+const naturalPool = {
+  config: { maxCandidateAttempts: 10 },
+  naturalCells: { 1: { win: [candidates[0]], push: [candidates[1]], lose: [candidates[2]] } }
 };
-const commit = StoryCore.drawStoryCommit(directedPool, 1, 96, DiceCore.mulberry32(9), { directedMixPct: 100 });
-assert.deepEqual(commit.candidateSources, ["DIRECTED", "DIRECTED", "DIRECTED"]);
+const commit = StoryCore.drawStoryCommit(naturalPool, 1, 96, DiceCore.mulberry32(9));
+assert.deepEqual(commit.candidateSources, ["NATURAL", "NATURAL", "NATURAL"]);
 assert(Math.abs(commit.weightedRtpPct - 96) < 1e-10);
 
 const diceStory = {
@@ -134,30 +131,4 @@ assert(debtSettlement.correction.deltaCredits < 0, "negative pool must reduce th
 assert.equal(debtSettlement.correction.correctedRewardX >= 2, true, "reward may not fall below 10% of the original");
 assert.equal(debtSettlement.balances[2], 9, "other Bet buckets must stay isolated");
 
-const syntheticCells = {};
-for (let star = 1; star <= 8; star += 1) {
-  syntheticCells[star] = {
-    win: [{ ...candidates[0], star, rounds: 3, killed: false, originalBossRewardX: 0 }],
-    push: [{ ...candidates[1], star, rounds: 3, killed: false, originalBossRewardX: 0 }],
-    lose: [{ ...candidates[2], star, rounds: 3, killed: false, originalBossRewardX: 0 }]
-  };
-}
-const limitedPopulation = StoryCore.simulatePopulation({
-  ...ActionCore.DEFAULT_CONFIG,
-  storyPool: { ...ActionCore.DEFAULT_CONFIG.storyPool, directedMixPct: 0 },
-  simulation: { ...ActionCore.DEFAULT_CONFIG.simulation, playerCount: 1, bossesPerPlayer: 10, playerRoundLimit: 5 }
-}, { pool: { config, cells: syntheticCells, naturalCells: syntheticCells } });
-assert.equal(limitedPopulation.players[0].bosses, 2);
-assert.equal(limitedPopulation.players[0].rounds, 6);
-
-const tinyConfig = StoryCore.normalizeConfig({
-  ...ActionCore.DEFAULT_CONFIG,
-  storyPool: { ...ActionCore.DEFAULT_CONFIG.storyPool, storiesPerClass: 3, directedStoriesPerCell: 3, directedSearchMultiplier: 1, maxGenerationAttemptsPerStar: 20000 }
-});
-const directed = StoryCore.buildDirectedStarPool(tinyConfig, 1);
-for (const key of StoryCore.STORY_KEYS) {
-  assert.equal(directed.cell[key].length, 3);
-  assert(directed.cell[key].every((story) => story.sourcePool === "DIRECTED" && story.director?.storyText));
-}
-
-console.log("natural-directed-story-core: 59 assertions passed");
+console.log("natural-story-core: current-only contract passed");

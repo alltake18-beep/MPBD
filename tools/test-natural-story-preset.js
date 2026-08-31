@@ -14,15 +14,11 @@ assert(pool?.fromPreset, "natural preset did not hydrate");
 assert.equal(preset.version, "natural-story-preset-v10");
 assert.equal(summaryPreset.version, "natural-story-summary-preset-v5");
 assert.equal(summaryPreset.format, "compact-summary-v1");
-assert.equal(preset.directed, undefined, "Directed seeds must not remain in the published preset");
-assert.equal(preset.directedDiagnostics, undefined, "Directed diagnostics must not remain in the published preset");
 assert.equal(preset.ticketGroupVersion, "score-ticket-groups-v3");
 assert.deepEqual(preset.ticketGroupConfig.ticketPreferencePct, { win: 33.3333333, push: 33.3333333, lose: 33.3333333 });
 for (let star = 1; star <= 8; star += 1) assert.equal(preset.ticketGroups[star].length, 256, `${star} star mobile ticket groups`);
 assert.equal(pool.totalStories, 240000);
 assert.equal(pool.naturalStories, 240000);
-assert.equal(pool.directedStories, 0);
-assert.equal(pool.directedCells, undefined);
 
 const averages = {};
 const residualSides = {};
@@ -40,7 +36,6 @@ for (let star = 1; star <= 8; star += 1) {
     for (const story of stories) {
       assert.equal(story.sourcePool, "NATURAL");
       assert.equal(story.classKey, classKey);
-      assert.equal(story.director, null);
       assert.ok(Number.isFinite(story.spendX) && story.spendX > 0, "story spendX must be positive and finite");
       assert.ok(Number.isFinite(story.payoutX) && story.payoutX >= 0, "story payoutX must be non-negative and finite");
       assert.ok(Number.isFinite(story.returnX) && story.returnX >= 0, "story returnX must be non-negative and finite");

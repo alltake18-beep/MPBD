@@ -6,7 +6,7 @@
       ? require("./boss-duel-natural-story-core.js")
       : null
   );
-  if (!NaturalCore) throw new Error("新機率工具缺少自然／導演劇本核心");
+  if (!NaturalCore) throw new Error("機率工具缺少自然劇本核心");
   const TREE_KEYS = ["win", "push", "lose"];
   const TREE_LABELS = { win: "贏多", push: "贏少", lose: "輸" };
   const SPEND_FACTORS = { win: 0.90, push: 1.00, lose: 1.18 };
@@ -84,8 +84,7 @@
     },
     storyPool: {
       seed: 20260824,
-      storiesPerClass: 10000, storiesPerStar: 30000, directedStoriesPerCell: 0, directedMixPct: 0,
-      directedSearchMultiplier: 1, recentArchetypeCooldown: 3,
+      storiesPerClass: 10000, storiesPerStar: 30000,
       winMinReturnX: 3, pushMinReturnX: 1, smartMaxDraws: 9,
       candidateDrawMode: "FULL_CLASS_UNIFORM",
       ticketPreferencePct: { win: 1, push: 1, lose: 1 },
@@ -189,10 +188,6 @@
     story.storiesPerClass = integer(story.storiesPerClass ?? story.dailyMinStoriesPerClass, 10000, 1, 10000000);
     story.storiesPerStar = story.storiesPerClass * TREE_KEYS.length;
     delete story.storiesPerCell;
-    story.directedStoriesPerCell = integer(story.directedStoriesPerCell, 0, 0, 10000);
-    story.directedMixPct = clamp(finite(story.directedMixPct, 0), 0, 100);
-    story.directedSearchMultiplier = clamp(finite(story.directedSearchMultiplier, 1), 1, 20);
-    story.recentArchetypeCooldown = integer(story.recentArchetypeCooldown, 3, 0, 100);
     story.winMinReturnX = clamp(finite(story.winMinReturnX, 3), 0.001, 1000000);
     story.pushMinReturnX = clamp(finite(story.pushMinReturnX, 1), 0, 999999.999);
     if (story.winMinReturnX <= story.pushMinReturnX) story.winMinReturnX = Math.min(1000000, story.pushMinReturnX + 0.001);
@@ -1057,16 +1052,16 @@
       kills: 0, aborts: 0, rounds: 0, draws: 0, drawSpendX: 0, refreshes: 0,
       bossGross: 0, bossRewardXSum: 0, bossRewardCount: 0,
       minBossRewardX: Infinity, maxBossRewardX: 0, minGrossX: Infinity, maxGrossX: 0, maxNetX: 0,
-      jokerDraws: 0, straightFlushKills: 0, corrections: 0, directedStories: 0
+      jokerDraws: 0, straightFlushKills: 0, corrections: 0
     }));
     const treeStatsMap = Object.fromEntries(TREE_KEYS.map((key) => [key, {
       key, label: TREE_LABELS[key], count: 0, baselineSpend: 0, spend: 0, gross: 0, net: 0,
-      kills: 0, aborts: 0, rounds: 0, draws: 0, directedStories: 0
+      kills: 0, aborts: 0, rounds: 0, draws: 0
     }]));
     const cellStatsMap = new Map();
     for (let star = 1; star <= 8; star += 1) for (const key of TREE_KEYS) cellStatsMap.set(`${star}:${key}`, {
       star, key, count: 0, baselineSpend: 0, spend: 0, gross: 0, net: 0,
-      kills: 0, aborts: 0, rounds: 0, draws: 0, directedStories: 0
+      kills: 0, aborts: 0, rounds: 0, draws: 0
     });
     const storyBuckets = makeBucketStats();
     const roundBuckets = makeBucketStats();
@@ -1137,7 +1132,7 @@
       ss.kills += story.killed ? 1 : 0; ss.rounds += story.rounds; ss.draws += story.actions.totalDraws; ss.drawSpendX += drawSpend / Math.max(bet, 1e-12);
       ss.bossGross += actualBossRewardX * bet; ss.bossRewardXSum += story.killed ? actualBossRewardX : 0; ss.bossRewardCount += story.killed ? 1 : 0;
       ss.jokerDraws += story.magicCounts.joker || 0; ss.straightFlushKills += story.killed && story.storyMoments?.bestHandKey === "straightFlush" ? 1 : 0;
-      ss.corrections += record.settlement.correction.applied ? 1 : 0; ss.directedStories += story.sourcePool === "DIRECTED" ? 1 : 0;
+      ss.corrections += record.settlement.correction.applied ? 1 : 0;
       if (story.killed) { ss.minBossRewardX = Math.min(ss.minBossRewardX, actualBossRewardX); ss.maxBossRewardX = Math.max(ss.maxBossRewardX, actualBossRewardX); }
       ss.minGrossX = Math.min(ss.minGrossX, story.payoutX); ss.maxGrossX = Math.max(ss.maxGrossX, story.payoutX); ss.maxNetX = Math.max(ss.maxNetX, actualPayout / Math.max(bet, 1e-12));
 
@@ -1145,7 +1140,7 @@
       const cell = cellStatsMap.get(`${record.star}:${record.classKey}`);
       for (const row of [ts, cell]) {
         row.count += 1; row.baselineSpend += committedSpend; row.spend += spend; row.gross += committedPayout; row.net += actualPayout;
-        row.kills += story.killed ? 1 : 0; row.rounds += story.rounds; row.draws += story.actions.totalDraws; row.directedStories += story.sourcePool === "DIRECTED" ? 1 : 0;
+        row.kills += story.killed ? 1 : 0; row.rounds += story.rounds; row.draws += story.actions.totalDraws;
       }
       addBucket(storyBuckets, story.payoutX, spend, committedPayout, actualPayout);
       addBucket(roundBuckets, committedPayout / Math.max(spend, 1e-12), spend, committedPayout, actualPayout);
@@ -1488,11 +1483,6 @@
       },
       payoutSources: { boss: totals.bossGross, hand: totals.handGross, magic: totals.magicGross, chain: totals.chainGross },
       storyPool: raw.pool,
-      directedStats: {
-        selected: records.filter((record) => record.story.sourcePool === "DIRECTED").length,
-        selectedPct: records.filter((record) => record.story.sourcePool === "DIRECTED").length / Math.max(records.length, 1) * 100,
-        archetypes: records.reduce((rows, record) => { const key = record.story.director?.archetype; if (key) rows[key] = (rows[key] || 0) + 1; return rows; }, {})
-      },
       players: raw.players
     };
   }
