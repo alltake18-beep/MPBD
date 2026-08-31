@@ -7,9 +7,8 @@ reports/
 tools/*
 !tools/generate-natural-preset.js
 !tools/generate-story-details.js
-!tools/build-story-workbook.mjs
 !tools/build-story-workbook-streaming.js
-!tools/summarize-story-preset.js
+!tools/run-tests.js
 !tools/test-story-planner.js
 !tools/test-story-experience-replay.js
 !tools/test-runtime-deviation-suppression.js
