@@ -18,8 +18,9 @@
     <header>
       <p class="eyebrow">工程唯一現行規格 · 2026-08-31</p>
       <h1>Boss Duel 後端文件</h1>
+      <div class="badges"><span class="badge">backend-doc-v2</span><span class="badge">boss-duel-story-generator-v1</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
       <div class="grid four" style="margin-top:16px">
-        <div class="card"><strong>劇本來源</strong>預知完整固定種子的劇本導演，依法規劃並跑完整隻 Boss。</div>
+        <div class="card"><strong>劇本來源</strong>預知完整固定種子的劇本導演，依法規劃並跑完整隻 Boss；同一劇本以 X 倍數通用所有 Bet。</div>
         <div class="card"><strong>新 Boss 抽取</strong>贏多、贏少、輸三個完整分類各抽 1 個，再做分數配籤。</div>
         <div class="card"><strong>遊玩控制</strong>劇本鎖定；只有不可擊殺劇本且玩家保留牌不同，才啟動過程抑制。</div>
         <div class="card"><strong>最終結算</strong>每筆花費按鎖定目標 RTP 入桶；自然派彩出桶，擊殺時以合法 Boss 骰獎補正。</div>
@@ -31,14 +32,15 @@
     <section id="terms" class="blue">
       <h2>一、先分清四個名詞</h2>
       <div class="table-wrap"><table><thead><tr><th>名詞</th><th>用途</th><th>不能混淆的地方</th></tr></thead><tbody>
-        <tr><td><strong>三個劇本分類</strong><br>贏多／贏少／輸</td><td>依劇本承諾總派彩 ÷ 劇本原定總押分類，供每次建立新 Boss 時抽三候選。</td><td>它不是固定抽中比例。</td></tr>
+        <tr><td><strong>三個劇本結果分類</strong><br>贏多／贏少／輸</td><td>依劇本承諾總派彩 ÷ 劇本原定總押分類，供每次建立新 Boss 時抽三候選。</td><td>它不是固定抽中比例，也不是 Bet 桶；同一劇本通用所有 Bet。</td></tr>
         <tr><td><strong>三個真實候選</strong></td><td>每次建立新 Boss 時，在贏多、贏少、輸三個完整分類各等機率抽 1 個，再依三者經濟值配籤。</td><td>不能先挑接近 96% 的劇本，也不能只換掉其中一類。</td></tr>
         <tr><td><strong>劇本承諾淨結果</strong></td><td>抽中後鎖定整隻 Boss 的劇本原定總押、劇本承諾總派彩與兩者差額。</td><td>Boss 的「劇本結果」是整隻劇本淨結果，不是原骰獎本身。</td></tr>
         <tr><td><strong>個人劇本水池</strong><br>1–10／20–200／500–2000 三桶</td><td>每筆花費按鎖定目標 RTP 入桶，自然派彩出桶；擊殺後保存未被合法骰面吸收的餘額。</td><td>個人劇本水池不參與選劇本，三桶也互不流用。</td></tr>
       </tbody></table></div>
       <div class="terms"><span>劇本原定總押</span><span>劇本承諾總派彩</span><span>劇本承諾退幣率</span><span>玩家實際總押</span><span>玩家最終派彩</span><span>玩家實際退幣率</span></div>
-      <p class="small">以上六個名稱是報表固定口徑。玩法內容一律稱劇本；唯一正式差額帳本稱個人劇本水池；其餘只稱正式劇本資料、三個完整分類與三個真實候選。劇本端記鎖定時承諾，玩家端記實際遊玩與補正後結果。</p>
+      <p class="small">以上六個名稱是報表固定口徑。玩法內容一律稱劇本；唯一正式差額帳本稱個人劇本水池；其餘只稱正式劇本資料、三個完整結果分類與三個真實候選。劇本端以 Bet 倍數 X 記鎖定時承諾，玩家端再依實際 Bet 換算點數並記錄補正後結果。</p>
       <div class="formula bluebox"><strong>劇本分類</strong><code>分類倍率 = 劇本承諾總派彩 ÷ 劇本原定總押</code><code>贏多：≥ 3x　｜　贏少：≥ 1x 且 &lt; 3x　｜　輸：&lt; 1x</code><span class="small">3 與 1 是現行預設門檻，機率工具可調，但贏多門檻必須大於贏少門檻。1x 屬於贏少，3x 屬於贏多。調門檻只會重新分類同一批自然實跑劇本，不得改寫劇本過程或結果。</span></div>
+      <div class="formula greenbox"><strong>同一劇本通用所有 Bet</strong><code>玩家實際總押 = 劇本原定總押 X × Bet</code><code>玩家自然派彩 = 劇本承諾總派彩 X × Bet</code><code>(派彩 X × Bet) ÷ (總押 X × Bet) = 派彩 X ÷ 總押 X</code><span class="small">Bet 不參與 seed、發牌、魔法卡、換牌、AI 路線、結果分類或 240,000 配額。Bet 只在劇本鎖定後換算實際點數，並決定個人劇本水池記入哪一個帳務桶。</span></div>
       <div class="note"><strong>同一個目標 RTP：</strong>目標 96% 同時控制三候選配籤與每筆花費的入池比例。個人劇本水池不選故事，只在付費與結算時按同一目標記帳。</div>
     </section>
 
@@ -76,7 +78,7 @@
         <div><strong>再修劇本導演。</strong>只處理 2.2 的四項問題，建立對應回歸案例並提升規劃器版本；此階段不改三分類、三候選、96%、抑制或個人劇本水池規則。</div>
         <div><strong>最後重建 240,000 個正式劇本。</strong>每星的贏多、贏少、輸各自然取得 10,000 個；不得複製、補造、改寫或只重分舊結果。</div>
       </div>
-      <div class="note"><strong>目前版本：</strong>遊戲、理牌試玩與劇本生成共用 <code>arrange-v9</code>；規劃器為 <code>boss-plan-v10</code>，故事索引為 <code>natural-story-preset-v10</code>，正式發布量為 24 桶各 10,000 個。</div>
+      <div class="note"><strong>目前版本：</strong>遊戲、理牌試玩與劇本生成共用 <code>arrange-v9</code>；規劃器為 <code>boss-plan-v10</code>，故事索引為 <code>natural-story-preset-v10</code>，正式發布量為 24 個「星級 × 結果分類」資料格各 10,000 個。這 24 格不是 Bet 池。</div>
     </section>
 
     <section id="draw" class="gold">
@@ -376,24 +378,29 @@
     </section>
 
     <section id="data" class="violet">
-      <h2>十、現行劇本資料與正式每日產線</h2>
+      <h2>十、現行劇本資料與正式產線</h2>
       <h3>10.1 正式發布資料</h3>
-      <p>現行正式資料由 <code>boss-plan-v10</code>、<code>arrange-v9</code> 與 <code>natural-story-preset-v10</code> 產生。每個候選種子只自然跑一次；產線持續換新種子直到各分類達標，發布時每格精確取 10,000 個，不複製、不改寫、不跨格重用。</p>
+      <p>現行正式資料由 <code>boss-plan-v10</code>、<code>arrange-v9</code> 與 <code>natural-story-preset-v10</code> 產生。每個候選種子只自然跑一次；產線持續換新種子直到各結果分類達標，發布時每個「星級 × 結果分類」資料格精確取 10,000 個，不複製、不改寫、不跨分類重用。同一筆以 X 倍數保存，所有 Bet 共用。</p>
       <div class="table-wrap"><table class="tight"><thead><tr><th>星級</th><th>贏多</th><th>贏少</th><th>輸</th><th>發布合計</th></tr></thead><tbody>
         <tr><td>1</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>2</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>3</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>4</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>5</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>6</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>7</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>8</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td><strong>合計</strong></td><td><strong>80,000</strong></td><td><strong>80,000</strong></td><td><strong>80,000</strong></td><td><strong>240,000</strong></td></tr>
       </tbody></table></div>
       <div class="note"><strong>發布量與嘗試數不同：</strong>240,000 是正式索引內的精確可用量；八星贏少最稀少，因此自然嘗試數會明顯高於 240,000。嘗試失敗不是補造依據。</div>
+      <div class="note"><strong>不要依 Bet 重建劇本：</strong>正式索引沒有 Bet 維度。Bet 1、Bet 2,000 或日後新增的正數 Bet 都引用同一個 <code>releaseVersion + star + seed</code>；只將 <code>spendX</code>、<code>payoutX</code> 與 <code>netX</code> 乘上實際 Bet，完整操作路徑與分類不得改變。</div>
       <div class="note"><strong>本輪完整生成實測：</strong>1～6 星各嘗試 95,000 個自然種子、7 星 190,000 個、8 星 2,197,500 個；最後每格只發布前 10,000 個符合分類的自然結果。8 星觀測為贏多 1,916,679、贏少 10,092、輸 270,729、無效 0。</div>
       <h3>10.2 同一劇本資料分三層</h3>
       <div class="table-wrap"><table><thead><tr><th>資料層</th><th>使用端</th><th>只保存什麼</th></tr></thead><tbody><tr><td>輕量劇本索引</td><td>手機遊戲</td><td>版本、星級、分類、種子、定位資料與簽章；不載入大型統計。</td></tr><tr><td>統計摘要</td><td>機率工具</td><td>分類、劇本原定總押、劇本承諾總派彩、行為計數與驗證摘要。</td></tr><tr><td>完整稽核路徑</td><td>離線分析</td><td>每回合手牌、保留、換牌、魔法卡、對手牌、決策原因與結果。</td></tr></tbody></table></div>
-      <h3>10.3 正式每日發布</h3>
+      <h3>10.3 正式發布</h3>
       <div class="steps">
-        <div>每個正式版本的每星、每類都必須有 10,000 個可用劇本；八星發布量固定 240,000 個。</div>
+        <div>每個正式版本的每星、每種結果分類都必須有 10,000 個可用劇本；全 8 星發布量固定 240,000 個。</div>
         <div>自然生成必須持續到最稀少分類也達標，再各格截取 10,000 個；不能複製、補造或改寫劇本。</div>
         <div>分類門檻、Boss 參數、魔法機率、規劃版本、索引與稽核資料必須共用同一版本簽章。</div>
         <div>全部數量、唯一性與重播驗證通過後才原子發布；任一分類不足就整版不發布。</div>
         <div>新 Boss 使用新版本；進行中的 Boss 鎖定舊版本直到結算。</div>
       </div>
+      <h3>10.4 可直接執行的正式產生器</h3>
+      <p>工程端直接使用 <a href="boss-duel-story-generator.js"><code>boss-duel-story-generator.js</code></a>，不可另寫第二套理牌、AI、分類或配額邏輯。正式入口如下：</p>
+      <div class="formula violetbox"><strong>程式入口</strong><code>await StoryGenerator.buildRelease({ outputRoot, releaseVersion, workerCount, onProgress })</code><code>StoryGenerator.generateStory(config, star, seed, { includePath: true })</code><code>StoryGenerator.materializeStoryForBet(story, bet)</code><span class="small"><code>buildRelease()</code> 固定完成每星每結果 10,000、總數 240,000、checkpoint、全量重播、SHA-256 與原子發布；不提供正式模式降配額或略過全量重播的參數。<code>materializeStoryForBet()</code> 只換算點數，不重新產生劇本。</span></div>
+      <div class="pass"><strong>產生器驗證：</strong><code>tools/test-story-generator-service.js</code> 已驗證現行核心重播、多 worker 小型目錄、正式數量常數，以及同一劇本跨現行與未來 Bet 只縮放點數、不改 seed、分類或操作路徑。</div>
     </section>
 
     <section id="backend" class="gold">
@@ -409,18 +416,20 @@
       <div class="note"><strong>玩家狀態必須串行：</strong>同一玩家同一時間只能有一隻進行中 Boss。建立、START、操作、換 Boss、換 BET 與結算，都必須在交易內鎖定該玩家與當下個人劇本水池桶，或用版本號做條件更新；版本過期不得覆寫，斷線或雙裝置重送只能恢復同一結果。</div>
       <h3>關鍵檔案</h3>
       <div class="table-wrap"><table><thead><tr><th>檔案</th><th>現行責任</th></tr></thead><tbody>
-        <tr><td><code>boss-duel-natural-story-core.js</code></td><td>劇本生成、分類、三候選與配籤；偏離抑制、個人劇本水池三桶與合法骰獎補正核心。</td></tr>
+        <tr><td><a href="boss-duel-story-generator.js"><code>boss-duel-story-generator.js</code></a></td><td>工程正式入口：協調現行核心，產生每星三種結果各 10,000、全量重播、checkpoint、簽章與原子發布；以 X 倍數劇本通用所有 Bet。</td></tr>
+        <tr><td><code>boss-duel-natural-story-core.js</code></td><td>劇本生成、分類、三候選與配籤；唯一 <code>story-bet-scaling-v1</code> 換算；偏離抑制、個人劇本水池三桶與合法骰獎補正核心。</td></tr>
         <tr><td><code>boss-duel-demo.js</code></td><td>遊戲接線：玩家實際總押、偏離鎖定、換 Boss／BET、最終魔法與個人劇本水池結算。</td></tr>
         <tr><td><code>boss-duel-action-tree-core.js</code></td><td>工具四玩家統計、逐利玩家配籤、個人劇本水池與補正容量。</td></tr>
         <tr><td><code>boss-duel-action-tree-lab.js</code></td><td>工具操作、參數、補正試算與統計報表。</td></tr>
         <tr><td><code>boss-duel-story-planner.js</code></td><td>預知完整固定種子的劇本導演；負責整隻 Boss 的合法路線比較、Joker、換牌後重決策與停損。</td></tr>
         <tr><td><code>boss-duel-poker-arrangement-lab-core.js</code></td><td>正式遊戲與理牌試玩共用的保留、替換與排序核心。</td></tr>
-        <tr><td><code>tools/generate-story-details.js</code></td><td>依正式索引重跑 240,000 個完整故事，輸出各桶 Excel 明細來源。</td></tr>
+        <tr><td><code>tools/test-story-generator-service.js</code></td><td>正式產生器的版本、數量、重播、多 worker 與跨 Bet 不變性測試。</td></tr>
+        <tr><td><code>tools/generate-story-details.js</code></td><td>依正式索引重跑 240,000 個完整故事，輸出各結果分類的 Excel 明細來源。</td></tr>
         <tr><td><code>tools/build-story-workbook-streaming.js</code></td><td>逐星串流建立總覽與 8 張明細表，再以標準 OpenXML 路徑封裝成 9 分頁 Excel。</td></tr>
       </tbody></table></div>
       <div class="pass"><strong>現行 Excel 驗證：</strong>1～8 星各 30,000 局、三分類各 10,000；每個星級頁 18 欄並保存完整重播稽核 JSON。公式／錯誤標記為 0，OpenXML 封裝、試算表讀取器開啟與 9 張預覽均已檢查。</div>
       <p class="small">表內既有英文檔名、欄位名與版本字串只保留作程式相容識別，不是產品名詞；所有對外內容一律稱「劇本」，差額帳本一律稱「個人劇本水池」。</p>
-      <div class="note"><strong>版本一致：</strong>種子檔可能仍含 256 組相容診斷候選，但 <code>frontend-v84</code> 不把它們當入場來源。現行每次建立新 Boss 永遠從三個完整分類各抽 1 個；遊戲、機率工具、Excel、操作重播與完整稽核必須共同使用 v10 簽章。</div>
+      <div class="note"><strong>版本一致：</strong>種子檔可能仍含 256 組相容診斷候選，但 <code>frontend-v85</code> 不把它們當入場來源。現行每次建立新 Boss 永遠從三個完整結果分類各抽 1 個；遊戲、機率工具、Excel、操作重播與完整稽核必須共同使用 v10 簽章。</div>
     </section>
 
     <footer>本頁是工程現行規格；《Boss Duel 故事池數學模型.md》與《Boss Duel 交接.md》必須同步。未實際驗證的項目不得宣稱通過。</footer>
