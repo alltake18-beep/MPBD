@@ -15,6 +15,7 @@
   const HISTORY_KEY = "boss-duel:battle-history";
   const STORY_REWARD_FLOOR_PCT = 10;
   const STORY_REWARD_CEILING_MULTIPLE = 1000;
+  const STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION;
   const HAND_SECONDS = 40;
   const TURBO_TIME_SCALE = 1.65;
   const BOSS_RENDER_OVERFLOW = 120;
@@ -106,6 +107,13 @@
     return key === "royalFlush" ? "ROYAL FLUSH" : handNames[key] || evaluation?.label || "HIGH CARD";
   }
   const betSteps = [1, 2, 5, 10, 20, 50, 100, 200, 500, 800, 1000, 1200, 1500, 1800, 2000];
+  document.documentElement.dataset.storyBetContract = STORY_BET_CONTRACT_VERSION;
+
+  function storyCreditsForBet(story, betInput) {
+    const result = NaturalCore.materializeStoryForBet(story, betInput);
+    if (result.version !== STORY_BET_CONTRACT_VERSION) throw new Error("劇本 Bet 換算版本不一致");
+    return result;
+  }
   const originalCardArt = Object.create(null);
   const originalCardPacks = [
     ["04b742ae7", 867, 904, [["d9",3,3,1],["f13",292,3,1],["d8",581,3,1],["s5",3,229,1],["f9",292,229,1],["h4",581,229,1],["s1",3,455,1],["h10",292,455,1],["d10",581,455,1],["h13",3,681,1],["f12",292,681,1],["h2",581,681,1]]],
@@ -1587,7 +1595,11 @@
         poolSignature: "legacy"
       };
     encounter.bossInstanceId = `${playerState.id}:${playerState.epoch}:${playerState.index}:${packet.packetSeed >>> 0}`;
-    encounter.replayContract = { ...encounter.replayContract, bossInstanceId: encounter.bossInstanceId };
+    encounter.replayContract = {
+      ...encounter.replayContract,
+      bossInstanceId: encounter.bossInstanceId,
+      storyBetContract: story ? storyCreditsForBet(story, activeBet) : null
+    };
     encounter.operationSequence = 0;
     encounter.clientEventSequence = 0;
     encounter.actionLog = [];
@@ -2945,11 +2957,12 @@
     const ticketCopy = Array.isArray(packet.storyCommit?.ticketCounts)
       ? `${Number(packet.storyCommit.ticketBasis || 0).toLocaleString("zh-TW")} 分數籤：贏多 ${packet.storyCommit.ticketCounts[0].toLocaleString("zh-TW")}／贏少 ${packet.storyCommit.ticketCounts[1].toLocaleString("zh-TW")}／輸 ${packet.storyCommit.ticketCounts[2].toLocaleString("zh-TW")}`
       : "";
-    const actualResultCopy = packet.storyRecord
-      ? `實際總押 ${packet.storyRecord.spendX.toFixed(2)}x、總派彩 ${packet.storyRecord.payoutX.toFixed(2)}x、遊戲結果 ${packet.storyRecord.netX >= 0 ? "+" : ""}${packet.storyRecord.netX.toFixed(2)}x`
+    const storyBetCredits = packet.storyRecord ? storyCreditsForBet(packet.storyRecord, activeBet) : null;
+    const actualResultCopy = storyBetCredits
+      ? `劇本總押 ${storyBetCredits.spendX.toFixed(2)}x、總派彩 ${storyBetCredits.payoutX.toFixed(2)}x；BET ${storyBetCredits.bet} 實際點數為押 ${storyBetCredits.totalSpendCredits.toFixed(2)}、派 ${storyBetCredits.totalPayoutCredits.toFixed(2)}`
       : "";
     els.settingsNote.textContent = naturalStoryMode
-      ? `贏多、贏少、輸各從完整分類等機率抽 1 個。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`
+      ? `贏多、贏少、輸各從完整結果分類等機率抽 1 個；同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`
       : "首次 START 成功扣款才抽一次五路線與該路線內 VI；整隻 BOSS 共用同一故事。下一隻獨立放回抽籤，不讀上一局或個人盈虧。";
     els.combatLockState.textContent = naturalStoryMode
       ? `seed ${packet.naturalStorySeed}｜${packet.storyRecord.rounds} 回合`

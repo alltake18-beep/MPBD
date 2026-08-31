@@ -234,7 +234,8 @@ assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.include
 assert(css.includes("height: 584px") && css.includes("grid-template-rows: 252px auto") && css.includes("tutorial-page-art.page-p1 { width: 288px"), "tutorial proportions must reserve dedicated image and copy areas without the oversized empty panel");
 assert(css.includes("round-panel.png") && html.includes("round-word.png") && css.includes("round-numbers.png"), "the supplied ROUND panel, word, and number sheet must replace system text");
 assert(/\.round-ribbon\s*\{[^}]*width:\s*84px;[^}]*height:\s*59px;[^}]*transform:\s*none;/.test(css), "the top-left ROUND panel must use the original 84x59 reference size without the oversized 2x transform");
-assert(html.includes("boss-duel-poker-arrangement-lab-core.js?v=frontend-v84") && html.includes("boss-duel-rules.js?v=frontend-v84") && html.includes("boss-duel-natural-story-core.js?v=frontend-v84") && html.includes("boss-duel-demo.js?v=frontend-v84") && html.includes("boss-duel-demo.css?v=frontend-v84"), "Demo code, shared arrangement, and live story assets must share the v84 cache key");
+assert(html.includes("boss-duel-poker-arrangement-lab-core.js?v=frontend-v85") && html.includes("boss-duel-rules.js?v=frontend-v85") && html.includes("boss-duel-natural-story-core.js?v=frontend-v85") && html.includes("boss-duel-demo.js?v=frontend-v85") && html.includes("boss-duel-demo.css?v=frontend-v85"), "Demo code, shared arrangement, and live story assets must share the v85 cache key");
+assert(js.includes("STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION") && js.includes("NaturalCore.materializeStoryForBet") && js.includes("storyBetContract"), "game must use the shared X-multiplier story contract across every Bet and expose it in replay audit");
 assert(js.includes("NaturalCore.drawUniformPresetStoryCommit") && js.includes("ticketPreferencePct: { win: 1, push: 1, lose: 1 }") && js.includes("ticketBasis: 1000000"), "normal Demo play must draw one candidate uniformly from each full class pool and score-ticket the three candidates");
 assert(html.includes("boss-duel-story-planner.js?v=boss-plan-v10") && html.includes("boss-duel-story-preset-v1.js?v=story-catalog-v11"), "Demo must load the planner and freshly regenerated 240,000-story seed preset");
 assert(js.includes("executeRuntimeRedraw") && js.includes("plannedKeepIds") && js.includes("actualKeepIds") && js.includes("suppressionActive"), "Demo must compare each successful redraw with the planned action and persist suppression state");
@@ -248,7 +249,7 @@ assert(js.includes("let storyExperience = loadStoryExperience(runtimeConfig)") &
 assert(js.includes("els.rerollButton.hidden = !(ready || roundResult)") && !js.includes('packet.storyRuntimeMode === "FIXED" || !(ready || roundResult)'), "REROLL BOSS must be visible before play and between rounds in fixed and dynamic stories");
 assert(js.includes('.filter((key) => hasBoundMagicEffect(card, key))') && js.includes('Object.prototype.hasOwnProperty.call(card.magicEffects, key)'), "a bound 0X critical card must still render its playing-card badge");
 assert(js.includes('source: "NATURAL"') && js.includes('archetype: ""'), "story experience must use the Natural-only catalog");
-assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v84"'), "probability tool must keep a direct link to the current frontend Demo");
+assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v85"'), "probability tool must keep a direct link to the current frontend Demo");
 
 console.log(JSON.stringify({
   status: "ok",
