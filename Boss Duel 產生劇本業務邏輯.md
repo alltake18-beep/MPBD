@@ -185,9 +185,11 @@ StoryGenerator.materializeStoryForBet(story, bet, {
 3. 選中後，以 `releaseVersion + star + seed` 鎖定 BOSS 劇本。
 4. 前端選擇 Bet 後，用 `materializeStoryForBet()` 換算實際點數。
 5. 後端逐步比對玩家操作與 `story.path`；相同操作必須換出相同牌。
-6. 玩家操作不同時，記錄第一個偏離序號，再由抑制規則判斷。
+6. 玩家操作不同時，記錄第一個偏離序號，再由版本化抑制規則判斷。抑制是線上執行期契約，不參與 240,000 劇本生成或分類。
 7. 入場 Bet、換牌費、BOSS 更換費與劇本結果，按玩家該筆實際 Bet 對應到個人水池帳務桶。
 8. 擊殺 BOSS 時才由個人水池與合法骰獎補正規則處理最終 BOSS 獎項；原 seed、原骰獎與原劇本不得覆寫。
+
+目前執行期抑制為 `deviation-suppression-v2-separate-tables`：開卡時只有金幣卡公開數值，其餘傷害卡只公開種類；比牌時若沒有抑制就使用正常表後端隱藏值，若有抑制則暴擊、固傷與共用牌型傷害倍率各自改抽專用表。完整抑制參數與簽章必須隨 Boss 鎖定並可重播。
 
 ## 8. 可直接使用的主要方法
 

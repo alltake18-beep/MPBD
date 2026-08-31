@@ -55,7 +55,7 @@ function rowFor(story, index) {
     decisionMetrics: story.decisionMetrics,
     path: story.path
   });
-  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v10"}／story-action-trace-v1／deviation-suppression-v1`;
+  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v10"}／story-action-trace-v1／deviation-suppression-v2-separate-tables`;
   return [
     index + 1, story.id, story.seed, classLabel[story.classKey], story.killed ? "是" : "否",
     story.spendX, story.payoutX, null, null, story.hp, story.hpLeft, story.rounds,
@@ -113,7 +113,7 @@ summary.getRange("A1:N1").merge();
 summary.getRange("A1").values = [[`Boss Duel｜逐利型聰明玩家劇情總覽（8 星 × ${storiesPerStar.toLocaleString("en-US")} 局）`]];
 styleTitle(summary, summary.getRange("A1:N1"));
 summary.getRange("A2:N2").merge();
-summary.getRange("A2").values = [["版本：frontend-v85／action-tree-v30／boss-plan-v10／arrange-v9／natural-story-preset-v10　分類：贏多 ≥3x；贏少 ≥1x 且 <3x；輸 <1x；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet"]];
+summary.getRange("A2").values = [["版本：frontend-v86／action-tree-v31／boss-plan-v10／arrange-v9／natural-story-preset-v10　分類：贏多 ≥3x；贏少 ≥1x 且 <3x；輸 <1x；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet"]];
 summary.getRange("A2:N2").format = { fill: colors.cream, font: { color: colors.dark, italic: true }, wrapText: true };
 summary.getRange("A4:N4").values = [["星級", "故事數", "擊殺", "擊殺率", "贏多", "贏少", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌故事", "完整稽核", "重播契約"]];
 summary.getRange("A4:N4").format = { fill: colors.dark, font: { bold: true, color: "#FFFFFF" }, horizontalAlignment: "center", wrapText: true };

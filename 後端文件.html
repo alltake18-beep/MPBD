@@ -18,7 +18,7 @@
     <header>
       <p class="eyebrow">工程唯一現行規格 · 2026-08-31</p>
       <h1>Boss Duel 後端文件</h1>
-      <div class="badges"><span class="badge">backend-doc-v2</span><span class="badge">boss-duel-story-generator-v1</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
+      <div class="badges"><span class="badge">backend-doc-v3</span><span class="badge">suppression-v2 · SEPARATE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
       <div class="grid four" style="margin-top:16px">
         <div class="card"><strong>劇本來源</strong>預知完整固定種子的劇本導演，依法規劃並跑完整隻 Boss；同一劇本以 X 倍數通用所有 Bet。</div>
         <div class="card"><strong>新 Boss 抽取</strong>贏多、贏少、輸三個完整分類各抽 1 個，再做分數配籤。</div>
@@ -153,10 +153,10 @@
         <tr><td>建立新 Boss</td><td>送玩家、星級、BET、版本與唯一請求號；顯示後端鎖定結果。</td><td>抽三候選、配籤、抽中並鎖定劇本；此時不寫入個人劇本水池。</td></tr>
         <tr><td>第一次 START</td><td>送出開始請求。</td><td>驗證餘額後原子扣入場費，記入本隻玩家實際總押，並把「入場費 × 鎖定目標 RTP」加入 START 當下 BET 桶。</td></tr>
         <tr><td>遊玩</td><td>顯示已接受內容；玩家可自由送出保留、REDRAW、FIGHT、FOLD、CONTINUE 或停止。</td><td>以操作序號去重；保存劇本原定操作與實際操作是否相同；CONTINUE 與付費 REDRAW 每筆都按鎖定目標 RTP 入相同 Bet 桶。</td></tr>
-        <tr><td>隨機結果</td><td>換牌只接收最後被接受的牌；魔法開卡接收原值，戰鬥結算再接收最終有效值。</td><td>先完成換牌抑制判斷，被拒絕候選永遠不送前端；最終魔法值到傷害結算才決定。</td></tr>
+        <tr><td>隨機結果</td><td>換牌只接收最後被接受的牌；魔法開卡只接收種類，只有金幣卡同時接收實際加成。其餘傷害值到比牌結算才接收。</td><td>先完成換牌抑制判斷，被拒絕候選永遠不送前端；比牌時依鎖定狀態選正常表或抑制表，抽出本次傷害有效值。</td></tr>
         <tr><td>結算</td><td>表演 Boss 骰獎、Coin Bonus、玩家最終派彩與餘額。</td><td>先算個人劇本水池，再選合法骰面，最後只結算一次。</td></tr>
       </tbody></table></div>
-      <div class="note"><strong>完整重播契約：</strong>本隻鎖定故事種子、星級、分類、牌局規則版、規劃器版、操作紀錄版、抑制政策版與故事池簽章。第一次 START 後保存玩家與 Boss 初始手牌 ID、魔法卡種類／原值／綁定位；每筆操作保存遞增序號、冪等請求號、操作前後手牌／保留／牌堆／HP、劇本原定操作及實際操作，FIGHT 再保存魔法卡最終有效值。相同契約加相同有序操作，雙方初始手牌、魔法卡、換牌與結算必須完全一致；只存種子或只存最後手牌都不完整。</div>
+      <div class="note"><strong>完整重播契約：</strong>本隻鎖定故事種子、星級、分類、牌局規則版、規劃器版、操作紀錄版、完整抑制參數、抑制政策簽章與故事池簽章。第一次 START 後保存玩家與 Boss 初始手牌 ID、魔法卡種類、後端正常表隱藏值與綁定位；每筆操作保存遞增序號、冪等請求號、操作前後手牌／保留／牌堆／HP、劇本原定操作及實際操作，FIGHT 再保存使用哪張表、抽取亂數、結果索引與最終有效值。相同契約加相同有序操作，雙方初始手牌、魔法卡、換牌與結算必須完全一致；只存種子或只存最後手牌都不完整。</div>
       <div class="warning"><strong>鎖定後不得偷改：</strong>不能換劇本、改 Boss 手牌、改對手牌、改劇本種子，或為了貼近承諾結果而直接指定玩家牌。允許的執行期控制只有下一節明定的換牌／最終魔法抑制，以及個人劇本水池驅動的合法 Boss 骰獎補正。</div>
       <div class="note"><strong>正式前端只收當下公開結果：</strong>劇本種子、未來牌序、Boss 未公開手牌、三候選、分數、籤數、中籤整數 K、抑制亂數狀態與個人劇本水池餘額都只留後端。前端每次操作只送請求與序號，不能預載完整劇本後自行結算。</div>
     </section>
@@ -165,17 +165,18 @@
       <h2>六、玩家偏離時的過程抑制</h2>
       <div class="formula goldbox"><strong>唯一啟動條件</strong><code>原劇本 killed = false</code><code>而且：成功換牌時，玩家實際保留牌 ID 集合 ≠ 劇本同回合／同平手重發段／同換牌序號的預定保留牌 ID 集合</code><span class="small">只比較牌的識別碼集合，不比較顯示順序。一旦不一致，自該次換牌候選開始，本隻 Boss 後續永久處於抑制狀態。同回合若換牌多次，第二次以劇本第一次換牌後應保留的牌為基準，不能重用該回合最初的保留集合。</span></div>
       <p>原劇本可擊殺時完全不啟動過程抑制；本機制只增加阻礙，不要求玩家路徑重新接回原劇本。</p>
-      <div class="note"><strong>哪些偏離要存：</strong>FIGHT／FOLD、提前停止、CONTINUE、換 Boss、換 BET 與每次保留選擇都要保存並標示是否符合劇本；但 <code>deviation-suppression-v1</code> 只由上方「不可擊殺劇本＋成功 REDRAW 保留集合不同」啟動。啟用後維持到本隻 Boss 結束。</div>
+      <div class="note"><strong>哪些偏離要存：</strong>FIGHT／FOLD、提前停止、CONTINUE、換 Boss、換 BET 與每次保留選擇都要保存並標示是否符合劇本；正式預設 <code>deviation-suppression-v2-separate-tables</code> 仍只由上方「不可擊殺劇本＋成功 REDRAW 保留集合不同」啟動。啟用後維持到本隻 Boss 結束。</div>
       <div class="table-wrap"><table><thead><tr><th>項目</th><th>後端實際處理</th></tr></thead><tbody>
         <tr><td>牌型階級</td><td>高牌＜一對＜兩對＜三條＜順子＜同花＜葫蘆＜四條＜同花順＜皇家同花順。同牌型內的點數或 kicker 改善不算升級。</td></tr>
         <tr><td>換牌候選</td><td>後端先抽完整換牌結果，與這次換牌前玩家的實際牌型比較，不和劇本預定牌型比較。牌型沒有上升就立即接受；牌型上升才再抽一次 50%，50% 接受、50% 拒絕。</td></tr>
         <tr><td>候選被拒絕</td><td>還原換牌前的手牌與牌堆，被拒絕牌放回，再抽下一個完整候選；前端完全看不到被拒絕結果。</td></tr>
         <tr><td>重抽上限</td><td>每個改善候選都重新獨立抽 50%。最多檢查 30 個候選；第 30 個不再判斷，直接接受。</td></tr>
-        <tr><td>最終暴擊</td><td>開卡原值 ≥2x 時，戰鬥最終有效值改抽 1x／2x，各 50%；低於門檻維持原值。</td></tr>
-        <tr><td>最終固傷</td><td>開卡原值 ≥+4 時，戰鬥最終有效值改抽 +3／+4，各 50%；低於門檻維持原值。</td></tr>
-        <tr><td>最終牌型魔法</td><td>開卡原值 ≥2x 時，戰鬥最終有效值改抽 1x／2x，各 50%；低於門檻維持原值。</td></tr>
+        <tr><td>最終暴擊</td><td>沒有抑制時使用正常表的後端隱藏值；有抑制時不看正常值，直接抽「暴擊倍率抑制表」。預設結果為 1x／2x，權重 50／50。</td></tr>
+        <tr><td>最終固傷</td><td>沒有抑制時使用正常表的後端隱藏值；有抑制時不看正常值，直接抽「固定傷害抑制表」。預設結果為 +3／+4，權重 50／50。</td></tr>
+        <tr><td>最終牌型魔法</td><td>三條、四條、順子、同花、葫蘆與日後新增的牌型傷害卡全部共用一張「牌型傷害倍率抑制表」。預設結果為 1x／2x，權重 50／50；不得為每種牌型私建不同邏輯。</td></tr>
       </tbody></table></div>
-      <div class="note"><strong>時間點：</strong>魔法卡不是開局重抽。前端仍可顯示原卡值；真正計算傷害、Boss 扣血與擊殺時，才使用三種效果各自獨立抽出的最終有效值。</div>
+      <div class="warning"><strong>前端揭露規則：</strong>開卡時只公開魔法卡種類；只有金幣卡立即公開實際加成。暴擊倍率、固定傷害與所有牌型傷害倍率，在手牌整理、換牌及 FIGHT 前都不得下發或以總傷害反推；比牌／傷害結算時才公開本次最終有效值。</div>
+      <div class="note"><strong>參數化與鎖定：</strong>機率工具的「抑制參數」獨立區塊可調整總開關、啟動條件、是否鎖定到 Boss 結束、換牌兩類候選接受率、候選上限、末候選強制接受，以及三張傷害抑制表的啟用、結果值與權重。建立 Boss 時必須鎖定完整參數與簽章；中途修改只套用下一隻 Boss。這是執行期規則，不重建或切分 240,000 個劇本。</div>
     </section>
 
     <section id="pool" class="green">
@@ -357,10 +358,10 @@
         </div>
 
         <div class="case-step"><div class="case-step-title"><span class="step-no">4</span>第 2 回合最終傷害：魔法卡到戰鬥時才抑制</div><div class="lanes">
-          <div class="lane player"><strong>玩家看見</strong>第 1 回合一對 9 擊敗 Boss A 高牌，造成 1 傷害；Boss HP 10 → 9。支付 CONTINUE 10 後，第 2 回合看見 CRITICAL 3X 與 FULL HOUSE 3X，手牌為<div class="cards-line"><span class="playing-card">Q♠</span><span class="playing-card red-suit">Q♥</span><span class="playing-card red-suit">Q♦</span><span class="playing-card">5♣</span><span class="playing-card red-suit">5♦</span><span class="playing-card">2♠</span></div>玩家按 FIGHT；W 最終為 30。</div>
+          <div class="lane player"><strong>玩家看見</strong>第 1 回合一對 9 擊敗 Boss A 高牌，造成 1 傷害；Boss HP 10 → 9。支付 CONTINUE 10 後，第 2 回合只看見 CRITICAL 與 FULL HOUSE 兩種卡片，沒有倍率數字；手牌為<div class="cards-line"><span class="playing-card">Q♠</span><span class="playing-card red-suit">Q♥</span><span class="playing-card red-suit">Q♦</span><span class="playing-card">5♣</span><span class="playing-card red-suit">5♦</span><span class="playing-card">2♠</span></div>玩家按 FIGHT；W 最終為 30。</div>
           <div class="lane script"><strong>劇本原定走法</strong>原劇本第 2 回合不是這條牌路，會停損並在第 3 回合結束時仍未擊殺；因此原劇本承諾派彩仍是 0。</div>
-          <div class="lane actual"><strong>玩家實際路徑</strong>玩家現在是 QQQ55 葫蘆，基礎傷害 8；表面兩張魔法卡都為 3X。如果不抑制，傷害是 8 × (3+3) = 48。</div>
-          <div class="lane backend"><strong>後端判斷時點</strong>抑制已鎖定，所以到最終戰鬥才各自重抽有效值：CRITICAL 3X → 1X；FULL HOUSE 3X → 1X。最終傷害 = 8 × (1+1) = 16，仍大於 Boss 剩餘 9 HP，因此實際擊殺。傷害與 HP 判斷一律使用 16，不能使用前端開卡時的 48。</div>
+          <div class="lane actual"><strong>玩家實際路徑</strong>玩家現在是 QQQ55 葫蘆，前端只能確認基礎傷害 8，以及兩種傷害卡可能生效；在比牌前不知道倍率。</div>
+          <div class="lane backend"><strong>後端判斷時點</strong>抑制已鎖定，所以不使用兩張卡的正常表隱藏值，改由暴擊表與共用牌型傷害表各自抽一次。本例兩表都抽到 1X，結算時才揭露；最終傷害 = 8 × (1+1) = 16，仍大於 Boss 剩餘 9 HP，因此實際擊殺。</div>
         </div></div>
 
         <div class="case-step"><div class="case-step-title"><span class="step-no">5</span>意外擊殺：以潛在原骰獎與整隻劇本結果做合法補正</div><div class="lanes">
@@ -408,7 +409,7 @@
       <div class="table-wrap"><table><thead><tr><th>交易／資料</th><th>後端必存內容</th><th>失敗時</th></tr></thead><tbody>
         <tr><td>新 Boss 鎖定</td><td>玩家、BET、星級、劇本版本、鎖定目標 RTP、三候選 ID、分數、籤數、理論誤差、中籤整數 K、抽中劇本與唯一請求號。</td><td>版本錯誤或無法配籤時不得留下半筆鎖定。</td></tr>
         <tr><td>第一次 START</td><td>鎖定劇本 ID、START 請求號、實際扣款、鎖定 BET、目標 RTP 入池額與開始前同桶水池。</td><td>扣款、玩家實際總押與個人劇本水池寫入必須原子完成；失敗時劇本維持未開始。</td></tr>
-        <tr><td>操作交易</td><td>操作序號、前狀態版本、同回合／同平手重發段／同換牌序號的劇本預定保留牌 ID、玩家實際保留牌 ID、換牌前後狀態、抑制是否鎖定、候選序列與每次 50% 判定的稽核紀錄（或可完整重播的 RNG 版本與狀態）、接受結果及原始／最終有效魔法值。</td><td>重送同一序號只回傳第一次結果；不能重複扣款、重新抽值或前進節點。</td></tr>
+        <tr><td>操作交易</td><td>操作序號、前狀態版本、同回合／同平手重發段／同換牌序號的劇本預定保留牌 ID、玩家實際保留牌 ID、換牌前後狀態、完整抑制參數簽章、抑制是否鎖定、候選序列、使用的候選接受率／亂數／結果、接受補牌，以及傷害魔法的正常表隱藏值、最終選用表、權重快照、結果索引與最終有效值。</td><td>重送同一序號只回傳第一次結果；不能重複扣款、重新抽值或前進節點。</td></tr>
         <tr><td>付費換 Boss</td><td>更換請求號、舊 Boss 狀態、舊劇本結算、更換費扣款與入桶、新 Boss 鎖定。</td><td>五項必須同一交易完成；重送只回第一次結果，任一步失敗就全部回滾。</td></tr>
         <tr><td>換 BET</td><td>換注請求號、舊 BET 與舊劇本結算、新 BET、新 Boss 鎖定。</td><td>不得搬移三桶餘額；重送不得重複結算或建立第二隻 Boss。</td></tr>
         <tr><td>結算交易</td><td>鎖定目標 RTP、玩家實際總押、目標入池額、自然派彩、原骰獎、合法骰面、10%～1,000 倍邊界、補正額、個人劇本水池前後與玩家最終派彩。</td><td>斷線後恢復同一 Boss 與同一結算；派彩只能完成一次。</td></tr>
@@ -417,10 +418,10 @@
       <h3>關鍵檔案</h3>
       <div class="table-wrap"><table><thead><tr><th>檔案</th><th>現行責任</th></tr></thead><tbody>
         <tr><td><a href="boss-duel-story-generator.js"><code>boss-duel-story-generator.js</code></a></td><td>工程正式入口：協調現行核心，產生每星三種結果各 10,000、全量重播、checkpoint、簽章與原子發布；以 X 倍數劇本通用所有 Bet。</td></tr>
-        <tr><td><code>boss-duel-natural-story-core.js</code></td><td>劇本生成、分類、三候選與配籤；唯一 <code>story-bet-scaling-v1</code> 換算；偏離抑制、個人劇本水池三桶與合法骰獎補正核心。</td></tr>
-        <tr><td><code>boss-duel-demo.js</code></td><td>遊戲接線：玩家實際總押、偏離鎖定、換 Boss／BET、最終魔法與個人劇本水池結算。</td></tr>
-        <tr><td><code>boss-duel-action-tree-core.js</code></td><td>工具四玩家統計、逐利玩家配籤、個人劇本水池與補正容量。</td></tr>
-        <tr><td><code>boss-duel-action-tree-lab.js</code></td><td>工具操作、參數、補正試算與統計報表。</td></tr>
+        <tr><td><code>boss-duel-natural-story-core.js</code></td><td>劇本生成、分類、三候選與配籤；唯一 <code>story-bet-scaling-v1</code> 換算；<code>deviation-suppression-v2-separate-tables</code> 參數正規化、確定性分表抽取、個人劇本水池三桶與合法骰獎補正核心。</td></tr>
+        <tr><td><code>boss-duel-demo.js</code></td><td>遊戲接線：比牌前隱藏傷害魔法數值、玩家實際總押、偏離鎖定、換 Boss／BET、分表魔法結算與個人劇本水池結算。</td></tr>
+        <tr><td><code>boss-duel-action-tree-core.js</code></td><td>工具四玩家統計、逐利玩家配籤、個人劇本水池、補正容量與抑制參數資料契約。</td></tr>
+        <tr><td><code>boss-duel-action-tree-lab.js</code></td><td>工具操作、分類參數區塊、抑制專用表設定、補正試算與統計報表。</td></tr>
         <tr><td><code>boss-duel-story-planner.js</code></td><td>預知完整固定種子的劇本導演；負責整隻 Boss 的合法路線比較、Joker、換牌後重決策與停損。</td></tr>
         <tr><td><code>boss-duel-poker-arrangement-lab-core.js</code></td><td>正式遊戲與理牌試玩共用的保留、替換與排序核心。</td></tr>
         <tr><td><code>tools/test-story-generator-service.js</code></td><td>正式產生器的版本、數量、重播、多 worker 與跨 Bet 不變性測試。</td></tr>
@@ -429,7 +430,7 @@
       </tbody></table></div>
       <div class="pass"><strong>現行 Excel 驗證：</strong>1～8 星各 30,000 局、三分類各 10,000；每個星級頁 18 欄並保存完整重播稽核 JSON。公式／錯誤標記為 0，OpenXML 封裝、試算表讀取器開啟與 9 張預覽均已檢查。</div>
       <p class="small">表內既有英文檔名、欄位名與版本字串只保留作程式相容識別，不是產品名詞；所有對外內容一律稱「劇本」，差額帳本一律稱「個人劇本水池」。</p>
-      <div class="note"><strong>版本一致：</strong>種子檔可能仍含 256 組相容診斷候選，但 <code>frontend-v85</code> 不把它們當入場來源。現行每次建立新 Boss 永遠從三個完整結果分類各抽 1 個；遊戲、機率工具、Excel、操作重播與完整稽核必須共同使用 v10 簽章。</div>
+      <div class="note"><strong>版本一致：</strong>種子檔可能仍含 256 組相容診斷候選，但 <code>frontend-v86</code> 不把它們當入場來源。現行每次建立新 Boss 永遠從三個完整結果分類各抽 1 個；遊戲、機率工具、Excel、操作重播與完整稽核必須共同使用 v10 劇本簽章與 suppression-v2 執行期簽章。</div>
     </section>
 
     <footer>本頁是工程現行規格；《Boss Duel 故事池數學模型.md》與《Boss Duel 交接.md》必須同步。未實際驗證的項目不得宣稱通過。</footer>

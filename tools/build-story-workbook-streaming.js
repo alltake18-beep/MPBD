@@ -72,7 +72,7 @@ function rowValues(story, index) {
     path: story.path
   });
   if (fullReplayAudit.length > 32767) throw new Error(`${story.id} 完整稽核超過 Excel 單格上限`);
-  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v10"}／story-action-trace-v1／deviation-suppression-v1`;
+  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v10"}／story-action-trace-v1／deviation-suppression-v2-separate-tables`;
   return [
     index + 1, story.id, story.seed, classLabel[story.classKey], story.killed ? "是" : "否",
     story.spendX, story.payoutX, story.netX, story.payoutX / Math.max(story.spendX, Number.EPSILON),
@@ -177,7 +177,7 @@ async function buildSummarySheet(statsRows) {
   }, { count: 0, kills: 0, classCounts: { win: 0, push: 0, lose: 0 }, spend: 0, payout: 0, returnX: 0, net: 0, redrawStories: 0 });
   const rows = [];
   rows.push(`<row r="1" ht="34" customHeight="1">${stringCell("A1", "Boss Duel｜逐利型聰明玩家劇情總覽（8 星 × 30,000 局）", 1)}</row>`);
-  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v85／action-tree-v30／boss-plan-v10／arrange-v9／natural-story-preset-v10；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
+  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v86／action-tree-v31／boss-plan-v10／arrange-v9／natural-story-preset-v10；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
   const summaryHeaders = ["星級", "故事數", "擊殺", "擊殺率", "贏多", "贏少", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌故事", "完整稽核", "重播契約"];
   rows.push(`<row r="4" ht="40" customHeight="1">${summaryHeaders.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   statsRows.forEach((stats, index) => rows.push(summaryRowXml(stats, index + 5)));
