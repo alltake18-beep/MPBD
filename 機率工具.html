@@ -8,13 +8,13 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v29");
+      params.set("v", "action-tree-v30");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="styles.css?v=action-tree-v29">
-  <link rel="stylesheet" href="boss-duel-action-tree-lab.css?v=action-tree-v29">
+  <link rel="stylesheet" href="styles.css?v=action-tree-v30">
+  <link rel="stylesheet" href="boss-duel-action-tree-lab.css?v=action-tree-v30">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
@@ -22,12 +22,12 @@
       <div class="title-block">
         <p class="eyebrow">NATURAL STORIES · PLAYER REPORTS</p>
         <h1>機率工具</h1>
-        <p class="header-subtitle">目前內建 24 個正式故事桶：每星的贏多、贏少、輸各 10,000 個，共 240,000 個；全部通過種子、版本與操作重播契約驗證後才替換。</p>
+        <p class="header-subtitle">目前內建 24 個「星級 × 結果分類」資料格：每星的贏多、贏少、輸各 10,000 個，共 240,000 個；劇本以 X 倍數通用所有 Bet，不依 Bet 分池或重複產生。</p>
       </div>
       <div class="header-actions" aria-label="工具捷徑">
         <button id="restoreButton" class="secondary" type="button">還原範例</button>
-        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v1" target="_blank" rel="noopener">後端文件</a>
-        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v84" target="_blank" rel="noopener">開啟遊戲</a>
+        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v2" target="_blank" rel="noopener">後端文件</a>
+        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v85" target="_blank" rel="noopener">開啟遊戲</a>
       </div>
     </header>
 
@@ -54,6 +54,7 @@
               <label>不可配籤重抽上限<input id="maxCandidateAttempts" type="number" min="1" max="1000000" step="1" value="10000"><span class="field-help">只有三候選無法跨過目標 RTP 或任一候選會變成 0 籤時，才整組重新各抽一次。</span></label>
               <label>模擬種子<input id="seed" type="number" min="0" max="4294967295" step="1" value="" placeholder="留白＝每次隨機"><span class="field-help">留白時每次產生新種子；統計報表會顯示實際種子，填回即可重現。</span></label>
             </div>
+            <p class="proxy-note"><strong>劇本與 Bet：</strong>正式劇本只有星級與結果分類維度，以 <code>spendX</code>／<code>payoutX</code> 保存。模擬任意 Bet 時只做點數等比例換算，seed、發牌、魔法卡、AI 路線與分類完全不變；下方三個 Bet 桶只屬個人劇本水池帳務。</p>
 
             <div class="inline-section-title">
               <div><strong>樣本與玩家條件</strong><small>變更後須重新執行</small></div>
@@ -241,15 +242,15 @@
             <div class="gate-list" aria-label="即時發布閘門">
               <div><span>96% 配籤</span><strong id="overallGrossRtp">—</strong><small id="grossRtpDelta">本階段不執行</small></div>
               <div><span>配籤誤差</span><strong id="maxStarError">—</strong><small>本階段不執行</small></div>
-              <div><span>正式故事池</span><strong id="pushFloorState">—</strong><small>24 桶共 240,000</small></div>
+              <div><span>正式故事目錄</span><strong id="pushFloorState">—</strong><small>24 個結果資料格，共 240,000</small></div>
               <div><span>三候選動態配籤</span><strong id="ticketState">—</strong><small>故事確認後再做</small></div>
-              <div><span>24 桶重播契約</span><strong id="naturalGateState">待驗證</strong><small>每桶固定 10,000</small></div>
+              <div><span>24 格重播契約</span><strong id="naturalGateState">待驗證</strong><small>每個結果資料格固定 10,000</small></div>
               <div><span>Demo 體驗</span><strong id="publishState">等待故事</strong><small>選 seed 後直接重播</small></div>
               <div><span>混池分配</span><strong id="rtpSwingState">—</strong><small id="rtpSwingNote">故事確認後決定</small></div>
             </div>
 
             <div id="naturalStatus" class="pending-box" role="status">
-              <strong>等待驗證</strong><span>按「開始模擬」後自動檢查 24 桶各 10,000 局、分類與版本化重播契約；只有失敗時列出原因。</span>
+              <strong>等待驗證</strong><span>按「開始模擬」後自動檢查 24 個結果資料格各 10,000 局、分類與版本化重播契約；只有失敗時列出原因。</span>
             </div>
           </div>
         </details>
@@ -399,14 +400,14 @@
 
   </div>
 
-  <script src="dice-first-core.js?v=action-tree-v29"></script>
+  <script src="dice-first-core.js?v=action-tree-v30"></script>
   <script src="boss-duel-poker-arrangement-lab-core.js?v=arrange-v9"></script>
-  <script src="boss-duel-rules.js?v=action-tree-v29"></script>
+  <script src="boss-duel-rules.js?v=action-tree-v30"></script>
   <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
   <script src="boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
-  <script src="boss-duel-natural-story-core.js?v=action-tree-v29"></script>
-  <script src="boss-duel-action-tree-core.js?v=action-tree-v29"></script>
-  <script src="boss-duel-action-tree-lab.js?v=action-tree-v29"></script>
+  <script src="boss-duel-natural-story-core.js?v=action-tree-v30"></script>
+  <script src="boss-duel-action-tree-core.js?v=action-tree-v30"></script>
+  <script src="boss-duel-action-tree-lab.js?v=action-tree-v30"></script>
 </body>
 </html>

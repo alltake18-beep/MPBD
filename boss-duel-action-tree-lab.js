@@ -280,7 +280,7 @@
     $("validationMessage").textContent = simulationReady
       ? `已從贏多、贏少、輸三個完整分類各等機率抽一個自然故事，再配成 ${pct(config.targetCoreRtpPct, 3)}；每筆花費也按同一 RTP 比例加入個人劇本水池。`
       : poolReady
-        ? "240,000 個正式故事已完成 24 桶數量、自然分類與重播契約驗證；可繼續執行三分類全池抽取與分數配籤模擬。"
+        ? "240,000 個正式故事已完成 24 個星級 × 結果分類資料格的數量、自然分類與重播契約驗證；可繼續執行三分類全池抽取與分數配籤模擬。"
       : naturalState.issues.slice(0, 4).join("；");
   }
 
@@ -317,7 +317,7 @@
     const state = naturalChecks();
     const status = $("naturalStatus");
     status.className = `pending-box ${state.pending ? "warn" : state.pass ? "valid" : "error"}`;
-    status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "故事池驗證完成" : "故事池驗證失敗"}</strong><span>${state.pending ? "按「開始模擬」後自動檢查 24 桶各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏少、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
+    status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "故事池驗證完成" : "故事池驗證失敗"}</strong><span>${state.pending ? "按「開始模擬」後自動檢查 24 個結果資料格各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏少、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
   }
 
   const switchLabels = {
@@ -832,7 +832,7 @@
     readTreeMatrix();
     config = Core.sanitizeConfig(config);
     $("runSimulationButton").disabled = true;
-    $("simulationState").textContent = "正在載入 240,000 個正式故事摘要並驗證 24 桶各 10,000 局…";
+    $("simulationState").textContent = "正在載入 240,000 個正式故事摘要並驗證 24 個結果資料格各 10,000 局…";
     requestAnimationFrame(() => {
       try {
         const summaryPreset = window.BossDuelStorySummaryPresetV1;
@@ -960,7 +960,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v84",
+      v: "frontend-v85",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),

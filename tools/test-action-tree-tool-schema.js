@@ -22,12 +22,12 @@ for (const asset of [
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v29/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v30/);
 assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v5/);
 assert.match(html, /boss-duel-poker-arrangement-lab-core\.js\?v=arrange-v9/);
 assert.match(html, /class="app-shell action-tree-tool"/);
 assert.match(html, /class="workbench"/);
-assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v1"/);
+assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v2"/);
 assert.match(html, /id="resultsArea"[^>]*is-hidden/);
 assert.equal((html.match(/class="control-card"/g) || []).length, 5);
 assert.equal((html.match(/data-report-panel=/g) || []).length, 8);
@@ -66,6 +66,14 @@ const localScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)
 for (const source of localScripts) assert(fs.existsSync(path.join(root, source)), `missing script ${source}`);
 const combined = `${html}\n${localScripts.map((source) => fs.readFileSync(path.join(root, source), "utf8")).join("\n")}`;
 assert.match(combined, /FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS/);
+assert.match(html, /劇本以 X 倍數通用所有 Bet/);
+assert.equal(ActionCore.STORY_BET_CONTRACT_VERSION, "story-bet-scaling-v1");
+const betOneStory = ActionCore.materializeStoryCredits({ spendX: 2.5, payoutX: 7.5 }, 1);
+const futureBetStory = ActionCore.materializeStoryCredits({ spendX: 2.5, payoutX: 7.5 }, 3333);
+assert.equal(betOneStory.netX, futureBetStory.netX);
+assert.equal(futureBetStory.spendCredits, 2.5 * 3333);
+assert.equal(futureBetStory.payoutCredits, 7.5 * 3333);
+assert.equal(futureBetStory.betIndependent, true);
 
 for (const behavior of ["OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME", "SMART"]) {
   assert.match(combined, new RegExp(`value="${behavior}"|\\["${behavior}"`), `missing player model ${behavior}`);
@@ -130,6 +138,6 @@ assert.match(engineerDoc, /R₀ × 1,000/);
 assert.doesNotMatch(engineerDoc, /個人差額池|個人故事差額池|StoryCommit|Credits|PASS/);
 
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v29", storyCount: 240000,
+  status: "ok", cacheKey: "action-tree-v30", storyCount: 240000,
   localScripts, uniqueDomIds: ids.length, catalogOnly: false, fullClassUniformTickets: true
 }, null, 2));

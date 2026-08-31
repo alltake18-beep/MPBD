@@ -16,6 +16,7 @@
   const TICKET_BASIS = 10000;
   const PAYOUT_BUCKETS = [0, 1, 2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 500, 1000];
   const BET_VALUES = [1, 2, 5, 10, 20, 50, 100, 200, 500, 800, 1000, 1200, 1500, 1800, 2000];
+  const STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION;
   const PLAYER_BEHAVIORS = ["SMART", "OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME"];
   const NATURAL_HAND_WEIGHTS = { high: 180, pair: 300, twoPair: 220, three: 120, straight: 80, flush: 50, fullHouse: 30, four: 15, straightFlush: 5 };
 
@@ -467,6 +468,12 @@
     return config.simulation.fixedBet;
   }
 
+  function materializeStoryCredits(story, betInput) {
+    const result = NaturalCore.materializeStoryForBet(story, betInput);
+    if (result.version !== STORY_BET_CONTRACT_VERSION) throw new Error("劇本 Bet 換算版本不一致");
+    return result;
+  }
+
   function drawFullClassStoryCommit(pool, config, star, random) {
     const cells = pool?.naturalCells?.[star] || pool?.cells?.[star];
     if (!cells || TREE_KEYS.some((key) => !(cells[key] || []).length)) throw new Error(`${star} 星三分類故事池不完整`);
@@ -524,8 +531,9 @@
         const bet = simulationBet(config, playerIndex, bossIndex, random);
         const commit = drawFullClassStoryCommit(pool, config, star, random);
         const story = commit.selectedStory;
-        const actualSpendCredits = finite(story.spendX, 0) * bet;
-        const organicPayoutCredits = finite(story.payoutX, 0) * bet;
+        const storyCredits = materializeStoryCredits(story, bet);
+        const actualSpendCredits = storyCredits.spendCredits;
+        const organicPayoutCredits = storyCredits.payoutCredits;
         const settlement = NaturalCore.settleCommittedStory(commit, bucketBalances, bet, {
           actualSpendCredits,
           organicPayoutCredits,
@@ -1075,8 +1083,9 @@
       const story = record.story;
       const bet = record.bet;
       const spend = record.settlement.actualSpendCredits;
-      const committedSpend = story.spendX * bet;
-      const committedPayout = story.payoutX * bet;
+      const storyCredits = materializeStoryCredits(story, bet);
+      const committedSpend = storyCredits.spendCredits;
+      const committedPayout = storyCredits.payoutCredits;
       const organicPayout = record.settlement.organicPayoutCredits;
       const actualPayout = record.settlement.actualPayoutCredits;
       const correction = record.settlement.correction.deltaCredits;
@@ -1487,9 +1496,9 @@
   }
 
   const publicApi = {
-    TREE_KEYS, TREE_LABELS, SPEND_FACTORS, STORAGE_KEY, CHANNEL_NAME, TICKET_BASIS, PAYOUT_BUCKETS, BET_VALUES, PLAYER_BEHAVIORS,
+    TREE_KEYS, TREE_LABELS, SPEND_FACTORS, STORAGE_KEY, CHANNEL_NAME, TICKET_BASIS, PAYOUT_BUCKETS, BET_VALUES, STORY_BET_CONTRACT_VERSION, PLAYER_BEHAVIORS,
     DEFAULT_CONFIG: clone(DEFAULT_CONFIG), clone, sanitizeConfig, mixedRtpPct, solveStarTickets,
-    solveAllStars, naturalityStatus, storyDeviation, settleCarry,
+    solveAllStars, naturalityStatus, storyDeviation, settleCarry, materializeStoryCredits,
     drawFullClassStoryCommit, simulate: simulateNaturalModel, simulateNaturalModel, simulateLegacy: simulate,
     NaturalCore
   };
