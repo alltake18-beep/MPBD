@@ -7,7 +7,7 @@ const preset = require("../boss-duel-story-preset-v1.js");
 const summaryPreset = require("../boss-duel-story-summary-preset-v1.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-assert.equal(preset.signature, StoryCore.poolSignature(config), "preset signature does not match the current formal rules");
+assert.equal(StoryCore.presetMatchesOutcomeRules(config, preset), true, "preset signature does not match the current story-generation rules");
 assert.equal(summaryPreset.signature, preset.signature, "summary and seed preset signatures must match");
 const pool = StoryCore.buildNaturalStoryPoolFromPreset(config, { ...preset, naturalSummaries: summaryPreset.naturalSummaries }, { useCache: false, includePath: false });
 assert(pool, "preset did not hydrate");

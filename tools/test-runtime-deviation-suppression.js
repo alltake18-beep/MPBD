@@ -81,15 +81,45 @@ magicState.magicCards = [{ key: `${magicState.playerEval.key}Boost`, target: mag
 const magicA = NaturalCore.resolveRuntimeMagic(magicState, { story, actionSequence: 3, suppressionActive: true });
 const magicB = NaturalCore.resolveRuntimeMagic(magicState, { story, actionSequence: 3, suppressionActive: true });
 assert.deepEqual(magicA, magicB, "final magic suppression must replay exactly");
-assert.ok(magicA.values.find((row) => row.kind === "crit" && [1, 2].includes(row.final)));
-assert.ok(magicA.values.find((row) => row.kind === "flatDamage" && [3, 4].includes(row.final)));
-assert.ok(magicA.values.find((row) => /Boost$/.test(row.kind) && [1, 2].includes(row.final)));
+assert.ok(magicA.values.find((row) => row.kind === "crit" && row.tableKey === "crit" && row.sourceTable === "SUPPRESSION" && [1, 2].includes(row.final)));
+assert.ok(magicA.values.find((row) => row.kind === "flatDamage" && row.tableKey === "flatDamage" && row.sourceTable === "SUPPRESSION" && [3, 4].includes(row.final)));
+assert.ok(magicA.values.find((row) => /Boost$/.test(row.kind) && row.tableKey === "handBoost" && row.sourceTable === "SUPPRESSION" && [1, 2].includes(row.final)));
+
+const customPolicy = NaturalCore.normalizeSuppressionPolicy({
+  redraw: { improvedAcceptPct: 12.5, sameOrLowerAcceptPct: 87.5, maxCandidates: 44 },
+  magic: {
+    tables: {
+      crit: { outcomes: [{ value: 7, weight: 1 }, { value: 8, weight: 0 }] },
+      flatDamage: { outcomes: [{ value: 9, weight: 1 }, { value: 10, weight: 0 }] },
+      handBoost: { outcomes: [{ value: 4, weight: 1 }, { value: 6, weight: 0 }] }
+    }
+  }
+});
+const customMagic = NaturalCore.resolveRuntimeMagic(magicState, {
+  story,
+  actionSequence: 4,
+  suppressionActive: true,
+  suppressionPolicy: customPolicy
+});
+assert.equal(customMagic.values.find((row) => row.kind === "crit").final, 7);
+assert.equal(customMagic.values.find((row) => row.kind === "flatDamage").final, 9);
+assert.equal(customMagic.values.find((row) => /Boost$/.test(row.kind)).final, 4, "all hand-type damage cards must share handBoost suppression table");
+const normalMagic = NaturalCore.resolveRuntimeMagic(magicState, {
+  story,
+  actionSequence: 4,
+  suppressionActive: false,
+  suppressionPolicy: customPolicy
+});
+assert.equal(normalMagic.values.find((row) => row.kind === "crit").final, 5, "normal state must retain the hidden normal-table value");
+assert.ok(normalMagic.values.every((row) => row.sourceTable === "NORMAL"));
 
 const contract = NaturalCore.replayContract(story, config);
 assert.equal(contract.storySeed, story.seed);
 assert.equal(contract.rulesVersion, Rules.VERSION);
 assert.equal(contract.plannerVersion, "boss-plan-v10");
 assert.equal(contract.suppressionPolicyVersion, NaturalCore.SUPPRESSION_POLICY_VERSION);
+assert.equal(contract.suppressionPolicy.magic.mode, "SEPARATE_TABLE");
+assert.equal(contract.suppressionPolicySignature, JSON.stringify(contract.suppressionPolicy));
 
 console.log(JSON.stringify({
   status: "ok",

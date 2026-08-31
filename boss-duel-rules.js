@@ -79,14 +79,21 @@
     return card.rank <= 10 ? String(card.rank) : ({ 11: "J", 12: "Q", 13: "K", 14: "A" })[card.rank];
   }
 
-  function magicDescription(card) {
+  function magicDescription(card, options = {}) {
     if (!card) return "";
+    const revealDamageValue = options.revealDamageValue === true;
     if (card.key === "joker") return "隨機一張手牌變成 JOKER，可代替任意牌。";
     if (card.key === "freeDraw") return "本回合第一次 REDRAW 免費。";
     if (card.key === "coin") return `擊敗目前 BOSS 時，骰子獎勵再加 ${card.value}x。`;
-    if (card.key === "flatDamage") return `綁定一張手牌；該牌進入最佳五張時追加 ${card.value} 固定傷害。`;
-    if (card.key === "crit") return `綁定一張手牌；該牌進入最佳五張時提供 ${card.value}x 暴擊倍率。`;
-    return `完成 ${card.label} 時，傷害倍率加入 ${card.value}x。`;
+    if (card.key === "flatDamage") return revealDamageValue
+      ? `綁定牌進入最佳五張，本次追加 ${card.value} 固定傷害。`
+      : "綁定牌進入最佳五張時生效；固定傷害到比牌結算才揭露。";
+    if (card.key === "crit") return revealDamageValue
+      ? `綁定牌進入最佳五張，本次提供 ${card.value}x 暴擊倍率。`
+      : "綁定牌進入最佳五張時生效；暴擊倍率到比牌結算才揭露。";
+    return revealDamageValue
+      ? `完成 ${card.label}，本次傷害倍率加入 ${card.value}x。`
+      : `完成 ${card.label} 時生效；傷害倍率到比牌結算才揭露。`;
   }
 
   function compareArrays(a, b) {
@@ -1235,12 +1242,14 @@
     return refresh(state);
   }
 
-  function magicDisplay(card) {
+  function magicDisplay(card, options = {}) {
+    const revealDamageValue = options.revealDamageValue === true;
     if (card.key === "joker") return { type: "JOKER", label: "WILD CARD" };
     if (card.key === "freeDraw") return { type: "DRAW", label: "FREE" };
     if (card.key === "coin") return { type: "GOLD", label: `+${card.value}x` };
-    if (card.key === "flatDamage") return { type: "DMG", label: `+${card.value}` };
-    return { type: card.type || "DMG", label: `${card.label} ${card.value}X` };
+    if (card.key === "flatDamage") return { type: "DMG", label: revealDamageValue ? `+${card.value}` : "FIXED DMG" };
+    if (card.key === "crit") return { type: "DMG", label: revealDamageValue ? `CRITICAL ${card.value}X` : "CRITICAL" };
+    return { type: card.type || "DMG", label: revealDamageValue ? `${card.label} ${card.value}X` : card.label };
   }
 
   return {

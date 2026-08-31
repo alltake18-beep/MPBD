@@ -28,7 +28,8 @@
   const DEFAULT_TICKET_BASIS = 10000;
   const STORIES_PER_CLASS = 10000;
   const ACTION_TRACE_VERSION = "story-action-trace-v1";
-  const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v1";
+  const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v2-separate-tables";
+  const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v2";
   const STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
   const BET_VALUES = Object.freeze([1, 2, 5, 10, 20, 50, 100, 200, 500, 800, 1000, 1200, 1500, 1800, 2000]);
   const BET_BUCKETS = Object.freeze([
@@ -36,6 +37,43 @@
     Object.freeze({ key: "B2", label: "Bet 20–200", bets: Object.freeze([20, 50, 100, 200]) }),
     Object.freeze({ key: "B3", label: "Bet 500–2000", bets: Object.freeze([500, 800, 1000, 1200, 1500, 1800, 2000]) })
   ]);
+  const DEFAULT_SUPPRESSION_POLICY = Object.freeze({
+    enabled: true,
+    activation: Object.freeze({
+      enabled: true,
+      requireOriginalStoryMiss: true,
+      requireKeepDeviation: true,
+      latchForBoss: true
+    }),
+    redraw: Object.freeze({
+      enabled: true,
+      maxCandidates: 30,
+      improvedAcceptPct: 50,
+      sameOrLowerAcceptPct: 100,
+      forceFinalCandidate: true
+    }),
+    magic: Object.freeze({
+      enabled: true,
+      mode: "SEPARATE_TABLE",
+      tables: Object.freeze({
+        crit: Object.freeze({
+          enabled: true,
+          label: "暴擊倍率",
+          outcomes: Object.freeze([Object.freeze({ value: 1, weight: 50 }), Object.freeze({ value: 2, weight: 50 })])
+        }),
+        flatDamage: Object.freeze({
+          enabled: true,
+          label: "固定傷害",
+          outcomes: Object.freeze([Object.freeze({ value: 3, weight: 50 }), Object.freeze({ value: 4, weight: 50 })])
+        }),
+        handBoost: Object.freeze({
+          enabled: true,
+          label: "共用牌型傷害倍率",
+          outcomes: Object.freeze([Object.freeze({ value: 1, weight: 50 }), Object.freeze({ value: 2, weight: 50 })])
+        })
+      })
+    })
+  });
   const DIRECTED_ARCHETYPES = Object.freeze([
     Object.freeze({ key: "MAX_MULTIPLIER", label: "滿倍率爆發", beat: "讓牌型倍率在關鍵攻擊真正吃到高值。" }),
     Object.freeze({ key: "CRITICAL_BURST", label: "高暴擊爆發", beat: "把 3x／4x／5x 暴擊留在能進最佳五張的牌上。" }),
@@ -101,6 +139,55 @@
     return JSON.parse(JSON.stringify(value));
   }
 
+  function normalizeSuppressionOutcomes(input, fallback) {
+    const source = Array.isArray(input) && input.length ? input : fallback;
+    const outcomes = source.slice(0, 16).map((row, index) => ({
+      value: clamp(finite(row?.value, fallback[index]?.value ?? fallback[0].value), 0, 1000000),
+      weight: clamp(finite(row?.weight, fallback[index]?.weight ?? 0), 0, 1000000000)
+    }));
+    if (!outcomes.some((row) => row.weight > 0)) return fallback.map((row) => ({ ...row }));
+    return outcomes;
+  }
+
+  function normalizeSuppressionPolicy(input = {}) {
+    const source = input && typeof input === "object" ? input : {};
+    const activation = source.activation || {};
+    const redraw = source.redraw || {};
+    const magic = source.magic || {};
+    const inputTables = magic.tables || {};
+    const tables = {};
+    for (const key of ["crit", "flatDamage", "handBoost"]) {
+      const fallback = DEFAULT_SUPPRESSION_POLICY.magic.tables[key];
+      const table = inputTables[key] || {};
+      tables[key] = {
+        enabled: table.enabled !== false,
+        label: String(table.label || fallback.label),
+        outcomes: normalizeSuppressionOutcomes(table.outcomes, fallback.outcomes)
+      };
+    }
+    return {
+      enabled: source.enabled !== false,
+      activation: {
+        enabled: activation.enabled !== false,
+        requireOriginalStoryMiss: activation.requireOriginalStoryMiss !== false,
+        requireKeepDeviation: activation.requireKeepDeviation !== false,
+        latchForBoss: activation.latchForBoss !== false
+      },
+      redraw: {
+        enabled: redraw.enabled !== false,
+        maxCandidates: integer(redraw.maxCandidates, 30, 1, 1000),
+        improvedAcceptPct: clamp(finite(redraw.improvedAcceptPct, 50), 0, 100),
+        sameOrLowerAcceptPct: clamp(finite(redraw.sameOrLowerAcceptPct, 100), 0, 100),
+        forceFinalCandidate: redraw.forceFinalCandidate !== false
+      },
+      magic: {
+        enabled: magic.enabled !== false,
+        mode: "SEPARATE_TABLE",
+        tables
+      }
+    };
+  }
+
   function randomInt(min, max, rng) {
     return min + Math.floor(rng() * (max - min + 1));
   }
@@ -164,7 +251,8 @@
       paidDrawEnabled: mechanics.paidDrawEnabled !== false,
       tieRedealEnabled: mechanics.tieRedealEnabled !== false,
       pokerBoostEnabled: mechanics.pokerBoostEnabled !== false,
-      chainEnabled: mechanics.chainEnabled === true
+      chainEnabled: mechanics.chainEnabled === true,
+      suppressionPolicy: normalizeSuppressionPolicy(input.suppressionPolicy || input.suppression)
     };
   }
 
@@ -370,6 +458,9 @@
       delete runtime.pushMinReturnX;
       delete stored.winMinReturnX;
       delete stored.pushMinReturnX;
+      // 抑制只在玩家偏離後的線上執行期生效，不參與 240,000 劇本生成與分類。
+      delete runtime.suppressionPolicyVersion;
+      delete stored.suppressionPolicyVersion;
       return JSON.stringify(runtime) === JSON.stringify(stored);
     } catch (_error) {
       return false;
@@ -416,6 +507,7 @@
 
   function replayContract(story, configInput = {}) {
     const config = configInput.storiesPerStar === undefined ? normalizeConfig(configInput) : configInput;
+    const suppressionPolicy = normalizeSuppressionPolicy(config.suppressionPolicy || config.suppression);
     return {
       version: ACTION_TRACE_VERSION,
       storyId: story?.id || storyId(story?.star || 1, story?.seed || 0),
@@ -426,6 +518,8 @@
       rulesVersion: Rules.VERSION,
       plannerVersion: story?.plannerVersion || StoryPlanner.VERSION,
       suppressionPolicyVersion: SUPPRESSION_POLICY_VERSION,
+      suppressionPolicy,
+      suppressionPolicySignature: JSON.stringify(suppressionPolicy),
       poolSignature: poolSignature(config)
     };
   }
@@ -450,14 +544,20 @@
     const actualKeepIds = sortedCardIds(state.playerCards.filter((_card, index) => !discarded.has(index)));
     const plannedKeepIds = plannedKeepIdsAt(story, round, tieIndex, drawNumber);
     const deviated = !sameCardIds(actualKeepIds, plannedKeepIds);
-    const suppressionWasActive = Boolean(context.suppressionActive);
-    const suppressionActive = suppressionWasActive || (!story?.killed && deviated);
+    const policy = normalizeSuppressionPolicy(context.suppressionPolicy);
+    const suppressionWasActive = policy.enabled && Boolean(context.suppressionActive);
+    const activationEligible = policy.enabled && policy.activation.enabled
+      && (!policy.activation.requireOriginalStoryMiss || !story?.killed)
+      && (!policy.activation.requireKeepDeviation || deviated);
+    const suppressionActive = policy.enabled && (policy.activation.latchForBoss
+      ? suppressionWasActive || activationEligible
+      : activationEligible);
     const beforeRank = Number(state?.playerEval?.rank) || 0;
     const beforeIds = new Set(sortedCardIds(state.playerCards));
     const candidateAudit = [];
     let acceptedCards = [];
 
-    if (!suppressionActive) {
+    if (!suppressionActive || !policy.redraw.enabled) {
       Rules.redraw(state, discarded);
       acceptedCards = state.playerCards.filter((card) => !beforeIds.has(Rules.cardId(card)));
       candidateAudit.push({
@@ -467,28 +567,34 @@
         afterRank: Number(state.playerEval?.rank) || 0,
         improved: (Number(state.playerEval?.rank) || 0) > beforeRank,
         gate: null,
+        sourceTable: "NORMAL_REDRAW",
         accepted: true
       });
     } else {
       const count = discarded.size;
-      for (let attempt = 1; attempt <= 30; attempt += 1) {
+      for (let attempt = 1; attempt <= policy.redraw.maxCandidates; attempt += 1) {
         const candidateSeed = DiceCore.hash32(Number(story?.seed) >>> 0, actionSequence, 31000 + attempt * 17);
         const replacements = deterministicSample(state.playerDeck, count, candidateSeed);
         const candidateState = Rules.cloneRuntimeRoundState(state);
         Rules.applyRuntimeReplacements(candidateState, discarded, replacements);
         const afterRank = Number(candidateState.playerEval?.rank) || 0;
         const improved = afterRank > beforeRank;
-        const gate = improved && attempt < 30
-          ? DiceCore.mulberry32(DiceCore.hash32(Number(story?.seed) >>> 0, actionSequence, 32000 + attempt * 19))() < 0.5
-          : null;
-        const accepted = !improved || attempt === 30 || gate;
+        const acceptPct = improved ? policy.redraw.improvedAcceptPct : policy.redraw.sameOrLowerAcceptPct;
+        const gateRollPct = DiceCore.mulberry32(DiceCore.hash32(Number(story?.seed) >>> 0, actionSequence, 32000 + attempt * 19))() * 100;
+        const acceptedByTable = gateRollPct < acceptPct;
+        const forced = attempt === policy.redraw.maxCandidates && policy.redraw.forceFinalCandidate;
+        const accepted = acceptedByTable || forced;
         candidateAudit.push({
           attempt,
           cardIds: sortedCardIds(replacements),
           beforeRank,
           afterRank,
           improved,
-          gate,
+          sourceTable: improved ? "IMPROVED_HAND" : "SAME_OR_LOWER_HAND",
+          acceptPct,
+          gateRollPct,
+          gate: acceptedByTable,
+          forced,
           accepted
         });
         if (!accepted) continue;
@@ -500,6 +606,7 @@
 
     return {
       version: SUPPRESSION_POLICY_VERSION,
+      policy,
       round,
       tieIndex,
       drawNumber,
@@ -520,6 +627,7 @@
     const storySeed = Number(context.story?.seed) >>> 0;
     const actionSequence = integer(context.actionSequence, 1, 1, 1000000000);
     const suppressionActive = Boolean(context.suppressionActive);
+    const policy = normalizeSuppressionPolicy(context.suppressionPolicy);
     const evaluation = {
       ...state.playerEval,
       cards: (state.playerEval?.cards || []).map((card) => ({
@@ -530,32 +638,43 @@
     const magicCards = (state.magicCards || []).map((card) => ({ ...card }));
     const values = [];
     let effectIndex = 0;
-    const pick = (kind, original, low, high, threshold) => {
-      const eligible = suppressionActive && original >= threshold;
-      const final = eligible
-        ? (DiceCore.mulberry32(DiceCore.hash32(storySeed, actionSequence, 33000 + effectIndex * 23))() < 0.5 ? low : high)
-        : original;
-      values.push({ kind, original, final, eligible });
+    const pick = (kind, original, tableKey) => {
+      const table = policy.magic.tables[tableKey];
+      const eligible = policy.enabled && suppressionActive && policy.magic.enabled && table?.enabled;
+      const random = DiceCore.mulberry32(DiceCore.hash32(storySeed, actionSequence, 33000 + effectIndex * 23));
+      const outcomeIndex = eligible ? weightedIndex(table.outcomes.map((row) => row.weight), random) : -1;
+      const final = eligible ? table.outcomes[outcomeIndex].value : original;
+      values.push({
+        kind,
+        tableKey,
+        sourceTable: eligible ? "SUPPRESSION" : "NORMAL",
+        original,
+        final,
+        eligible,
+        outcomeIndex,
+        outcomes: eligible ? table.outcomes.map((row) => ({ ...row })) : []
+      });
       effectIndex += 1;
       return final;
     };
     for (const card of evaluation.cards) {
       if (Number.isFinite(Number(card.magicEffects?.crit))) {
-        card.magicEffects.crit = pick("crit", Number(card.magicEffects.crit), 1, 2, 2);
+        card.magicEffects.crit = pick("crit", Number(card.magicEffects.crit), "crit");
       }
       if (Number.isFinite(Number(card.magicEffects?.flatDamage))) {
-        card.magicEffects.flatDamage = pick("flatDamage", Number(card.magicEffects.flatDamage), 3, 4, 4);
+        card.magicEffects.flatDamage = pick("flatDamage", Number(card.magicEffects.flatDamage), "flatDamage");
       }
     }
     for (const card of magicCards) {
       if (card.target === evaluation.key && /Boost$/.test(card.key) && Number.isFinite(Number(card.value))) {
-        card.value = pick(card.key, Number(card.value), 1, 2, 2);
+        card.value = pick(card.key, Number(card.value), "handBoost");
       }
     }
     return {
       version: SUPPRESSION_POLICY_VERSION,
       actionSequence,
       suppressionActive,
+      policy,
       values,
       breakdown: Rules.damageBreakdown(evaluation, magicCards)
     };
@@ -894,7 +1013,7 @@
       rulesVersion: Rules.VERSION, plannerVersion: StoryPlanner.VERSION,
       poolSeed: config.poolSeed, bossRows: config.bossRows, magicRows: config.magicRows, handRows: config.handRows,
       drawFeesX: config.drawFeesX, storiesPerClass: config.storiesPerClass, storiesPerStar: config.storiesPerClass * STORY_KEYS.length,
-      actionTraceVersion: ACTION_TRACE_VERSION, suppressionPolicyVersion: SUPPRESSION_POLICY_VERSION,
+      actionTraceVersion: ACTION_TRACE_VERSION,
       classificationBasis: "TOTAL_PAYOUT_OVER_TOTAL_SPEND",
       winMinReturnX: config.winMinReturnX, pushMinReturnX: config.pushMinReturnX, smartMaxDraws: config.smartMaxDraws,
       deckStopCount: config.deckStopCount, playerBadHighRerollPct: config.playerBadHighRerollPct,
@@ -1696,14 +1815,15 @@
 
   return {
     STORY_KEYS, STORY_LABELS, BET_VALUES, BET_BUCKETS, DIRECTED_ARCHETYPES,
-    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, STORY_BET_CONTRACT_VERSION,
+    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, SUPPRESSION_STORAGE_KEY, STORY_BET_CONTRACT_VERSION,
+    DEFAULT_SUPPRESSION_POLICY: clone(DEFAULT_SUPPRESSION_POLICY), normalizeSuppressionPolicy,
     DEFAULT_TICKET_PREFERENCE_PCT, DEFAULT_TICKET_BASIS,
     DEFAULT_BOSS_ROWS: clone(DEFAULT_BOSS_ROWS), DEFAULT_MAGIC_ROWS: clone(DEFAULT_MAGIC_ROWS), DEFAULT_HAND_ROWS: clone(DEFAULT_HAND_ROWS),
     normalizeConfig, storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,
     sortedCardIds, sameCardIds, storyStepAt, plannedKeepIdsAt, replayContract, executeRuntimeRedraw, resolveRuntimeMagic,
     packStorySummary, unpackStorySummary,
     simulateNaturalStory, buildStarPool, buildStoryPool, directorScore, directorStoryText, buildDirectedStarPool,
-    poolSignature, buildNaturalStoryPoolFromPreset, buildDualStoryPoolFromPreset, buildDualStoryPool,
+    poolSignature, presetMatchesOutcomeRules, buildNaturalStoryPoolFromPreset, buildDualStoryPoolFromPreset, buildDualStoryPool,
     targetScorePoints, solveCandidateProbabilities, drawStoryCommit, drawPresetStoryCommit, drawUniformPresetStoryCommit,
     legalDiceOutcomes, correctBossDiceReward, addPoolCredits, commitStoryToBuckets, settleStartedStory, settleCommittedStory, pickStar, simulatePopulation,
     clearPoolCache() { poolCache.clear(); }
