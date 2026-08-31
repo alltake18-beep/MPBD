@@ -66,12 +66,12 @@ if (isMainThread) {
     process.exitCode = 1;
   });
 } else {
-  const ActionCore = require(path.join(root, "boss-duel-action-tree-core.js"));
+  const ActionCore = require(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"));
   const StoryCore = ActionCore.NaturalCore;
-  const preset = require(path.join(root, "boss-duel-story-preset-v1.js"));
+  const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v1.js"));
   const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-  if (preset.version !== "natural-story-preset-v10" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
-    throw new Error("故事明細只能由現行 natural-story-preset-v10 正式種子產生");
+  if (preset.version !== "natural-story-preset-v11" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
+    throw new Error("故事明細只能由現行 natural-story-preset-v11 正式種子產生");
   }
   const seeds = preset.natural?.[workerData.star]?.[workerData.classKey] || [];
   if (seeds.length !== config.storiesPerClass) {

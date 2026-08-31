@@ -8,13 +8,13 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v31");
+      params.set("v", "action-tree-v32");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="styles.css?v=action-tree-v31">
-  <link rel="stylesheet" href="boss-duel-action-tree-lab.css?v=action-tree-v31">
+  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v32">
+  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v32">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
@@ -26,8 +26,8 @@
       </div>
       <div class="header-actions" aria-label="工具捷徑">
         <button id="restoreButton" class="secondary" type="button">還原範例</button>
-        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v3" target="_blank" rel="noopener">後端文件</a>
-        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v87" target="_blank" rel="noopener">開啟遊戲</a>
+        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v4" target="_blank" rel="noopener">後端文件</a>
+        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v88" target="_blank" rel="noopener">開啟遊戲</a>
       </div>
     </header>
 
@@ -145,27 +145,27 @@
           <div class="control-card-body" aria-labelledby="carryTitle">
             <div class="section-intro">
               <h3 id="carryTitle">個人劇本水池</h3>
-              <p>新逐利玩家按 Bet 分三桶；每筆花費乘上目標 RTP 後入桶，自然派彩出桶，擊殺時只以合法 Boss 骰面吸收差額。三桶不參與選劇本。</p>
+              <p>逐利玩家按 Bet 分三桶；每筆花費乘上目標 RTP 後入桶，自然派彩出桶，擊殺時只以合法 Boss 骰面吸收差額。三桶不參與選劇本。</p>
             </div>
             <div class="switch-row major-switch">
               <label class="switch"><input id="storyCarryEnabled" type="checkbox" checked><span></span></label>
               <div><strong>啟用個人劇本水池</strong><small>實際遊戲分數；下注額 1–10／20–200／500–2000 共三個區間</small></div>
             </div>
             <details class="nested-param-card">
-              <summary>進階：新逐利水池上下限＋原版模型相容欄位</summary>
+              <summary>進階：逐利水池上下限＋三玩家統計欄位</summary>
               <div class="advanced-body">
                 <div class="carry-controls">
-                  <label>新逐利玩家原骰獎最低比例（%）<input id="rewardFloorPct" type="number" min="0" max="100" step="0.1" value="10"></label>
-                  <label>新逐利玩家原骰獎最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="1000" step="1" value="1000"></label>
-                  <label>原版三玩家相容：補正方向<select id="correctionBothWays"><option value="true">雙向：少花扣抵、多花補正</option><option value="false">只扣抵，不補正（不可發布）</option></select></label>
-                  <label>原版三玩家相容：基準投入認列<select id="baselineRecognitionMode"><option value="FULL_STORY_COMMIT">完整 StoryCommit 基準</option><option value="REACHED_NODE_BASELINE">只認列已到達節點（研究用）</option></select></label>
-                  <label>原版三玩家相容：投入差容忍帶（%）<input id="deviationBandPct" type="number" min="0" max="100" step="0.1" value="0"></label>
-                  <label>原版三玩家相容：最大下修（%）<input id="maxDeductionPct" type="number" min="0" max="100" step="0.1" value="50"></label>
-                  <label>原版三玩家相容：下修 Credits 上限<input id="maxDeductionX" type="number" min="0" step="1" value="1000000"></label>
-                  <label>原版三玩家相容：最低淨獎（%）<input id="minNetPct" type="number" min="0" max="100" step="0.1" value="50"></label>
-                  <label>原版三玩家相容：最大上修（%）<input id="maxCreditPct" type="number" min="0" max="100" step="0.1" value="50"></label>
-                  <label>原版三玩家相容：上修 Credits 上限<input id="maxCreditX" type="number" min="0" step="1" value="1000000"></label>
-                  <label>原版三玩家相容：斷線處理<select id="disconnectMode"><option value="RESUME">保留原 StoryCommit，重連繼續</option><option value="CLOSE">直接關閉（不可發布）</option></select></label>
+                  <label>逐利玩家原骰獎最低比例（%）<input id="rewardFloorPct" type="number" min="0" max="100" step="0.1" value="10"></label>
+                  <label>逐利玩家原骰獎最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="1000" step="1" value="1000"></label>
+                  <label>三玩家統計：補正方向<select id="correctionBothWays"><option value="true">雙向：少花扣抵、多花補正</option><option value="false">只扣抵，不補正（不可發布）</option></select></label>
+                  <label>三玩家統計：基準投入認列<select id="baselineRecognitionMode"><option value="FULL_STORY_COMMIT">完整 StoryCommit 基準</option><option value="REACHED_NODE_BASELINE">只認列已到達節點（研究用）</option></select></label>
+                  <label>三玩家統計：投入差容忍帶（%）<input id="deviationBandPct" type="number" min="0" max="100" step="0.1" value="0"></label>
+                  <label>三玩家統計：最大下修（%）<input id="maxDeductionPct" type="number" min="0" max="100" step="0.1" value="50"></label>
+                  <label>三玩家統計：下修 Credits 上限<input id="maxDeductionX" type="number" min="0" step="1" value="1000000"></label>
+                  <label>三玩家統計：最低淨獎（%）<input id="minNetPct" type="number" min="0" max="100" step="0.1" value="50"></label>
+                  <label>三玩家統計：最大上修（%）<input id="maxCreditPct" type="number" min="0" max="100" step="0.1" value="50"></label>
+                  <label>三玩家統計：上修 Credits 上限<input id="maxCreditX" type="number" min="0" step="1" value="1000000"></label>
+                  <label>三玩家統計：斷線處理<select id="disconnectMode"><option value="RESUME">保留原 StoryCommit，重連繼續</option><option value="CLOSE">直接關閉（不可發布）</option></select></label>
                 </div>
                 <fieldset class="termination-grid">
                   <legend>相容欄位（故事內沒有中途 REROLL；正式只分擊殺／未擊殺）</legend>
@@ -205,7 +205,7 @@
           <div class="control-card-body" aria-labelledby="mechanicsTitle">
             <div class="section-intro">
               <h3 id="mechanicsTitle">保留的遊戲參數</h3>
-              <p>保留原版功能、Boss、魔法卡、牌型與換牌費；舊五路線、VI 與舊個人池已移除。</p>
+              <p>保留目前功能、Boss、魔法卡、牌型與換牌費；正式模擬只使用現行自然劇本與個人劇本水池。</p>
             </div>
             <div class="mechanic-tabbar" role="tablist" aria-label="遊戲參數分類">
               <button type="button" data-panel="switchesPanel">功能開關</button>
@@ -290,7 +290,7 @@
             <div>
               <p class="eyebrow">PLAYER EXPERIENCE REPORTS</p>
               <h2 id="resultsTitle">玩家體驗統計</h2>
-              <p>主報表沿用舊版玩家口徑；劇本、三行動樹與個人劇本水池集中在「劇本／水池」。</p>
+              <p>主報表保留三個玩家統計口徑；劇本、三行動樹與個人劇本水池集中在「劇本／水池」。</p>
             </div>
             <span class="phase-badge">模擬完成後顯示</span>
           </div>
@@ -428,14 +428,14 @@
 
   </div>
 
-  <script src="dice-first-core.js?v=action-tree-v31"></script>
-  <script src="boss-duel-poker-arrangement-lab-core.js?v=arrange-v9"></script>
-  <script src="boss-duel-rules.js?v=action-tree-v31"></script>
-  <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
-  <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
-  <script src="boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
-  <script src="boss-duel-natural-story-core.js?v=action-tree-v31"></script>
-  <script src="boss-duel-action-tree-core.js?v=action-tree-v31"></script>
-  <script src="boss-duel-action-tree-lab.js?v=action-tree-v31"></script>
+  <script src="src/core/boss-duel-random.js?v=action-tree-v32"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=arrange-v9"></script>
+  <script src="src/core/boss-duel-rules.js?v=action-tree-v32"></script>
+  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v10"></script>
+  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v12"></script>
+  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v32"></script>
+  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v32"></script>
+  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v32"></script>
 </body>
 </html>

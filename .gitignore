@@ -2,23 +2,11 @@
 reports/
 %SystemDrive%/
 
-# Keep the production story generator, Excel replay helper, and their release
-# checks in Git.  Other one-off engineering tools remain local.
+# Keep only the two current Excel delivery tools. The production story
+# generator lives in server/; one-off engineering tools remain local.
 tools/*
-!tools/generate-natural-preset.js
 !tools/generate-story-details.js
 !tools/build-story-workbook-streaming.js
-!tools/run-tests.js
-!tools/test-story-planner.js
-!tools/test-story-experience-replay.js
-!tools/test-runtime-deviation-suppression.js
-!tools/test-natural-story-preset.js
-!tools/test-full-story-preset.js
-!tools/test-natural-story-core.js
-!tools/test-action-tree-tool-schema.js
-!tools/test-frontend-flow-contract.js
-!tools/test-html-contracts.js
-!tools/test-story-generator-service.js
 
 # Dependencies, caches, temporary output, and logs
 node_modules/
