@@ -21,6 +21,8 @@ for (const character of cssForBalance) {
 }
 assert.equal(cssBraceDepth, 0, "Demo CSS has an unmatched block brace");
 assert.equal(cssMinimumDepth, 0, "Demo CSS closes a block before it is opened");
+assert(!html.includes("boss-duel-five-route.js") && !js.includes("BossDuelFiveRoute") && !js.includes("RouteCore"), "formal game must not load or fall back to the removed five-route model");
+assert(js.includes('if (!NaturalCore || !StoryPreset?.natural) throw new Error("正式故事池載入失敗")'), "missing formal story data must fail closed instead of switching models");
 const shellRule = css.match(/\.game-shell\s*\{([^}]*)\}/)?.[1] || "";
 const shellWidth = Number(shellRule.match(/width:\s*(\d+)px/)?.[1]);
 const shellHeight = Number(shellRule.match(/height:\s*(\d+)px/)?.[1]);
@@ -142,7 +144,7 @@ assert(entryStarSource.includes("entryMaximumTimer") && entryStarSource.includes
 assert(!html.includes('id="entryDiceFx"') && !css.includes(".entry-dice-fx") && !js.includes("playEntryDiceSpines"), "START must not create a D6 overlay; dice belong only to the kill-reward flow");
 assert(js.includes("function renderReward()") && js.includes('class="die covered"') && js.indexOf("function renderReward()") < js.indexOf('class="die covered"'), "D6 buttons must be created only by the kill-reward renderer");
 const dealRoundSource = /function dealRound\(\) \{([\s\S]*?)\n  \}/.exec(js)?.[1] || "";
-assert(dealRoundSource.indexOf("spend(runtimeConfig.entryCostX)") < dealRoundSource.indexOf("lockRouteStory()") && dealRoundSource.indexOf("lockRouteStory()") < dealRoundSource.indexOf("beginEntryStarReveal()"), "multiplier stars may be revealed only after entry spend and route lock");
+assert(dealRoundSource.indexOf("spend(runtimeConfig.entryCostX)") < dealRoundSource.indexOf("beginEntryStarReveal()"), "multiplier stars may be revealed only after entry spend");
 assert(finishRoundBody.includes('if (!encounter.cardsCleared) playBossSequence("11_idle", "11_idle")') && js.includes('playBossSequence("13_showdown", "11_idle")'), "Boss cards must keep their foreground holding hands until the player attack clears the cards");
 assert(js.includes('document.documentElement.dataset.rewardDiceError = ""') && js.includes("void mountRewardDiceSpines()") && js.includes("REWARD_DIE_FLIP_SECONDS = 1.7333") && css.includes(".die.rolling"), "reward dice must mount the repaired Spine atlas and visibly finish the real flip before revealing each locked face");
 assert(js.includes('loadSpineResource("attack")') && js.includes('"animation4"') && js.includes('"animation3"') && js.includes('"animation2"'), "attack must use the original four-tier full-screen Spine language");
@@ -236,7 +238,7 @@ assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.include
 assert(css.includes("height: 584px") && css.includes("grid-template-rows: 252px auto") && css.includes("tutorial-page-art.page-p1 { width: 288px"), "tutorial proportions must reserve dedicated image and copy areas without the oversized empty panel");
 assert(css.includes("round-panel.png") && html.includes("round-word.png") && css.includes("round-numbers.png"), "the supplied ROUND panel, word, and number sheet must replace system text");
 assert(/\.round-ribbon\s*\{[^}]*width:\s*84px;[^}]*height:\s*59px;[^}]*transform:\s*none;/.test(css), "the top-left ROUND panel must use the original 84x59 reference size without the oversized 2x transform");
-assert(html.includes("boss-duel-poker-arrangement-lab-core.js?v=frontend-v86") && html.includes("boss-duel-rules.js?v=frontend-v86") && html.includes("boss-duel-natural-story-core.js?v=frontend-v86") && html.includes("boss-duel-demo.js?v=frontend-v86") && html.includes("boss-duel-demo.css?v=frontend-v86"), "Demo code, shared arrangement, and live story assets must share the v86 cache key");
+assert(html.includes("boss-duel-poker-arrangement-lab-core.js?v=frontend-v87") && html.includes("boss-duel-rules.js?v=frontend-v87") && html.includes("boss-duel-natural-story-core.js?v=frontend-v87") && html.includes("boss-duel-demo.js?v=frontend-v87") && html.includes("boss-duel-demo.css?v=frontend-v87"), "Demo code, shared arrangement, and live story assets must share the v87 cache key");
 assert(js.includes("STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION") && js.includes("NaturalCore.materializeStoryForBet") && js.includes("storyBetContract"), "game must use the shared X-multiplier story contract across every Bet and expose it in replay audit");
 assert(js.includes("NaturalCore.drawUniformPresetStoryCommit") && js.includes("ticketPreferencePct: { win: 1, push: 1, lose: 1 }") && js.includes("ticketBasis: 1000000"), "normal Demo play must draw one candidate uniformly from each full class pool and score-ticket the three candidates");
 assert(html.includes("boss-duel-story-planner.js?v=boss-plan-v10") && html.includes("boss-duel-story-preset-v1.js?v=story-catalog-v11"), "Demo must load the planner and freshly regenerated 240,000-story seed preset");
@@ -257,7 +259,7 @@ assert.deepEqual(Rules.magicDisplay({ key: "flatDamage", label: "FIXED DMG", typ
 assert.equal(Rules.magicDisplay({ key: "threeBoost", label: "THREE OF A KIND", type: "DMG", value: 3 }).label, "THREE OF A KIND");
 assert.equal(Rules.magicDisplay({ key: "coin", label: "GOLD", type: "GOLD", value: 6 }).label, "+6x", "coin is the only card that exposes its amount at reveal");
 assert(js.includes('source: "NATURAL"') && js.includes('archetype: ""'), "story experience must use the Natural-only catalog");
-assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v86"'), "probability tool must keep a direct link to the current frontend Demo");
+assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v87"'), "probability tool must keep a direct link to the current frontend Demo");
 
 console.log(JSON.stringify({
   status: "ok",

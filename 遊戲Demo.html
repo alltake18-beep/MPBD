@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v86");
+      params.set("v", "frontend-v87");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="boss-duel-demo.css?v=frontend-v86">
+  <link rel="stylesheet" href="boss-duel-demo.css?v=frontend-v87">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -280,14 +280,14 @@
     <aside id="settingsSheet" class="settings-sheet" hidden aria-label="模型設定資訊">
       <div class="settings-card">
         <button id="closeSettings" type="button" class="settings-close" aria-label="關閉">×</button>
-        <p id="settingsEyebrow" class="eyebrow">FIVE-ROUTE MODEL</p>
-        <h2 id="settingsHeading">五路線故事狀態</h2>
+        <p id="settingsEyebrow" class="eyebrow">LIVE NATURAL STORY</p>
+        <h2 id="settingsHeading">動態故事／三分類分數配籤</h2>
         <dl>
           <div><dt id="cyclePositionLabel">公開 BOSS 序號</dt><dd id="cyclePosition">—</dd></div>
           <div><dt>骰子承諾</dt><dd id="diceLockState">已鎖定</dd></div>
           <div><dt>故事版本</dt><dd id="combatLockState">v1</dd></div>
           <div><dt id="targetRtpLabel">目標 RTP</dt><dd id="targetRtp">96.00%</dd></div>
-          <div><dt id="couplingLabel">供應模型</dt><dd id="couplingValue">五路線 × VI</dd></div>
+          <div><dt id="couplingLabel">供應模型</dt><dd id="couplingValue">三分類全池各抽 1 個 → 配籤 96%</dd></div>
           <div><dt>本次投入</dt><dd id="sessionSpend">0.00</dd></div>
           <div><dt>本次派彩</dt><dd id="sessionPayout">0.00</dd></div>
           <div><dt>本次 RTP</dt><dd id="sessionRtp">—</dd></div>
@@ -320,12 +320,11 @@
   <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
   <script src="dice-first-core.js?v=release-final-v16"></script>
-  <script src="boss-duel-five-route.js?v=release-final-v16"></script>
-  <script src="boss-duel-poker-arrangement-lab-core.js?v=frontend-v86"></script>
-  <script src="boss-duel-rules.js?v=frontend-v86"></script>
+  <script src="boss-duel-poker-arrangement-lab-core.js?v=frontend-v87"></script>
+  <script src="boss-duel-rules.js?v=frontend-v87"></script>
   <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
-  <script src="boss-duel-natural-story-core.js?v=frontend-v86"></script>
-  <script src="boss-duel-demo.js?v=frontend-v86"></script>
+  <script src="boss-duel-natural-story-core.js?v=frontend-v87"></script>
+  <script src="boss-duel-demo.js?v=frontend-v87"></script>
 </body>
 </html>

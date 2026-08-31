@@ -2,7 +2,6 @@
 
 (function runBossDuelDemo() {
   const Core = window.BossDuelCore;
-  const RouteCore = window.BossDuelFiveRoute;
   const Rules = window.BossDuelRules;
   const NaturalCore = window.BossDuelNaturalStoryCore;
   const StoryPreset = window.BossDuelStoryPresetV1;
@@ -46,7 +45,6 @@
   const REWARD_DIE_RENDER_SIZE = 80;
   const REWARD_DIE_FLIP_SECONDS = 1.7333;
   const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(Core.CHANNEL_NAME) : null;
-  const routeChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel(RouteCore.CHANNEL_NAME) : null;
   const bossSkins = [
     { key: "drunkard", name: "DRUNKARD", title: "assets/mobile/text-drunkard.png", fallback: "assets/mobile/boss-fallback/drunkard.png" },
     { key: "unicorn", name: "UNICORN", title: "assets/mobile/text-unicorn.png", fallback: "assets/mobile/boss-fallback/unicorn.png" },
@@ -258,8 +256,6 @@
   let runtimeConfig = loadConfig();
   let storyExperience = loadStoryExperience(runtimeConfig);
   let pendingConfig = null;
-  let routeConfig = loadRouteConfig();
-  let pendingRouteConfig = null;
   let cycle = null;
   let encounter = null;
   let playerState = loadPlayerState();
@@ -1300,21 +1296,13 @@
   }
 
   function drawRuntimeStoryExperience(star) {
-    if (!NaturalCore || !StoryPreset?.natural) return null;
+    if (!NaturalCore || !StoryPreset?.natural) throw new Error("正式故事池載入失敗");
     const config = runtimeNaturalConfig(runtimeConfig);
     const commit = NaturalCore.drawUniformPresetStoryCommit(
       StoryPreset, config, star, runtimeConfig.targetRtp * 100, runtimeStoryRng(star),
       { includePath: true, maxCandidateAttempts: config.maxCandidateAttempts }
     );
     return { config, story: commit.selectedStory, source: "NATURAL", archetype: "", commit };
-  }
-
-  function loadRouteConfig() {
-    try {
-      return RouteCore.sanitizeConfig(JSON.parse(localStorage.getItem(RouteCore.STORAGE_KEY) || "{}"));
-    } catch (_error) {
-      return RouteCore.sanitizeConfig(RouteCore.DEFAULT_CONFIG);
-    }
   }
 
   function fitGameToViewport() {
@@ -1490,28 +1478,6 @@
     broadcastStatus("applied");
   }
 
-  function applyPendingRouteConfig() {
-    if (!pendingRouteConfig) return;
-    routeConfig = pendingRouteConfig;
-    pendingRouteConfig = null;
-  }
-
-  function lockRouteStory() {
-    if (!encounter || encounter.routeLocked) return;
-    if (Number.isInteger(encounter.packet.naturalStorySeed)) {
-      encounter.routeLocked = true;
-      return;
-    }
-    applyPendingRouteConfig();
-    const storyIndex = playerState.epoch * runtimeConfig.cycleSize + playerState.index;
-    const selection = RouteCore.sample(routeConfig, playerState.id, storyIndex);
-    encounter.packet = RouteCore.applyToPacket(encounter.packet, selection, Core, runtimeConfig, routeConfig);
-    encounter.routeLocked = true;
-    encounter.lockedRevision = selection.revision;
-    encounter.storySelection = selection;
-    broadcastRouteStatus("applied");
-  }
-
   function spawnBoss(avoidStar = 0) {
     applyPendingConfig();
     ensureCycle();
@@ -1526,8 +1492,8 @@
     const cyclePacket = cycle.packets[playerState.index];
     const basePacket = forcedBossIndex >= 0 ? { ...cyclePacket, star: forcedBossIndex + 1 } : cyclePacket;
     const activeStoryExperience = storyExperience || drawRuntimeStoryExperience(basePacket.star);
-    const story = activeStoryExperience?.story;
-    const packet = story ? {
+    const story = activeStoryExperience.story;
+    const packet = {
       ...basePacket,
       star: story.star,
       hp: story.hp,
@@ -1553,12 +1519,9 @@
       win: false,
       ledgerDecision: storyExperience ? "指定故事體驗" : "三分類全池各抽一個，再配籤至 96%",
       ledgerProjectedX: 0
-    } : { ...basePacket, win: false, ledgerDecision: "尚未 START", ledgerProjectedX: 0 };
+    };
     encounter = {
       packet,
-      lockedRevision: story ? "story-v1" : routeConfig.revision,
-      routeLocked: Boolean(story),
-      storySelection: story ? { key: story.classKey, label: story.classLabel } : null,
       hpLeft: packet.hp,
       round: 0,
       draws: 0,
@@ -1590,25 +1553,12 @@
       entryCompositionShown: false,
       treasureMaximumRevealed: false
     };
-    encounter.replayContract = story
-      ? NaturalCore.replayContract(story, activeStoryExperience.config)
-      : {
-        version: NaturalCore.ACTION_TRACE_VERSION,
-        storyId: `LEGACY-${basePacket.packetSeed}`,
-        storySeed: basePacket.packetSeed >>> 0,
-        star: basePacket.star,
-        storyClass: "",
-        originalKilled: false,
-        rulesVersion: Rules.VERSION,
-        plannerVersion: "legacy",
-        suppressionPolicyVersion: NaturalCore.SUPPRESSION_POLICY_VERSION,
-        poolSignature: "legacy"
-      };
+    encounter.replayContract = NaturalCore.replayContract(story, activeStoryExperience.config);
     encounter.bossInstanceId = `${playerState.id}:${playerState.epoch}:${playerState.index}:${packet.packetSeed >>> 0}`;
     encounter.replayContract = {
       ...encounter.replayContract,
       bossInstanceId: encounter.bossInstanceId,
-      storyBetContract: story ? storyCreditsForBet(story, activeBet) : null
+      storyBetContract: storyCreditsForBet(story, activeBet)
     };
     encounter.operationSequence = 0;
     encounter.clientEventSequence = 0;
@@ -1671,7 +1621,6 @@
     if (!encounter || encounter.phase !== "ready") return;
     if (!spend(runtimeConfig.entryCostX)) return;
     const startOperation = beginOperation("START");
-    lockRouteStory();
     session.hasStarted = true;
     encounter.round += 1;
     encounter.draws = 0;
@@ -2864,10 +2813,8 @@
     const skinClass = ` skin-${bossSkin.key}`;
     els.gameShell.className = `game-shell ${phaseClass}${startedClass}${skinClass}${encounter.bossRevealed ? " boss-revealed" : ""}${encounter.handEntering ? " hand-entering" : ""}${encounter.cardsCleared ? " cards-cleared" : ""}${encounter.compareOutcome ? ` compare-${encounter.compareOutcome}` : ""}${isTurbo() ? " turbo" : ""}`;
 
-    els.modelVersion.textContent = Number.isInteger(packet.naturalStorySeed)
-      ? packet.storyRuntimeMode === "DYNAMIC" ? `NATURAL 96% · ${packet.storyRecord.classLabel}` : `STORY ${packet.storyRecord.classLabel}`
-      : `v${encounter.lockedRevision}`;
-    const waitingRevision = pendingRouteConfig?.revision || pendingConfig?.revision || null;
+    els.modelVersion.textContent = packet.storyRuntimeMode === "DYNAMIC" ? `NATURAL 96% · ${packet.storyRecord.classLabel}` : `STORY ${packet.storyRecord.classLabel}`;
+    const waitingRevision = pendingConfig?.revision || null;
     els.updateStatus.textContent = waitingRevision ? `v${waitingRevision} NEXT START` : "● LIVE";
     els.updateStatus.classList.toggle("pending", Boolean(waitingRevision));
     // 原站 BossDuelCommonUIController.setPlayerBalance() 直接把數值轉成字串；
@@ -2895,9 +2842,7 @@
     els.activeBetPool.textContent = NaturalCore
       ? `${NaturalCore.BET_BUCKETS[activeStoryBucket].label}｜${signedCredits(storyBalances[activeStoryBucket])}`
       : "等待故事核心";
-    els.supplyDecision.textContent = Number.isInteger(packet.naturalStorySeed)
-      ? `自然／${packet.storyRecord.classLabel}／派彩率 ${packet.storyRecord.returnX.toFixed(2)}x`
-      : encounter.routeLocked ? "已鎖定（隱藏）" : "尚未 START";
+    els.supplyDecision.textContent = `自然／${packet.storyRecord.classLabel}／派彩率 ${packet.storyRecord.returnX.toFixed(2)}x`;
     const guaranteedPremiumDice = guaranteedPremiumDiceForStar(packet.star);
     const rainbowStars = entryCompositionVisible
       ? Math.max(guaranteedPremiumDice, Math.min(packet.star, dice.multiplierDice))
@@ -2947,22 +2892,17 @@
     els.roundRibbon.hidden = false;
     els.bossHud.hidden = false;
     els.treasureBadge.hidden = false;
-    const storyReplayMode = packet.storyRuntimeMode === "FIXED";
     const dynamicStoryMode = packet.storyRuntimeMode === "DYNAMIC";
-    const naturalStoryMode = Number.isInteger(packet.naturalStorySeed);
-    els.settingsEyebrow.textContent = dynamicStoryMode ? "LIVE NATURAL STORY" : storyReplayMode ? "STORY CATALOG REPLAY" : "FIVE-ROUTE MODEL";
-    els.settingsHeading.textContent = dynamicStoryMode ? "動態故事／三分類分數配籤" : storyReplayMode ? "故事目錄重播狀態" : "五路線故事狀態";
-    els.cyclePositionLabel.textContent = naturalStoryMode ? "故事星級" : "公開 BOSS 序號";
-    els.targetRtpLabel.textContent = naturalStoryMode ? "結果分類" : "目標 RTP";
-    els.couplingLabel.textContent = naturalStoryMode ? "供應模型" : "供應模型";
-    els.cyclePosition.textContent = naturalStoryMode
-      ? `${packet.star} 星｜seed ${packet.naturalStorySeed}`
-      : `第 ${playerState.epoch * currentConfig.cycleSize + playerState.index + 1} 隻（公開狀態）`;
-    els.targetRtp.textContent = naturalStoryMode ? packet.storyRecord.classLabel : `${(routeConfig.targetCoreRtp * 100).toFixed(2)}%`;
+    els.settingsEyebrow.textContent = dynamicStoryMode ? "LIVE NATURAL STORY" : "STORY CATALOG REPLAY";
+    els.settingsHeading.textContent = dynamicStoryMode ? "動態故事／三分類分數配籤" : "故事目錄重播狀態";
+    els.cyclePositionLabel.textContent = "故事星級";
+    els.targetRtpLabel.textContent = "結果分類";
+    els.couplingLabel.textContent = "供應模型";
+    els.cyclePosition.textContent = `${packet.star} 星｜seed ${packet.naturalStorySeed}`;
+    els.targetRtp.textContent = packet.storyRecord.classLabel;
     els.couplingValue.textContent = dynamicStoryMode
       ? "三分類全池各抽 1 個 → 配籤 96%"
-      : storyReplayMode ? "指定 Natural 故事"
-      : "五路線 × VI";
+      : "指定 Natural 故事";
     const weightCopy = packet.storyCommit?.weights
       ? `贏多 ${(packet.storyCommit.weights.win * 100).toFixed(2)}%／贏少 ${(packet.storyCommit.weights.push * 100).toFixed(2)}%／輸 ${(packet.storyCommit.weights.lose * 100).toFixed(2)}%`
       : "指定故事不重新抽籤";
@@ -2973,17 +2913,11 @@
     const actualResultCopy = storyBetCredits
       ? `劇本總押 ${storyBetCredits.spendX.toFixed(2)}x、總派彩 ${storyBetCredits.payoutX.toFixed(2)}x；BET ${storyBetCredits.bet} 實際點數為押 ${storyBetCredits.totalSpendCredits.toFixed(2)}、派 ${storyBetCredits.totalPayoutCredits.toFixed(2)}`
       : "";
-    els.settingsNote.textContent = naturalStoryMode
-      ? `贏多、贏少、輸各從完整結果分類等機率抽 1 個；同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`
-      : "首次 START 成功扣款才抽一次五路線與該路線內 VI；整隻 BOSS 共用同一故事。下一隻獨立放回抽籤，不讀上一局或個人盈虧。";
-    els.combatLockState.textContent = naturalStoryMode
-      ? `seed ${packet.naturalStorySeed}｜${packet.storyRecord.rounds} 回合`
-      : pendingRouteConfig
-      ? `v${encounter.lockedRevision}；v${pendingRouteConfig.revision} 等待下一個 START`
-      : encounter.routeLocked ? `v${encounter.lockedRevision} 已鎖定` : `v${routeConfig.revision} 將於 START 鎖定`;
+    els.settingsNote.textContent = `贏多、贏少、輸各從完整結果分類等機率抽 1 個；同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`;
+    els.combatLockState.textContent = `seed ${packet.naturalStorySeed}｜${packet.storyRecord.rounds} 回合`;
     els.diceLockState.textContent = encounter.phase === "resolved-win"
       ? `${packet.dice.total}x 已揭露`
-      : encounter.routeLocked ? "已鎖定／未揭露" : "尚未抽取";
+      : "已鎖定／未揭露";
     els.magicRow.innerHTML = magicCards().map((card) => {
       const artVariables = magicArtVariables(card.key);
       const style = [`--magic-top:${card.index * 84}px`, artVariables].filter(Boolean).join(";");
@@ -3092,29 +3026,8 @@
     channel?.postMessage({
       type: "demo-status",
       status,
-      activeRevision: encounter?.lockedRevision || runtimeConfig.revision,
+      activeRevision: runtimeConfig.revision,
       pendingRevision: pendingConfig?.revision || null
-    });
-  }
-
-  function receiveRouteConfig(data) {
-    const next = RouteCore.sanitizeConfig(data?.config || data || {});
-    const newestRevision = Math.max(routeConfig.revision, pendingRouteConfig?.revision || 0);
-    if (next.revision <= newestRevision) {
-      broadcastRouteStatus(pendingRouteConfig ? "pending" : "applied");
-      return;
-    }
-    pendingRouteConfig = next;
-    broadcastRouteStatus("pending");
-    render();
-  }
-
-  function broadcastRouteStatus(status) {
-    routeChannel?.postMessage({
-      type: "route-demo-status",
-      status: pendingRouteConfig ? "pending" : status,
-      activeRevision: encounter?.routeLocked ? encounter.lockedRevision : routeConfig.revision,
-      pendingRevision: pendingRouteConfig?.revision || null
     });
   }
 
@@ -3158,7 +3071,6 @@
     cycle = null;
     encounter = null;
     pendingConfig = loadConfig();
-    pendingRouteConfig = loadRouteConfig();
     els.settingsSheet.hidden = true;
     spawnBoss();
     setMessage("試玩紀錄已重置；下一隻會從贏多、贏少、輸完整故事池各抽一個，再動態配籤。", "");
@@ -3326,12 +3238,8 @@
   channel?.addEventListener("message", (event) => {
     if (event.data?.type === "config-update") receiveConfig(event.data);
   });
-  routeChannel?.addEventListener("message", (event) => {
-    if (event.data?.type === "route-config-update") receiveRouteConfig(event.data);
-  });
   window.addEventListener("storage", (event) => {
     if (event.key === Core.STORAGE_KEY && event.newValue) receiveConfig(JSON.parse(event.newValue));
-    if (event.key === RouteCore.STORAGE_KEY && event.newValue) receiveRouteConfig(JSON.parse(event.newValue));
   });
   const refitViewport = () => { fitGameToViewport(); layoutBossSpine(); };
   window.addEventListener("resize", refitViewport);
@@ -3352,6 +3260,4 @@
     setTimeout(() => openTutorial(0), 320);
   }
   broadcastStatus("ready");
-  broadcastRouteStatus("applied");
-  routeChannel?.postMessage({ type: "route-demo-ready" });
 })();

@@ -10,7 +10,7 @@ const cases = [
     html: "遊戲Demo.html",
     js: "boss-duel-demo.js",
     redirectPath: "/%E9%81%8A%E6%88%B2Demo.html",
-    expectedVersion: "frontend-v86"
+    expectedVersion: "frontend-v87"
   },
   {
     html: "機率工具.html",
