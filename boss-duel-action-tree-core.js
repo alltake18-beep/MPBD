@@ -113,6 +113,7 @@
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
       magicCardsPerRound: 2
     },
+    suppression: NaturalCore.DEFAULT_SUPPRESSION_POLICY,
     bossRows: DEFAULT_BOSS_ROWS,
     magicRows: DEFAULT_MAGIC_ROWS,
     handRows: DEFAULT_HAND_ROWS,
@@ -235,6 +236,7 @@
     config.ruleSettings.bossBadHighRerollPct = clamp(finite(config.ruleSettings.bossBadHighRerollPct, 25), 0, 100);
     config.ruleSettings.initialRerollLimit = integer(config.ruleSettings.initialRerollLimit, 50, 0, 1000000);
     config.ruleSettings.magicCardsPerRound = integer(config.ruleSettings.magicCardsPerRound, 2, 0, 10);
+    config.suppression = NaturalCore.normalizeSuppressionPolicy(config.suppression);
     config.magicRows = config.magicRows.map((row, index) => {
       const fallback = DEFAULT_MAGIC_ROWS[index] || row;
       const normalized = Array.isArray(row) ? row.slice(0, 8) : fallback.slice();

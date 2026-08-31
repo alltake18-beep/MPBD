@@ -16,6 +16,12 @@
   const signedX = (value, digits = 3) => `${number(value) > 0 ? "+" : ""}${x(value, digits)}`;
 
   let config = Core.sanitizeConfig(Core.DEFAULT_CONFIG);
+  try {
+    const storedSuppression = JSON.parse(localStorage.getItem(Core.NaturalCore.SUPPRESSION_STORAGE_KEY) || "null");
+    if (storedSuppression) config.suppression = Core.NaturalCore.normalizeSuppressionPolicy(storedSuppression);
+  } catch (_error) {
+    config.suppression = Core.NaturalCore.normalizeSuppressionPolicy(config.suppression);
+  }
   config.modelId = "natural-story-v4-full-class-ticket";
   config.versions.storyPool = "natural-240000-boss-plan-v10-score-ticket";
   config.storyPool.directedMixPct = 0;
@@ -394,6 +400,53 @@
       ["initialRerollLimit", "起手重抽上限", 1],
       ["magicCardsPerRound", "每回合魔法卡張數", 1]
     ].map(([key, label, step]) => `<label>${label}<input data-rule-field="${key}" type="number" min="0" step="${step}" value="${config.ruleSettings[key]}"></label>`).join("");
+    const suppressionSwitch = (path, label, value) => `<div class="switch-row"><strong>${label}</strong><label class="switch" aria-label="${label}"><input data-suppression-path="${path}" type="checkbox" ${value ? "checked" : ""}><span></span></label></div>`;
+    const suppressionNumber = (path, label, value, step = 1) => `<label>${label}<input data-suppression-path="${path}" type="number" min="0" step="${step}" value="${value}"></label>`;
+    const suppression = config.suppression;
+    $("suppressionActivationGrid").innerHTML = [
+      suppressionSwitch("enabled", "抑制總開關", suppression.enabled),
+      suppressionSwitch("activation.enabled", "偏離觸發開關", suppression.activation.enabled),
+      suppressionSwitch("activation.requireOriginalStoryMiss", "只允許原劇本未擊殺時觸發", suppression.activation.requireOriginalStoryMiss),
+      suppressionSwitch("activation.requireKeepDeviation", "保留牌 ID 必須與劇本不同", suppression.activation.requireKeepDeviation),
+      suppressionSwitch("activation.latchForBoss", "觸發後維持至本隻 Boss 結束", suppression.activation.latchForBoss)
+    ].join("");
+    $("suppressionRedrawGrid").innerHTML = [
+      suppressionSwitch("redraw.enabled", "換牌候選抑制", suppression.redraw.enabled),
+      suppressionNumber("redraw.improvedAcceptPct", "牌型升級候選接受率（%）", suppression.redraw.improvedAcceptPct, 0.1),
+      suppressionNumber("redraw.sameOrLowerAcceptPct", "同級／下降候選接受率（%）", suppression.redraw.sameOrLowerAcceptPct, 0.1),
+      suppressionNumber("redraw.maxCandidates", "單次最多候選數", suppression.redraw.maxCandidates, 1),
+      suppressionSwitch("redraw.forceFinalCandidate", "最後一個候選強制接受", suppression.redraw.forceFinalCandidate)
+    ].join("");
+    $("suppressionMagicSwitchGrid").innerHTML = suppressionSwitch("magic.enabled", "傷害魔法改抽抑制表", suppression.magic.enabled);
+    const suppressionTableMeta = {
+      crit: ["暴擊倍率", "CRITICAL"],
+      flatDamage: ["固定傷害", "FIXED DMG"],
+      handBoost: ["牌型傷害倍率", "三條／四條／順子／同花／葫蘆等全部共用"]
+    };
+    $("suppressionMagicTableBody").innerHTML = Object.entries(suppressionTableMeta).map(([key, meta]) => {
+      const table = suppression.magic.tables[key];
+      const outcomes = [table.outcomes[0] || { value: 0, weight: 0 }, table.outcomes[1] || { value: 0, weight: 0 }];
+      return `<tr><th>${meta[0]}</th><td>${meta[1]}</td>${outcomes.map((outcome, index) => `<td><input data-suppression-table="${key}" data-outcome-index="${index}" data-outcome-field="value" type="number" min="0" step="0.01" value="${outcome.value}"></td><td><input data-suppression-table="${key}" data-outcome-index="${index}" data-outcome-field="weight" type="number" min="0" step="0.01" value="${outcome.weight}"></td>`).join("")}<td><label class="switch compact-switch" aria-label="${meta[0]}抑制表啟用"><input data-suppression-table-enabled="${key}" type="checkbox" ${table.enabled ? "checked" : ""}><span></span></label></td></tr>`;
+    }).join("");
+    const expectedValue = (table) => {
+      const totalWeight = table.outcomes.reduce((sum, row) => sum + Math.max(0, number(row.weight)), 0);
+      return totalWeight > 0 ? table.outcomes.reduce((sum, row) => sum + number(row.value) * Math.max(0, number(row.weight)), 0) / totalWeight : 0;
+    };
+    $("suppressionPolicySummary").textContent = `${Core.NaturalCore.SUPPRESSION_POLICY_VERSION}｜預設目前期望：暴擊 ${expectedValue(suppression.magic.tables.crit).toFixed(3)}x、固傷 +${expectedValue(suppression.magic.tables.flatDamage).toFixed(3)}、共用牌型傷害 ${expectedValue(suppression.magic.tables.handBoost).toFixed(3)}x。傷害值在比牌結算才公開；抑制時不沿用正常表原值。`;
+  }
+
+  function setNestedValue(target, path, value) {
+    const keys = String(path).split(".");
+    let cursor = target;
+    keys.slice(0, -1).forEach((key) => {
+      if (!cursor[key] || typeof cursor[key] !== "object") cursor[key] = {};
+      cursor = cursor[key];
+    });
+    cursor[keys[keys.length - 1]] = value;
+  }
+
+  function persistSuppressionPolicy() {
+    localStorage.setItem(Core.NaturalCore.SUPPRESSION_STORAGE_KEY, JSON.stringify(config.suppression));
   }
 
   function readMechanicTarget(target) {
@@ -425,6 +478,18 @@
       config.handRows[Number(target.dataset.handRow)][column] = target.type === "number" ? number(target.value) : target.value;
     }
     if (target.matches("[data-draw-fee]")) config.drawFeesX[Number(target.dataset.drawFee)] = number(target.value);
+    if (target.matches("[data-suppression-path]")) {
+      setNestedValue(config.suppression, target.dataset.suppressionPath, target.type === "checkbox" ? target.checked : number(target.value));
+    }
+    if (target.matches("[data-suppression-table]")) {
+      const table = config.suppression.magic.tables[target.dataset.suppressionTable];
+      const outcomeIndex = Number(target.dataset.outcomeIndex);
+      if (!table.outcomes[outcomeIndex]) table.outcomes[outcomeIndex] = { value: 0, weight: 0 };
+      table.outcomes[outcomeIndex][target.dataset.outcomeField] = number(target.value);
+    }
+    if (target.matches("[data-suppression-table-enabled]")) {
+      config.suppression.magic.tables[target.dataset.suppressionTableEnabled].enabled = target.checked;
+    }
   }
 
   function readSimulationControls() {
@@ -960,12 +1025,13 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v85",
+      v: "frontend-v86",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),
       storySource: "NATURAL"
     });
+    persistSuppressionPolicy();
     window.open(`遊戲Demo.html?${params}`, "_blank", "noopener");
   }
 
@@ -1043,6 +1109,7 @@
     hydrateFixedControls();
     design = null;
     buildMechanics();
+    persistSuppressionPolicy();
     renderTreeMatrix();
     renderNaturalClassAverages();
     clearSimulation("已還原新模型範例，請執行模擬");
@@ -1067,10 +1134,14 @@
         recompute({ readTree: true });
         return;
       }
-      if (target.matches("[data-mechanic-switch], [data-simulation-field], [data-rule-field], [data-boss-row], [data-magic-row], [data-hand-row], [data-draw-fee]")) {
+      if (target.matches("[data-mechanic-switch], [data-simulation-field], [data-rule-field], [data-boss-row], [data-magic-row], [data-hand-row], [data-draw-fee], [data-suppression-path], [data-suppression-table], [data-suppression-table-enabled]")) {
         readMechanicTarget(target);
         markDirty(!target.matches("[data-simulation-field]"));
         config = Core.sanitizeConfig(config);
+        if (target.matches("[data-suppression-path], [data-suppression-table], [data-suppression-table-enabled]")) {
+          persistSuppressionPolicy();
+          buildMechanics();
+        }
         recompute({ readTree: !target.matches("[data-boss-row]") });
       }
     });

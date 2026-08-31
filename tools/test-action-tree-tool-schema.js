@@ -22,12 +22,15 @@ for (const asset of [
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v30/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v31/);
 assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v5/);
 assert.match(html, /boss-duel-poker-arrangement-lab-core\.js\?v=arrange-v9/);
 assert.match(html, /class="app-shell action-tree-tool"/);
 assert.match(html, /class="workbench"/);
-assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v2"/);
+assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v3"/);
+assert.match(html, /data-panel="suppressionPanel"/);
+for (const id of ["suppressionActivationGrid", "suppressionRedrawGrid", "suppressionMagicSwitchGrid", "suppressionMagicTableBody", "suppressionPolicySummary"]) tag(id);
+assert.match(html, /所有牌型傷害魔法卡共用/);
 assert.match(html, /id="resultsArea"[^>]*is-hidden/);
 assert.equal((html.match(/class="control-card"/g) || []).length, 5);
 assert.equal((html.match(/data-report-panel=/g) || []).length, 8);
@@ -135,9 +138,24 @@ assert.match(engineerDoc, /人工智慧可以做/);
 assert.match(engineerDoc, /每筆花費按目標 RTP 入桶/);
 assert.match(engineerDoc, /原獎 10%/);
 assert.match(engineerDoc, /R₀ × 1,000/);
+assert.match(engineerDoc, /deviation-suppression-v2-separate-tables/);
+assert.match(engineerDoc, /只有金幣卡立即公開實際加成/);
+assert.match(engineerDoc, /共用一張「牌型傷害倍率抑制表」/);
 assert.doesNotMatch(engineerDoc, /個人差額池|個人故事差額池|StoryCommit|Credits|PASS/);
 
+const suppressionConfig = ActionCore.sanitizeConfig({
+  suppression: {
+    redraw: { improvedAcceptPct: 12.5, sameOrLowerAcceptPct: 87.5, maxCandidates: 44 },
+    magic: { tables: { handBoost: { outcomes: [{ value: 7, weight: 3 }, { value: 9, weight: 1 }] } } }
+  }
+});
+assert.equal(suppressionConfig.suppression.redraw.improvedAcceptPct, 12.5);
+assert.equal(suppressionConfig.suppression.redraw.sameOrLowerAcceptPct, 87.5);
+assert.equal(suppressionConfig.suppression.redraw.maxCandidates, 44);
+assert.deepEqual(suppressionConfig.suppression.magic.tables.handBoost.outcomes, [{ value: 7, weight: 3 }, { value: 9, weight: 1 }]);
+assert.equal(ActionCore.NaturalCore.SUPPRESSION_POLICY_VERSION, "deviation-suppression-v2-separate-tables");
+
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v30", storyCount: 240000,
+  status: "ok", cacheKey: "action-tree-v31", storyCount: 240000,
   localScripts, uniqueDomIds: ids.length, catalogOnly: false, fullClassUniformTickets: true
 }, null, 2));

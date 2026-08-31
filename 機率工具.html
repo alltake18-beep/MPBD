@@ -8,13 +8,13 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v30");
+      params.set("v", "action-tree-v31");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="styles.css?v=action-tree-v30">
-  <link rel="stylesheet" href="boss-duel-action-tree-lab.css?v=action-tree-v30">
+  <link rel="stylesheet" href="styles.css?v=action-tree-v31">
+  <link rel="stylesheet" href="boss-duel-action-tree-lab.css?v=action-tree-v31">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
@@ -26,8 +26,8 @@
       </div>
       <div class="header-actions" aria-label="工具捷徑">
         <button id="restoreButton" class="secondary" type="button">還原範例</button>
-        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v2" target="_blank" rel="noopener">後端文件</a>
-        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v85" target="_blank" rel="noopener">開啟遊戲</a>
+        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v3" target="_blank" rel="noopener">後端文件</a>
+        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v86" target="_blank" rel="noopener">開啟遊戲</a>
       </div>
     </header>
 
@@ -211,6 +211,7 @@
               <button type="button" data-panel="switchesPanel">功能開關</button>
               <button type="button" data-panel="bossPanel">8 星 Boss</button>
               <button type="button" data-panel="magicPanel">魔法卡</button>
+              <button type="button" data-panel="suppressionPanel">抑制參數</button>
               <button type="button" data-panel="pokerPanel">牌型／換牌費</button>
             </div>
             <p class="tab-hint">選擇一類後展開完整編輯；模擬樣本欄位位於第 01 區。</p>
@@ -220,6 +221,33 @@
             </div>
             <div id="magicPanel" class="tab-panel">
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>機制</th><th>顯示名稱</th><th>普通籤</th><th>高星籤</th><th>最小</th><th>最大</th><th>作用</th><th>啟用</th></tr></thead><tbody id="magicTableBody"></tbody></table></div>
+            </div>
+            <div id="suppressionPanel" class="tab-panel">
+              <div class="section-intro">
+                <h3>偏離抑制參數</h3>
+                <p>抑制是線上執行期規則，不切分也不重建 240,000 個正式劇本。魔法傷害在比牌結算時依狀態選正常表或抑制專用表。</p>
+              </div>
+              <div class="split-grid">
+                <section class="param-group">
+                  <h3>01｜啟動條件與生命週期</h3>
+                  <div id="suppressionActivationGrid" class="field-list"></div>
+                </section>
+                <section class="param-group">
+                  <h3>02｜換牌候選抑制</h3>
+                  <div id="suppressionRedrawGrid" class="field-list"></div>
+                </section>
+              </div>
+              <section class="sub-control-block">
+                <h3>03｜傷害魔法抑制專用抽取表</h3>
+                <p class="compact-copy">暴擊、固傷各自使用一張表；三條、四條、順子、同花、葫蘆等所有牌型傷害魔法卡共用「牌型傷害倍率」表。權重不必加總為 100，系統會依比例抽取。</p>
+                <div id="suppressionMagicSwitchGrid" class="switch-grid"></div>
+                <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>抑制表</th><th>套用卡片</th><th>結果 A</th><th>A 權重</th><th>結果 B</th><th>B 權重</th><th>啟用</th></tr></thead><tbody id="suppressionMagicTableBody"></tbody></table></div>
+              </section>
+              <section class="sub-control-block">
+                <h3>04｜前端揭露與稽核</h3>
+                <p class="compact-copy">開卡只公開種類；只有金幣卡立即顯示實際加成。暴擊、固傷與牌型傷害倍率到比牌結算才揭露，稽核必須保存使用正常表或抑制表、抽取結果與規則版本。</p>
+                <output id="suppressionPolicySummary" class="dirty-note"></output>
+              </section>
             </div>
             <div id="pokerPanel" class="tab-panel">
               <div class="split-grid">
@@ -400,14 +428,14 @@
 
   </div>
 
-  <script src="dice-first-core.js?v=action-tree-v30"></script>
+  <script src="dice-first-core.js?v=action-tree-v31"></script>
   <script src="boss-duel-poker-arrangement-lab-core.js?v=arrange-v9"></script>
-  <script src="boss-duel-rules.js?v=action-tree-v30"></script>
+  <script src="boss-duel-rules.js?v=action-tree-v31"></script>
   <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
   <script src="boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
-  <script src="boss-duel-natural-story-core.js?v=action-tree-v30"></script>
-  <script src="boss-duel-action-tree-core.js?v=action-tree-v30"></script>
-  <script src="boss-duel-action-tree-lab.js?v=action-tree-v30"></script>
+  <script src="boss-duel-natural-story-core.js?v=action-tree-v31"></script>
+  <script src="boss-duel-action-tree-core.js?v=action-tree-v31"></script>
+  <script src="boss-duel-action-tree-lab.js?v=action-tree-v31"></script>
 </body>
 </html>
