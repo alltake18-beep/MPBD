@@ -29,6 +29,7 @@
   const STORIES_PER_CLASS = 10000;
   const ACTION_TRACE_VERSION = "story-action-trace-v1";
   const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v1";
+  const STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
   const BET_VALUES = Object.freeze([1, 2, 5, 10, 20, 50, 100, 200, 500, 800, 1000, 1200, 1500, 1800, 2000]);
   const BET_BUCKETS = Object.freeze([
     Object.freeze({ key: "B1", label: "Bet 1–10", bets: Object.freeze([1, 2, 5, 10]) }),
@@ -189,6 +190,40 @@
     if (returnX >= config.winMinReturnX) return "win";
     if (returnX >= config.pushMinReturnX) return "push";
     return "lose";
+  }
+
+  function materializeStoryForBet(story, betInput, options = {}) {
+    const bet = Number(betInput);
+    const spendX = Number(story?.spendX);
+    const payoutX = Number(story?.payoutX);
+    if (!(bet > 0) || !Number.isFinite(bet)) throw new Error("Bet 必須是大於 0 的有限數字");
+    if (!(spendX > 0) || !Number.isFinite(spendX)) throw new Error("劇本 spendX 必須是大於 0 的有限數字");
+    if (!(payoutX >= 0) || !Number.isFinite(payoutX)) throw new Error("劇本 payoutX 必須是非負有限數字");
+    if (Array.isArray(options.allowedBets) && options.allowedBets.length && !options.allowedBets.map(Number).includes(bet)) {
+      throw new Error(`Bet ${bet} 不在呼叫端允許清單`);
+    }
+    const netX = payoutX - spendX;
+    const totalSpendCredits = spendX * bet;
+    const totalPayoutCredits = payoutX * bet;
+    const netCredits = netX * bet;
+    return Object.freeze({
+      version: STORY_BET_CONTRACT_VERSION,
+      betIndependent: true,
+      storyId: story.id || "",
+      star: Number(story.star) || 0,
+      seed: Number(story.seed) >>> 0,
+      classKey: story.classKey || "",
+      bet,
+      spendX,
+      payoutX,
+      netX,
+      totalSpendCredits,
+      totalPayoutCredits,
+      spendCredits: totalSpendCredits,
+      payoutCredits: totalPayoutCredits,
+      netCredits,
+      originalBossRewardCredits: Number(story.originalBossRewardX || 0) * bet
+    });
   }
 
   function countVector(source, keys) {
@@ -1661,10 +1696,10 @@
 
   return {
     STORY_KEYS, STORY_LABELS, BET_VALUES, BET_BUCKETS, DIRECTED_ARCHETYPES,
-    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION,
+    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, STORY_BET_CONTRACT_VERSION,
     DEFAULT_TICKET_PREFERENCE_PCT, DEFAULT_TICKET_BASIS,
     DEFAULT_BOSS_ROWS: clone(DEFAULT_BOSS_ROWS), DEFAULT_MAGIC_ROWS: clone(DEFAULT_MAGIC_ROWS), DEFAULT_HAND_ROWS: clone(DEFAULT_HAND_ROWS),
-    normalizeConfig, storyClass, bucketIndexForBet, emptyBucketBalances,
+    normalizeConfig, storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,
     sortedCardIds, sameCardIds, storyStepAt, plannedKeepIdsAt, replayContract, executeRuntimeRedraw, resolveRuntimeMagic,
     packStorySummary, unpackStorySummary,
     simulateNaturalStory, buildStarPool, buildStoryPool, directorScore, directorStoryText, buildDirectedStarPool,

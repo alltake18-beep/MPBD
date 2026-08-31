@@ -19,6 +19,7 @@ tools/*
 !tools/test-action-tree-tool-schema.js
 !tools/test-frontend-flow-contract.js
 !tools/test-html-contracts.js
+!tools/test-story-generator-service.js
 
 # Dependencies, caches, temporary output, and logs
 node_modules/
