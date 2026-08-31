@@ -1,0 +1,146 @@
+texture.png
+size: 806,1029
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+Boss_Duel_star
+  rotate: false
+  xy: 588, 891
+  size: 146, 136
+  orig: 146, 136
+  offset: 0, 0
+  index: -1
+Boss_Duel_star_colorful
+  rotate: false
+  xy: 588, 753
+  size: 146, 136
+  orig: 146, 136
+  offset: 0, 0
+  index: -1
+VFX_1
+  rotate: false
+  xy: 2, 140
+  size: 547, 308
+  orig: 547, 358
+  offset: 0, 50
+  index: -1
+VFX_2
+  rotate: true
+  xy: 2, 450
+  size: 577, 584
+  orig: 676, 668
+  offset: 50, 48
+  index: -1
+VFX_3
+  rotate: true
+  xy: 551, 94
+  size: 279, 248
+  orig: 305, 282
+  offset: 12, 12
+  index: -1
+seq/star_colorful_sweep_00
+  rotate: true
+  xy: 512, 30
+  size: 62, 124
+  orig: 146, 136
+  offset: 43, 10
+  index: -1
+seq/star_colorful_sweep_01
+  rotate: false
+  xy: 2, 13
+  size: 90, 125
+  orig: 146, 136
+  offset: 28, 7
+  index: -1
+seq/star_colorful_sweep_02
+  rotate: false
+  xy: 588, 638
+  size: 114, 113
+  orig: 146, 136
+  offset: 24, 7
+  index: -1
+seq/star_colorful_sweep_03
+  rotate: true
+  xy: 185, 3
+  size: 135, 83
+  orig: 146, 136
+  offset: 9, 25
+  index: -1
+seq/star_colorful_sweep_04
+  rotate: true
+  xy: 736, 891
+  size: 136, 67
+  orig: 146, 136
+  offset: 8, 34
+  index: -1
+seq/star_colorful_sweep_05
+  rotate: true
+  xy: 588, 396
+  size: 125, 101
+  orig: 146, 136
+  offset: 8, 10
+  index: -1
+seq/star_colorful_sweep_06
+  rotate: false
+  xy: 704, 627
+  size: 100, 124
+  orig: 146, 136
+  offset: 24, 2
+  index: -1
+seq/star_colorful_sweep_07
+  rotate: false
+  xy: 354, 11
+  size: 77, 127
+  orig: 146, 136
+  offset: 40, 2
+  index: -1
+seq/star_colorful_sweep_08
+  rotate: false
+  xy: 433, 11
+  size: 77, 127
+  orig: 146, 136
+  offset: 31, 2
+  index: -1
+seq/star_colorful_sweep_09
+  rotate: false
+  xy: 704, 502
+  size: 100, 123
+  orig: 146, 136
+  offset: 24, 2
+  index: -1
+seq/star_colorful_sweep_10
+  rotate: true
+  xy: 691, 375
+  size: 125, 101
+  orig: 146, 136
+  offset: 14, 10
+  index: -1
+seq/star_colorful_sweep_11
+  rotate: true
+  xy: 736, 753
+  size: 136, 67
+  orig: 146, 136
+  offset: 3, 34
+  index: -1
+seq/star_colorful_sweep_12
+  rotate: true
+  xy: 270, 2
+  size: 136, 82
+  orig: 146, 136
+  offset: 2, 26
+  index: -1
+seq/star_colorful_sweep_13
+  rotate: false
+  xy: 588, 523
+  size: 114, 113
+  orig: 146, 136
+  offset: 10, 7
+  index: -1
+seq/star_colorful_sweep_14
+  rotate: false
+  xy: 94, 12
+  size: 89, 126
+  orig: 146, 136
+  offset: 30, 7
+  index: -1
+

@@ -1,0 +1,53 @@
+# Local QA output and engineering-only material
+reports/
+%SystemDrive%/
+
+# Keep the production story generator, Excel replay helper, and their release
+# checks in Git.  Other one-off engineering tools remain local.
+tools/*
+!tools/generate-natural-preset.js
+!tools/generate-story-details.js
+!tools/build-story-workbook.mjs
+!tools/build-story-workbook-streaming.js
+!tools/summarize-story-preset.js
+!tools/test-story-planner.js
+!tools/test-story-experience-replay.js
+!tools/test-runtime-deviation-suppression.js
+!tools/test-natural-story-preset.js
+!tools/test-full-story-preset.js
+!tools/test-natural-directed-story-core.js
+!tools/test-action-tree-tool-schema.js
+!tools/test-frontend-flow-contract.js
+!tools/test-html-contracts.js
+
+# Dependencies, caches, temporary output, and logs
+node_modules/
+.cache/
+cache/
+tmp/
+temp/
+coverage/
+playwright-report/
+test-results/
+outputs/
+*.log
+*.tmp
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local server
+dev-server.mjs
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/

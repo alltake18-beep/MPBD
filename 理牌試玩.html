@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>Boss Duel｜理牌試玩</title>
+  <script>
+    if (location.protocol === "file:") {
+      const params = new URLSearchParams(location.search);
+      params.set("v", "poker-lab-v9");
+      location.replace(`http://127.0.0.1:4173/${encodeURIComponent("理牌試玩.html")}?${params}`);
+    }
+  </script>
+  <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
+  <link rel="stylesheet" href="boss-duel-poker-arrangement-lab.css?v=poker-lab-v9">
+</head>
+<body>
+  <main class="lab-shell">
+    <header class="lab-header">
+      <div>
+        <p class="eyebrow">BOSS DUEL · INDEPENDENT RULE LAB</p>
+        <h1>理牌試玩</h1>
+        <p class="header-copy">只驗收新理牌規格，不連接正式 Demo、傷害、派彩或 action-tree。</p>
+      </div>
+      <div class="scope-flag">獨立驗收 · poker-lab-v9</div>
+    </header>
+
+    <section class="control-panel" aria-labelledby="setupTitle">
+      <div class="section-heading">
+        <div>
+          <p class="step-number">01</p>
+          <h2 id="setupTitle">建立測試手牌</h2>
+        </div>
+        <p id="deckCount" class="deck-count">牌堆 46 / 52</p>
+      </div>
+
+      <div class="control-grid">
+        <label>
+          <span>固定案例</span>
+          <select id="presetSelect"></select>
+        </label>
+        <label>
+          <span>Joker 位置</span>
+          <select id="jokerSlotSelect"></select>
+        </label>
+        <label>
+          <span>暴擊位置</span>
+          <select id="critSlotSelect"></select>
+        </label>
+        <label>
+          <span>固傷位置</span>
+          <select id="flatSlotSelect"></select>
+        </label>
+      </div>
+
+      <div class="action-row">
+        <button type="button" id="loadPresetButton" class="secondary-button">載入案例</button>
+        <button type="button" id="randomHandButton" class="secondary-button">隨機發初始手牌</button>
+      </div>
+      <p id="validationError" class="validation-error" role="alert" hidden></p>
+    </section>
+
+    <section class="hand-panel" aria-labelledby="handTitle">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="step-number">02</p>
+          <h2 id="handTitle">點牌調整保留</h2>
+        </div>
+        <p class="interaction-note">最多五張；只有初始發牌與 REDRAW 完成後會排序：保留牌靠左，A 固定最左，其餘依 2→K／Joker 邏輯點數排列。玩家點牌新增或取消保留時，所有牌都留在原位。</p>
+      </div>
+      <div class="live-hand-status" role="status" aria-live="polite">
+        <span>玩家當前牌型</span>
+        <strong id="liveHandTypeValue">—</strong>
+      </div>
+      <div id="handCards" class="hand-cards" aria-live="polite"></div>
+      <div class="card-legend" aria-label="牌面狀態圖例">
+        <span><i class="legend-swatch core-swatch"></i>目標核心</span>
+        <span><i class="legend-swatch extra-swatch"></i>額外保留</span>
+        <span><i class="legend-swatch loose-swatch"></i>未保留</span>
+      </div>
+      <div class="hand-action-row">
+        <button type="button" id="redrawButton" class="primary-button">REDRAW 未保留牌</button>
+      </div>
+    </section>
+
+    <section class="result-panel" aria-labelledby="resultTitle">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="step-number">03</p>
+          <h2 id="resultTitle">目前判定</h2>
+        </div>
+        <p id="modeLabel" class="mode-label">系統自動建議</p>
+      </div>
+
+      <div class="summary-grid" aria-live="polite">
+        <article>
+          <span>正式優先級</span>
+          <strong id="priorityValue">—</strong>
+        </article>
+        <article>
+          <span>目前結構</span>
+          <strong id="structureValue">—</strong>
+        </article>
+        <article>
+          <span>追牌目標</span>
+          <strong id="goalValue">—</strong>
+        </article>
+        <article>
+          <span>目標花色</span>
+          <strong id="suitValue">—</strong>
+        </article>
+      </div>
+
+      <dl class="audit-list">
+        <div><dt>目前核心</dt><dd id="coreValue">—</dd></div>
+        <div><dt>額外保留</dt><dd id="extraValue">—</dd></div>
+        <div><dt>舊保留</dt><dd id="oldKeepValue">尚未 REDRAW</dd></div>
+        <div><dt>合法替換</dt><dd id="replacementValue">尚未 REDRAW</dd></div>
+        <div><dt>目標變化</dt><dd id="changeValue">載入手牌後依正式優先序建立建議。</dd></div>
+      </dl>
+    </section>
+
+    <details class="editor-panel">
+      <summary>進階：逐格指定六張牌</summary>
+      <div class="editor-table-wrap">
+        <table class="editor-table">
+          <thead><tr><th>位置</th><th>花色</th><th>點數</th><th>目前效果</th></tr></thead>
+          <tbody id="cardEditorBody"></tbody>
+        </table>
+      </div>
+      <button type="button" id="applyEditorButton" class="secondary-button">套用六張指定牌</button>
+    </details>
+
+    <details class="priority-panel">
+      <summary>正式 18 級優先序</summary>
+      <ol id="priorityList" class="priority-list"></ol>
+      <p class="boundary-note">六張初始牌一定先在第 16「二花缺三花」前命中；第 17／18 只會在玩家手動縮小保留集合後成為目標。</p>
+    </details>
+  </main>
+
+  <script src="boss-duel-poker-arrangement-lab-core.js?v=poker-lab-v9"></script>
+  <script src="boss-duel-poker-arrangement-lab.js?v=poker-lab-v9"></script>
+</body>
+</html>

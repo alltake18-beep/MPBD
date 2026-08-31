@@ -1,0 +1,69 @@
+texture.png
+size: 1016,292
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+01_hand_dealing_L
+  rotate: false
+  xy: 2, 112
+  size: 272, 176
+  orig: 272, 176
+  offset: 0, 0
+  index: -1
+02_forearm_dealing_L
+  rotate: false
+  xy: 244, 112
+  size: 200, 176
+  orig: 200, 176
+  offset: 0, 0
+  index: -1
+03_finger_L
+  rotate: false
+  xy: 148, 13
+  size: 109, 55
+  orig: 109, 56
+  offset: 0, 1
+  index: -1
+04_hand1_L
+  rotate: true
+  xy: 2, 20
+  size: 121, 146
+  orig: 121, 146
+  offset: 0, 0
+  index: -1
+05_back_blue
+  rotate: true
+  xy: 791, 12
+  size: 122, 155
+  orig: 122, 155
+  offset: 0, 0
+  index: -1
+09_hand2_L
+  rotate: false
+  xy: 577, 3
+  size: 181, 150
+  orig: 181, 150
+  offset: 0, 0
+  index: -1
+29_shadow
+  rotate: true
+  xy: 818, 137
+  size: 151, 193
+  orig: 151, 196
+  offset: 0, 0
+  index: -1
+31_forearm_L
+  rotate: false
+  xy: 446, 122
+  size: 186, 166
+  orig: 186, 166
+  offset: 0, 0
+  index: -1
+31_forearm_L2
+  rotate: false
+  xy: 630, 122
+  size: 186, 166
+  orig: 186, 166
+  offset: 0, 0
+  index: -1
+

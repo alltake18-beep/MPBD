@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#080a0f">
+  <title>Boss Duel｜機率工具</title>
+  <script>
+    if (location.protocol === "file:") {
+      const params = new URLSearchParams(location.search);
+      params.set("v", "action-tree-v29");
+      location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
+    }
+  </script>
+  <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
+  <link rel="stylesheet" href="styles.css?v=action-tree-v29">
+  <link rel="stylesheet" href="boss-duel-action-tree-lab.css?v=action-tree-v29">
+</head>
+<body>
+  <div class="app-shell action-tree-tool">
+    <header class="app-header">
+      <div class="title-block">
+        <p class="eyebrow">NATURAL STORIES · PLAYER REPORTS</p>
+        <h1>機率工具</h1>
+        <p class="header-subtitle">目前內建 24 個正式故事桶：每星的贏多、贏少、輸各 10,000 個，共 240,000 個；全部通過種子、版本與操作重播契約驗證後才替換。</p>
+      </div>
+      <div class="header-actions" aria-label="工具捷徑">
+        <button id="restoreButton" class="secondary" type="button">還原範例</button>
+        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v1" target="_blank" rel="noopener">後端文件</a>
+        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v84" target="_blank" rel="noopener">開啟遊戲</a>
+      </div>
+    </header>
+
+    <div class="workbench">
+      <aside id="mechanicsPanel" class="config-panel tabs" aria-label="模型參數設定">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">STORY RUNTIME CONTROL</p>
+            <h2>參數設定</h2>
+          </div>
+          <div class="version-state" aria-label="版本狀態"><span><i></i> 遊戲已接入正式故事池</span></div>
+        </div>
+
+        <details class="control-card" open>
+          <summary><span>01</span><strong>故事產生</strong><small>完整跑出、歸類與重播</small></summary>
+          <div class="control-card-body">
+            <div class="control-grid primary-controls">
+              <label>目標長期 RTP（%）<input id="targetCoreRtp" type="number" min="80" max="110" step="0.001" value="96"></label>
+              <label>配籤 RTP 容許差（百分點）<input id="tolerancePp" type="number" min="0" max="2" step="0.001" value="0.01"><span class="field-help">目標 96%、容許 0.01，代表配籤理論值須落在 95.99%～96.01%；不是短期實跑 RTP 波動。</span></label>
+              <label>贏多門檻（倍）<input id="winMinReturnX" type="number" min="0.001" max="1000000" step="0.1" value="3"><span class="field-help">分類倍率＝總派彩 ÷ 總押；等於此門檻也算贏多。</span></label>
+              <label>贏少門檻（倍）<input id="pushMinReturnX" type="number" min="0" max="999999.999" step="0.1" value="1"><span class="field-help">等於此門檻算贏少；低於此門檻才算輸。贏多門檻必須較高。</span></label>
+              <label>三分類候選抽法<select id="candidateDrawMode" disabled><option value="FULL_CLASS_UNIFORM">贏多／贏少／輸完整池各等機率抽 1 個</option></select><span class="field-help">不設分類比例，也不在分類內偏挑靠近 96% 的故事。</span></label>
+              <label>分數籤總數<input id="ticketBasis" type="number" min="100" max="1000000" step="100" value="1000000"><span class="field-help">三候選配籤合計；數量越高，理論 RTP 整數化誤差越小。</span></label>
+              <label>不可配籤重抽上限<input id="maxCandidateAttempts" type="number" min="1" max="1000000" step="1" value="10000"><span class="field-help">只有三候選無法跨過目標 RTP 或任一候選會變成 0 籤時，才整組重新各抽一次。</span></label>
+              <label>模擬種子<input id="seed" type="number" min="0" max="4294967295" step="1" value="" placeholder="留白＝每次隨機"><span class="field-help">留白時每次產生新種子；統計報表會顯示實際種子，填回即可重現。</span></label>
+            </div>
+
+            <div class="inline-section-title">
+              <div><strong>樣本與玩家條件</strong><small>變更後須重新執行</small></div>
+              <button type="button" class="mini-tab active" data-panel="simulationPanel">模擬設定</button>
+            </div>
+            <div id="simulationPanel" class="tab-panel active">
+              <div id="simulationGrid" class="control-grid"></div>
+            </div>
+
+            <div class="run-row">
+              <button id="runSimulationButton" class="primary" type="button">開始模擬</button>
+              <button id="copyConfigButton" type="button">複製參數</button>
+              <button id="copyStatisticsButton" type="button" disabled>複製統計資料</button>
+              <button id="exportStatisticsButton" type="button" disabled>輸出 JSON</button>
+              <span id="simulationState">尚未執行</span>
+            </div>
+
+            <div class="metric-list simulation-metrics compat-metrics is-hidden" aria-label="本次模擬摘要">
+              <div><span>實際投入</span><strong id="simSpend">—</strong></div>
+              <div><span>玩家實付獎</span><strong id="simPayout">—</strong></div>
+              <div><span>劇本承諾 RTP</span><strong id="simGrossRtp">—</strong></div>
+              <div><span>玩家 RTP</span><strong id="simNetRtp">—</strong></div>
+              <div><span>水池補正／扣抵</span><strong id="simOffset">—</strong></div>
+              <div><span>擊殺／未擊殺</span><strong id="simKillAbort">—</strong></div>
+              <div><span>平均回合／換牌</span><strong id="simRoundsDraws">—</strong></div>
+              <div><span>期末個人劇本水池</span><strong id="simCarry">—</strong></div>
+            </div>
+
+          </div>
+        </details>
+
+        <details class="control-card">
+          <summary><span>02</span><strong>八星自然故事目錄</strong><small>篩選故事並送進遊戲</small></summary>
+          <div class="control-card-body" aria-labelledby="treeTitle">
+            <div class="section-intro">
+              <h3 id="treeTitle">遊戲故事目錄</h3>
+              <p>目前 1～8 星的贏多、贏少、輸各有 10,000 個自然實跑故事，共 240,000 個。調整門檻可以預覽重分類，但只要任一桶不再是 10,000 個，就不得當成正式發布池，必須依新門檻重新生成。</p>
+            </div>
+            <div class="legend-row" aria-label="行動樹說明">
+              <span id="winClassificationRule" class="tree-win">贏多：總派彩 ÷ 總押 ≥ 3x</span>
+              <span id="pushClassificationRule" class="tree-push">贏少：1x ≤ 總派彩 ÷ 總押 &lt; 3x</span>
+              <span id="loseClassificationRule" class="tree-lose">輸：總派彩 ÷ 總押 &lt; 1x</span>
+            </div>
+            <div class="nested-param-card story-experience-card">
+              <div class="advanced-body">
+                <h3>選一個故事進遊戲體驗</h3>
+                <div class="control-grid compact-controls">
+                  <label>星級<select id="storyExperienceStar"><option value="1">1 星</option><option value="2">2 星</option><option value="3">3 星</option><option value="4">4 星</option><option value="5">5 星</option><option value="6">6 星</option><option value="7">7 星</option><option value="8">8 星</option></select></label>
+                  <label>故事來源<select id="storyExperienceSource"><option value="NATURAL">自然實跑</option></select></label>
+                  <label>結果分類<select id="storyExperienceClass"><option value="win">贏多</option><option value="push">贏少</option><option value="lose">輸</option></select></label>
+                  <label>故事編號<select id="storyExperienceIndex"><option value="0">#1</option><option value="1">#2</option><option value="2">#3</option><option value="3">#4</option><option value="4">#5</option><option value="5">#6</option><option value="6">#7</option><option value="7">#8</option><option value="8">#9</option><option value="9">#10</option><option value="10">#11</option><option value="11">#12</option><option value="12">#13</option><option value="13">#14</option><option value="14">#15</option><option value="15">#16</option><option value="16">#17</option><option value="17">#18</option><option value="18">#19</option><option value="19">#20</option><option value="20">#21</option><option value="21">#22</option><option value="22">#23</option><option value="23">#24</option><option value="24">#25</option><option value="25">#26</option><option value="26">#27</option><option value="27">#28</option><option value="28">#29</option><option value="29">#30</option><option value="30">#31</option><option value="31">#32</option><option value="32">#33</option><option value="33">#34</option><option value="34">#35</option><option value="35">#36</option><option value="36">#37</option><option value="37">#38</option><option value="38">#39</option><option value="39">#40</option><option value="40">#41</option><option value="41">#42</option><option value="42">#43</option><option value="43">#44</option><option value="44">#45</option><option value="45">#46</option><option value="46">#47</option><option value="47">#48</option><option value="48">#49</option><option value="49">#50</option><option value="50">#51</option><option value="51">#52</option><option value="52">#53</option><option value="53">#54</option><option value="54">#55</option><option value="55">#56</option><option value="56">#57</option><option value="57">#58</option><option value="58">#59</option><option value="59">#60</option><option value="60">#61</option><option value="61">#62</option><option value="62">#63</option><option value="63">#64</option><option value="64">#65</option><option value="65">#66</option><option value="66">#67</option><option value="67">#68</option><option value="68">#69</option><option value="69">#70</option><option value="70">#71</option><option value="71">#72</option><option value="72">#73</option><option value="73">#74</option><option value="74">#75</option><option value="75">#76</option><option value="76">#77</option><option value="77">#78</option><option value="78">#79</option><option value="79">#80</option><option value="80">#81</option><option value="81">#82</option><option value="82">#83</option><option value="83">#84</option><option value="84">#85</option><option value="85">#86</option><option value="86">#87</option><option value="87">#88</option><option value="88">#89</option><option value="89">#90</option><option value="90">#91</option><option value="91">#92</option><option value="92">#93</option><option value="93">#94</option><option value="94">#95</option><option value="95">#96</option><option value="96">#97</option><option value="97">#98</option><option value="98">#99</option><option value="99">#100</option></select></label>
+                </div>
+                <p id="storyExperienceSummary" class="formula-line">請先載入 240,000 個正式故事。</p>
+                <button id="storyExperienceOpen" class="primary" type="button" disabled>在遊戲中體驗這個故事</button>
+              </div>
+            </div>
+            <div class="table-wrap table-scroll">
+              <table class="dense-table tree-table">
+                <thead>
+                  <tr>
+                    <th rowspan="2">星級</th><th rowspan="2">Boss 籤</th><th rowspan="2">每星實跑故事</th>
+                    <th colspan="3">自然分類結果</th>
+                    <th rowspan="2">動態配籤</th><th rowspan="2">合法重播</th><th rowspan="2">狀態</th>
+                  </tr>
+                  <tr><th>贏多</th><th>贏少</th><th>輸</th></tr>
+                </thead>
+                <tbody id="actionTreeMatrixBody"></tbody>
+              </table>
+            </div>
+            <h3>自然故事平均派彩／總押倍率</h3>
+            <p class="formula-line">每星三分類各固定 10,000 局；分類倍率＝總派彩 ÷ 含入場與換牌的總押。實際淨額＝總派彩－總押，另行記帳。</p>
+            <div class="table-wrap table-scroll">
+              <table class="dense-table"><thead><tr><th>星級</th><th>贏多平均</th><th>贏少平均</th><th>輸平均</th></tr></thead><tbody id="naturalClassAverageBody"></tbody></table>
+            </div>
+            <h3>自然故事三類完整統計</h3>
+            <p class="formula-line">擊殺率＝該類擊殺故事數 ÷ 該類實際故事數；類別 RTP＝該類總派彩 ÷ 該類總投入，不是單局倍率的簡單平均。</p>
+            <div class="table-wrap table-scroll">
+              <table class="dense-table">
+                <thead><tr><th>星級</th><th>類別</th><th>N</th><th>擊殺率</th><th>未擊殺率</th><th>類別 RTP</th><th>平均投入x</th><th>平均派彩x</th><th>平均派彩／總押x</th><th>平均淨額x</th><th>平均BOSS獎x</th><th>平均牌型獎x</th><th>平均金幣x</th><th>平均BOSS HP</th><th>結束剩餘HP</th><th>平均回合</th><th>平均換牌</th><th>付費換牌</th><th>免費換牌</th><th>平均總傷害</th><th>FIGHT</th><th>FOLD</th><th>玩家勝回合</th><th>玩家敗回合</th><th>平手</th></tr></thead>
+                <tbody id="naturalClassStatsBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+
+        <details class="control-card">
+          <summary><span>03</span><strong>個人劇本水池</strong><small>抽劇本與花費入池共用目標 RTP</small></summary>
+          <div class="control-card-body" aria-labelledby="carryTitle">
+            <div class="section-intro">
+              <h3 id="carryTitle">個人劇本水池</h3>
+              <p>新逐利玩家按 Bet 分三桶；每筆花費乘上目標 RTP 後入桶，自然派彩出桶，擊殺時只以合法 Boss 骰面吸收差額。三桶不參與選劇本。</p>
+            </div>
+            <div class="switch-row major-switch">
+              <label class="switch"><input id="storyCarryEnabled" type="checkbox" checked><span></span></label>
+              <div><strong>啟用個人劇本水池</strong><small>實際遊戲分數；下注額 1–10／20–200／500–2000 共三個區間</small></div>
+            </div>
+            <details class="nested-param-card">
+              <summary>進階：新逐利水池上下限＋原版模型相容欄位</summary>
+              <div class="advanced-body">
+                <div class="carry-controls">
+                  <label>新逐利玩家原骰獎最低比例（%）<input id="rewardFloorPct" type="number" min="0" max="100" step="0.1" value="10"></label>
+                  <label>新逐利玩家原骰獎最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="1000" step="1" value="1000"></label>
+                  <label>原版三玩家相容：補正方向<select id="correctionBothWays"><option value="true">雙向：少花扣抵、多花補正</option><option value="false">只扣抵，不補正（不可發布）</option></select></label>
+                  <label>原版三玩家相容：基準投入認列<select id="baselineRecognitionMode"><option value="FULL_STORY_COMMIT">完整 StoryCommit 基準</option><option value="REACHED_NODE_BASELINE">只認列已到達節點（研究用）</option></select></label>
+                  <label>原版三玩家相容：投入差容忍帶（%）<input id="deviationBandPct" type="number" min="0" max="100" step="0.1" value="0"></label>
+                  <label>原版三玩家相容：最大下修（%）<input id="maxDeductionPct" type="number" min="0" max="100" step="0.1" value="50"></label>
+                  <label>原版三玩家相容：下修 Credits 上限<input id="maxDeductionX" type="number" min="0" step="1" value="1000000"></label>
+                  <label>原版三玩家相容：最低淨獎（%）<input id="minNetPct" type="number" min="0" max="100" step="0.1" value="50"></label>
+                  <label>原版三玩家相容：最大上修（%）<input id="maxCreditPct" type="number" min="0" max="100" step="0.1" value="50"></label>
+                  <label>原版三玩家相容：上修 Credits 上限<input id="maxCreditX" type="number" min="0" step="1" value="1000000"></label>
+                  <label>原版三玩家相容：斷線處理<select id="disconnectMode"><option value="RESUME">保留原 StoryCommit，重連繼續</option><option value="CLOSE">直接關閉（不可發布）</option></select></label>
+                </div>
+                <fieldset class="termination-grid">
+                  <legend>相容欄位（故事內沒有中途 REROLL；正式只分擊殺／未擊殺）</legend>
+                  <label><input id="termExplicitAbandon" type="checkbox" checked> 玩家明確離開／放棄</label>
+                  <label><input id="termBossReroll" type="checkbox" checked> REROLL BOSS</label>
+                  <label><input id="termBetSwitch" type="checkbox" checked> 切換 Bet 後關閉故事</label>
+                  <label><input id="termRoundExhausted" type="checkbox" checked> 回合耗盡</label>
+                </fieldset>
+                <div class="formula-block">
+                  <strong>poolAfter = poolBefore + 實際花費 × 目標 RTP − 自然派彩 − Boss 獎補正額</strong>
+                  <span>REROLL BOSS、START／CONTINUE 與付費 REDRAW 都按付款當下鎖定的目標 RTP 入對應 Bet 桶；自然派彩從同桶扣除。</span>
+                  <span>擊殺時只改該 BOSS 原骰獎，維持相同骰型與合法骰面；最終原骰獎限制為原值 10%～1,000 倍（100,000%）。</span>
+                </div>
+                <div class="example-grid">
+                  <div class="example-inputs">
+                    <h3>即時計算例</h3>
+                    <label>本次玩家實際花費（Credits）<input id="exampleBaselineSpend" type="number" step="0.1" value="100"></label>
+                    <label>本次自然派彩（Credits）<input id="exampleActualSpend" type="number" step="0.1" value="80"></label>
+                    <label>故事開始前相同下注區間餘額（遊戲分數）<input id="examplePoolBefore" type="number" step="0.1" value="20"></label>
+                    <label>本次 BOSS 原骰獎（Credits）<input id="exampleGrossReward" type="number" min="0" step="0.1" value="40"></label>
+                  </div>
+                  <div class="example-result" aria-live="polite">
+                    <div><span>目標 RTP 入池額</span><strong id="exampleSpendDelta">—</strong></div>
+                    <div><span>扣自然派彩後餘額</span><strong id="exampleRawPool">—</strong></div>
+                    <div><span>本次補正／扣抵</span><strong id="exampleOffset">—</strong></div>
+                    <div><span>實付淨獎</span><strong id="exampleNetReward">—</strong></div>
+                    <div><span>結算後池餘額</span><strong id="examplePoolAfter">—</strong></div>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+        </details>
+
+        <details class="control-card">
+          <summary><span>04</span><strong>遊戲機制</strong><small>完整參數編輯</small></summary>
+          <div class="control-card-body" aria-labelledby="mechanicsTitle">
+            <div class="section-intro">
+              <h3 id="mechanicsTitle">保留的遊戲參數</h3>
+              <p>保留原版功能、Boss、魔法卡、牌型與換牌費；舊五路線、VI 與舊個人池已移除。</p>
+            </div>
+            <div class="mechanic-tabbar" role="tablist" aria-label="遊戲參數分類">
+              <button type="button" data-panel="switchesPanel">功能開關</button>
+              <button type="button" data-panel="bossPanel">8 星 Boss</button>
+              <button type="button" data-panel="magicPanel">魔法卡</button>
+              <button type="button" data-panel="pokerPanel">牌型／換牌費</button>
+            </div>
+            <p class="tab-hint">選擇一類後展開完整編輯；模擬樣本欄位位於第 01 區。</p>
+            <div id="switchesPanel" class="tab-panel"><div id="switchGrid" class="switch-grid"></div></div>
+            <div id="bossPanel" class="tab-panel">
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星</th><th>HP下限</th><th>HP上限</th><th>回合下限</th><th>回合上限</th><th>出生籤</th><th>0倍數骰%</th><th>1顆%</th><th>2顆%</th><th>3顆%</th><th>理論最高獎x</th></tr></thead><tbody id="bossTableBody"></tbody></table></div>
+            </div>
+            <div id="magicPanel" class="tab-panel">
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>機制</th><th>顯示名稱</th><th>普通籤</th><th>高星籤</th><th>最小</th><th>最大</th><th>作用</th><th>啟用</th></tr></thead><tbody id="magicTableBody"></tbody></table></div>
+            </div>
+            <div id="pokerPanel" class="tab-panel">
+              <div class="split-grid">
+                <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>牌型</th><th>名稱</th><th>基礎傷害</th></tr></thead><tbody id="handTableBody"></tbody></table></div>
+                <div class="fee-panel"><h3>每次換牌費（Bet x）</h3><p class="compact-copy">第 16 次起沿用第 15 次費用。</p><div id="drawFeeGrid" class="fee-grid"></div></div>
+              </div>
+              <div class="sub-control-block"><h3>自然起手重抽</h3><div id="naturalDealGrid" class="control-grid"></div></div>
+            </div>
+            <p id="mechanicsDirtyState" class="dirty-note">參數尚未變更。</p>
+          </div>
+        </details>
+
+        <details class="control-card">
+          <summary><span>05</span><strong>故事目錄驗證</strong><small>240,000 個正式故事與版本化重播</small></summary>
+          <div class="control-card-body">
+            <div class="validation-panel" aria-live="polite">
+              <div><span>設計檢查</span><strong id="validationState">正在計算</strong></div>
+              <p id="validationMessage">先驗證每星三分類各 10,000 局，再從贏多、贏少、輸完整分類各等機率抽一個候選並配籤；玩家實際操作另以操作序號和劇本預定路徑比較。</p>
+            </div>
+            <div class="gate-list" aria-label="即時發布閘門">
+              <div><span>96% 配籤</span><strong id="overallGrossRtp">—</strong><small id="grossRtpDelta">本階段不執行</small></div>
+              <div><span>配籤誤差</span><strong id="maxStarError">—</strong><small>本階段不執行</small></div>
+              <div><span>正式故事池</span><strong id="pushFloorState">—</strong><small>24 桶共 240,000</small></div>
+              <div><span>三候選動態配籤</span><strong id="ticketState">—</strong><small>故事確認後再做</small></div>
+              <div><span>24 桶重播契約</span><strong id="naturalGateState">待驗證</strong><small>每桶固定 10,000</small></div>
+              <div><span>Demo 體驗</span><strong id="publishState">等待故事</strong><small>選 seed 後直接重播</small></div>
+              <div><span>混池分配</span><strong id="rtpSwingState">—</strong><small id="rtpSwingNote">故事確認後決定</small></div>
+            </div>
+
+            <div id="naturalStatus" class="pending-box" role="status">
+              <strong>等待驗證</strong><span>按「開始模擬」後自動檢查 24 桶各 10,000 局、分類與版本化重播契約；只有失敗時列出原因。</span>
+            </div>
+          </div>
+        </details>
+      </aside>
+
+      <main class="workspace">
+        <section id="resultsArea" class="results-area is-hidden" aria-labelledby="resultsTitle">
+          <div class="results-heading">
+            <div>
+              <p class="eyebrow">PLAYER EXPERIENCE REPORTS</p>
+              <h2 id="resultsTitle">玩家體驗統計</h2>
+              <p>主報表沿用舊版玩家口徑；劇本、三行動樹與個人劇本水池集中在「劇本／水池」。</p>
+            </div>
+            <span class="phase-badge">模擬完成後顯示</span>
+          </div>
+
+          <div id="statisticsReportTabs" class="report-tabs" role="tablist" aria-label="統計報表">
+            <button type="button" class="report-tab active" data-report-panel="reportOverviewPanel">總覽</button>
+            <button type="button" class="report-tab" data-report-panel="reportTrendPanel">RTP 走勢</button>
+            <button type="button" class="report-tab" data-report-panel="reportBucketsPanel">BOSS 倍數</button>
+            <button type="button" class="report-tab" data-report-panel="reportBossPanel">BOSS</button>
+            <button type="button" class="report-tab" data-report-panel="reportHandsPanel">牌型</button>
+            <button type="button" class="report-tab" data-report-panel="reportChainPanel">連殺</button>
+            <button type="button" class="report-tab" data-report-panel="reportMagicPanel">魔法卡</button>
+            <button type="button" class="report-tab report-tab-audit" data-report-panel="reportStoryPoolPanel">劇本／水池</button>
+          </div>
+
+          <div id="statisticsReports" class="statistics-reports">
+            <section id="reportOverviewPanel" class="report-panel active">
+              <div id="reportOverviewCards" class="summary-grid compact-summary report-summary"></div>
+              <div class="source-grid experience-summary-grid">
+                <section class="report-block">
+                  <h3>BOSS 體驗</h3>
+                  <div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>項目</th><th>數值</th><th>玩家口徑</th></tr></thead><tbody id="bossExperienceBody"></tbody></table></div>
+                </section>
+                <section class="report-block">
+                  <h3>退幣獨立統計</h3>
+                  <div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>玩家數</th><th>達標</th><th>死亡</th><th>退幣率</th><th>平均遊玩回合</th><th>死亡平均回合</th><th>平均擊殺 BOSS</th></tr></thead><tbody id="cashoutStatsBody"></tbody></table></div>
+                </section>
+                <section class="report-block">
+                  <h3>比牌牌型／平均換牌</h3>
+                  <div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>比牌牌型</th><th>平均換牌次數</th></tr></thead><tbody id="drawByHandBody"></tbody></table></div>
+                </section>
+                <section class="report-block">
+                  <h3>模擬資訊</h3>
+                  <div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>項目</th><th>數值</th><th>說明</th></tr></thead><tbody id="runInfoBody"></tbody></table></div>
+                </section>
+                <section class="report-block">
+                  <h3>投入來源</h3>
+                  <div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>投入來源</th><th>金額</th><th>占總投入</th></tr></thead><tbody id="spendSourceBody"></tbody></table></div>
+                </section>
+                <section class="report-block">
+                  <h3>玩家 RTP 來源</h3>
+                  <div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>玩家派彩來源</th><th>金額</th><th>RTP 貢獻</th></tr></thead><tbody id="payoutSourceBody"></tbody></table></div>
+                </section>
+              </div>
+            </section>
+
+            <section id="reportTrendPanel" class="report-panel">
+              <h3>玩家 RTP 走勢</h3>
+              <p class="proxy-note">只看玩家實際投入與最後實付獎；每列依指定的 BOSS 數切片。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>BOSS 區間</th><th>累積玩家 RTP</th><th>區域玩家 RTP</th><th>累積擊殺 BOSS</th></tr></thead><tbody id="rtpTrendBody"></tbody></table></div>
+            </section>
+
+            <section id="reportBucketsPanel" class="report-panel">
+              <h3>BOSS 切片倍數分布</h3>
+              <p class="proxy-note">以一隻完整 BOSS 從開始到結束為單位，倍數＝玩家實付獎 ÷ 該 BOSS 實際總投入。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>總押分倍數</th><th>累加 RTP</th><th>平均幾次出現</th><th>出現次數</th></tr></thead><tbody id="playerBossBucketBody"></tbody></table></div>
+              <div class="pending-box report-pending-note"><strong>逐入場回合倍數來自真實故事重播</strong><span>報表只使用正式遊戲故事的牌局時間線，不再以牌型權重代理。</span></div>
+            </section>
+
+            <section id="reportBossPanel" class="report-panel">
+              <h3>八星 BOSS 統計</h3>
+              <p class="proxy-note">新模型已移除舊普通池／高星池來源，因此改按玩家實際遇到的八個星級統一呈現。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>出現次數</th><th>平均幾隻遇到</th><th>擊殺率</th><th>玩家 RTP</th><th>BOSS 獎 RTP</th><th>BOSS 獎 Min／Avg／Max</th><th>Joker</th><th>同花順擊殺</th><th>平均換牌</th><th>平均換牌花費 x</th><th>REROLL</th></tr></thead><tbody id="starStatsBody"></tbody></table></div>
+            </section>
+
+            <section id="reportHandsPanel" class="report-panel">
+              <h3>牌型</h3>
+              <p class="proxy-note">牌型、傷害與換牌全部取自 240,000 個可重播正式故事；同花順基礎傷害 30，正常吃暴擊／固傷。主模擬目前沿劇本操作，真實玩家偏離比例待後續確認。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>牌型</th><th>RTP</th><th>玩家勝率</th><th>初始手牌</th><th>比牌牌型</th><th>BOSS 手牌</th><th>平均傷害</th><th>基礎傷害</th></tr></thead><tbody id="handStatsBody"></tbody></table></div>
+            </section>
+
+            <section id="reportChainPanel" class="report-panel">
+              <h3>連殺 RTP</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>連殺次數</th><th>RTP</th><th>平均幾次獲得</th><th>平均賠率 x</th></tr></thead><tbody id="chainStatsBody"></tbody></table></div>
+            </section>
+
+            <section id="reportMagicPanel" class="report-panel">
+              <h3>魔法卡</h3>
+              <p class="proxy-note">魔法卡依普通／高星正式權重逐回合自然抽取；統計只使用正式遊戲故事池。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>名稱</th><th>總出現次數</th><th>使用率</th><th>平均幾次出現</th></tr></thead><tbody id="magicStatsBody"></tbody></table></div>
+            </section>
+
+            <section id="reportStoryPoolPanel" class="report-panel">
+              <div class="plain-language-note">
+                <strong>這裡才使用劇本與水池術語</strong>
+                <span>「劇本承諾獎」是牌局自然結果先決定的原始獎值，尚未加減個人劇本水池；「玩家實付獎」才是玩家最後收到的金額。其他分頁一律以玩家實際投入與玩家實付獎計算。</span>
+              </div>
+              <div id="storySummaryCards" class="summary-grid compact-summary report-summary"></div>
+              <h3>系統風險判讀（不是 PASS）</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>等級</th><th>風險</th><th>本次證據</th><th>可能影響</th></tr></thead><tbody id="riskFindingsBody"></tbody></table></div>
+              <h3>動態配籤健康度</h3>
+              <p class="proxy-note">贏多、贏少、輸分別從完整分類等機率抽 1 個；每個候選計算「100 × 總派彩 − 目標 RTP × 總押」分數，再轉成可調整總數的整數籤。不設分類比例。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>指標</th><th>數值</th><th>風險解讀</th></tr></thead><tbody id="ticketHealthBody"></tbody></table></div>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>結果類別</th><th>平均權重</th><th>Min</th><th>P1</th><th>P5</th><th>P50</th><th>P95</th><th>P99</th><th>Max</th><th>&lt;1%</th><th>&lt;5%</th></tr></thead><tbody id="ticketWeightBody"></tbody></table></div>
+              <h3>本次配籤明細（前 100 隻）</h3>
+              <p class="proxy-note">每格依序顯示實際總押、總派彩、正負遊戲結果、96%差額分數、整數籤數與機率；不再以 0x 派彩冒充 0x 遊戲結果。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>#</th><th>星級／Bet</th><th>贏多候選</th><th>贏少候選</th><th>輸候選</th><th>實際中籤</th><th>理論 RTP</th></tr></thead><tbody id="ticketSamplesBody"></tbody></table></div>
+              <h3>各星配籤求解尾部</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>承諾數</th><th>第一次解出</th><th>嘗試 Avg／P99／Max</th><th>最小權重</th><th>權重 &lt;1%</th><th>最大權重 P99／Max</th><th>平均有效選項</th></tr></thead><tbody id="ticketStarHealthBody"></tbody></table></div>
+              <h3>240,000 故事可解組／中籤覆蓋</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>類別</th><th>池內故事</th><th>進入最終可解候選</th><th>曾被選中</th><th>選中總次數</th><th>未進最終可解候選</th><th>從未選中</th><th>單故事最多重複</th></tr></thead><tbody id="storySelectionCoverageBody"></tbody></table></div>
+              <h3>劇本生命週期漏斗</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>候選故事抽取</th><th>START 承諾</th><th>完成結算</th><th>待結算</th><th>說明</th></tr></thead><tbody id="settlementFunnelBody"></tbody></table></div>
+              <h3>劇本承諾 RTP 走勢</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>BOSS 區間</th><th>N</th><th>區域劇本承諾 RTP</th><th>區域玩家 RTP</th><th>累積劇本承諾 RTP</th><th>累積玩家 RTP</th><th>補正</th><th>扣抵</th><th>平均個人劇本水池</th></tr></thead><tbody id="storyTrendBody"></tbody></table></div>
+              <h3>玩家與個人劇本水池分布</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>指標</th><th>P10</th><th>P50</th><th>P90</th><th>P95</th><th>P99</th><th>Max</th></tr></thead><tbody id="playerDistributionBody"></tbody></table></div>
+              <h3>劇本承諾獎倍數分布</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>承諾獎倍數下限</th><th>次數</th><th>平均幾次出現</th><th>承諾獎 RTP</th><th>玩家 RTP</th></tr></thead><tbody id="storyBucketBody"></tbody></table></div>
+              <h3>劇本投入回報倍數分布</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>承諾獎／投入下限</th><th>次數</th><th>平均幾次出現</th><th>承諾獎 RTP</th><th>玩家 RTP</th></tr></thead><tbody id="roundBucketBody"></tbody></table></div>
+              <h3>八星 × 三結果類別（24 格）</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星</th><th>結果類別</th><th>N</th><th>投入</th><th>劇本承諾 RTP</th><th>玩家 RTP</th><th>擊殺率</th><th>未擊殺率</th><th>平均回合</th><th>平均換牌</th></tr></thead><tbody id="cellStatsBody"></tbody></table></div>
+              <h3>三行動樹合計</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>結果類別</th><th>N</th><th>投入</th><th>劇本承諾獎</th><th>玩家實付獎</th><th>劇本承諾 RTP</th><th>玩家 RTP</th><th>擊殺率</th><th>未擊殺率</th><th>平均回合</th><th>平均換牌</th></tr></thead><tbody id="treeStatsBody"></tbody></table></div>
+              <h3>個人劇本水池守恆</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>包含下注額</th><th>首領</th><th>目標 RTP 入池額</th><th>自然派彩</th><th>本隻產生差額</th><th>上修</th><th>下修</th><th>觸發率</th><th>期末餘額</th></tr></thead><tbody id="carryBucketBody"></tbody></table></div>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>項目</th><th>數值</th><th>閘門／說明</th></tr></thead><tbody id="carryAuditBody"></tbody></table></div>
+              <h3>補正實際使用狀態</h3>
+              <p class="proxy-note">抽劇本與每筆花費入池共用目標 RTP；固定故事重播可直接觀察合法骰面吸收率與三桶池尾。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>指標</th><th>數值</th><th>說明</th></tr></thead><tbody id="correctionHealthBody"></tbody></table></div>
+              <h3>合法骰面 10%～1,000 倍補正能力</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>自然故事</th><th>有 BOSS 獎</th><th>可上修</th><th>可下修</th><th>達最高界</th><th>達最低界</th><th>平均上修容量</th><th>平均下修容量</th><th>最小上修跳格</th><th>最小下修跳格</th></tr></thead><tbody id="correctionCoverageBody"></tbody></table></div>
+              <h3>三桶玩家尾部</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>正餘額玩家</th><th>負餘額玩家</th><th>歸零玩家</th><th>平均餘額</th><th>|餘額| P50</th><th>P90</th><th>P95</th><th>P99</th><th>最大 |餘額|</th><th>|餘額|／投入</th></tr></thead><tbody id="carryBucketTailBody"></tbody></table></div>
+              <h3>承諾分類 → 玩家實付分類</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>承諾類別</th><th>實付類別</th><th>次數</th><th>占該承諾類別</th></tr></thead><tbody id="classMigrationBody"></tbody></table></div>
+              <h3>劇本終止原因</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>原因</th><th>次數</th><th>比例</th></tr></thead><tbody id="terminationStatsBody"></tbody></table></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+  </div>
+
+  <script src="dice-first-core.js?v=action-tree-v29"></script>
+  <script src="boss-duel-poker-arrangement-lab-core.js?v=arrange-v9"></script>
+  <script src="boss-duel-rules.js?v=action-tree-v29"></script>
+  <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
+  <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
+  <script src="boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
+  <script src="boss-duel-natural-story-core.js?v=action-tree-v29"></script>
+  <script src="boss-duel-action-tree-core.js?v=action-tree-v29"></script>
+  <script src="boss-duel-action-tree-lab.js?v=action-tree-v29"></script>
+</body>
+</html>

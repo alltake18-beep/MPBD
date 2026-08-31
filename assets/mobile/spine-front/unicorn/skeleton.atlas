@@ -1,0 +1,55 @@
+texture.png
+size: 688,200
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+01_hand_dealing
+  rotate: 180
+  xy: 304, 20
+  size: 219, 179
+  orig: 225, 179
+  offset: 6, 0
+  index: -1
+02_f2
+  rotate: 270
+  xy: 638, 112
+  size: 86, 45
+  orig: 86, 45
+  offset: 0, 0
+  index: -1
+03_f1
+  rotate: false
+  xy: 356, 160
+  size: 84, 38
+  orig: 84, 38
+  offset: 0, 0
+  index: -1
+04_hand_R
+  rotate: 270
+  xy: 518, 33
+  size: 166, 129
+  orig: 167, 141
+  offset: 0, 0
+  index: -1
+04_hand_R1
+  rotate: false
+  xy: 287, 135
+  size: 75, 63
+  orig: 75, 63
+  offset: 0, 0
+  index: -1
+05_back_blue
+  rotate: false
+  xy: 2, 16
+  size: 143, 182
+  orig: 143, 182
+  offset: 0, 0
+  index: -1
+06_forearm_R
+  rotate: true
+  xy: 147, 3
+  size: 196, 164
+  orig: 196, 164
+  offset: 0, 0
+  index: -1
+

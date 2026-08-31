@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#080404">
+  <title>Boss Duel｜遊戲Demo</title>
+  <script>
+    if (location.protocol === "file:") {
+      const params = new URLSearchParams(location.search);
+      params.set("v", "frontend-v84");
+      location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
+    }
+  </script>
+  <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
+  <link rel="stylesheet" href="boss-duel-demo.css?v=frontend-v84">
+</head>
+<body>
+  <main class="game-shell phase-ready booting" id="gameShell">
+    <section id="bossStage" class="boss-stage" aria-label="Boss 戰鬥舞台">
+      <div class="stage-vignette" aria-hidden="true"></div>
+
+      <div id="roundRibbon" class="round-ribbon" hidden>
+        <img class="round-word-art" src="assets/mobile/ui-supplied/round-word.png" alt="ROUND">
+        <div id="roundCount" class="round-count" aria-label="7 / 7"><strong id="roundsLeft"></strong><i class="round-slash" aria-hidden="true"></i><span id="roundLimit"></span></div>
+      </div>
+
+      <div id="bossHud" class="boss-hud" hidden>
+        <div class="boss-name-row">
+          <span id="bossStars" class="boss-stars" aria-label="BOSS 星級載入中"></span>
+          <img id="bossNameArt" class="boss-name-art" alt="" hidden>
+          <h1 id="bossName" class="sr-only">BOSS</h1>
+        </div>
+        <div class="hp-readout"><span>HP</span><strong id="hpText">27 / 27</strong></div>
+        <div class="hp-track"><div id="hpFill" class="hp-fill"></div></div>
+      </div>
+
+      <button id="menuButton" class="round-icon menu-button" type="button" aria-label="開啟選單" aria-expanded="false"><i></i><i></i><i></i></button>
+      <nav id="quickMenu" class="quick-menu" hidden aria-label="遊戲選單">
+        <button id="menuCloseButton" type="button" aria-label="收合選單" title="CLOSE">⌃</button>
+        <button id="historyButton" type="button" aria-label="戰局紀錄" title="HISTORY">↶</button>
+        <button id="menuHelpButton" type="button" aria-label="玩法說明" title="TUTORIAL">?</button>
+        <button id="cardHelpButton" type="button" aria-label="牌型說明" title="HAND HELP">♠</button>
+        <button id="soundButton" type="button" aria-label="音效切換" aria-pressed="true" title="SOUND">◖</button>
+        <button id="menuTurboButton" type="button" aria-label="快速模式" aria-pressed="false" title="TURBO">»</button>
+        <button id="languageButton" type="button" aria-label="介面語言" aria-pressed="false" title="LANGUAGE">◎</button>
+        <button id="exitButton" type="button" aria-label="離開遊戲" title="EXIT">×</button>
+        <span class="quick-menu-divider" aria-hidden="true"></span>
+        <button id="modelInfoButton" class="developer-menu-item" type="button" aria-label="模型資訊" title="MODEL">▤</button>
+        <a class="developer-menu-item" href="%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v29" target="_blank" rel="noopener" aria-label="開啟機率工具" title="PROBABILITY TOOL">↗</a>
+      </nav>
+      <button class="round-icon help-button" type="button" aria-label="玩法提示">?</button>
+      <button class="round-icon turbo-button" type="button" aria-label="快速模式" aria-pressed="false">»</button>
+
+      <div class="sync-pill">
+        <span id="updateStatus">即時同步</span>
+        <small id="modelVersion">v1</small>
+      </div>
+
+      <div id="bossSpineStage" class="boss-spine-stage" aria-hidden="true"></div>
+      <img id="bossCharacter" class="boss-character" alt="" hidden>
+
+      <div id="countdownPanel" class="countdown-panel" hidden aria-live="assertive">
+        <span id="countdownValue">10</span><small>S</small>
+      </div>
+
+      <div class="boss-cards" id="bossCards" aria-live="polite"></div>
+      <div id="bossHandSpineStage" class="boss-hand-spine-stage" aria-hidden="true"></div>
+
+      <div id="treasureBadge" class="treasure-badge" aria-label="最高獎金" hidden>
+        <div id="treasureChest" class="chest" aria-hidden="true"><div id="treasureSpine" class="treasure-spine"></div><span></span></div>
+        <strong id="winUpTo" class="sr-only">—</strong>
+        <small id="diceFormula" class="sr-only">—</small>
+      </div>
+
+      <div id="coinBonusPanel" class="coin-bonus-panel" hidden aria-live="polite">
+        <span>COIN BONUS</span><strong id="coinBonusValue">+0X</strong>
+      </div>
+    </section>
+
+    <section class="table-panel" aria-label="Boss Duel 牌桌">
+      <img class="paytable-art" src="assets/mobile/paytable-pink.png" alt="牌型賠付表">
+
+      <div id="prestartPanel" class="prestart-panel">
+        <div class="tutorial-label">TUTORIAL</div>
+        <p>Hunt Bosses with cards for bounties!<br>Switch stakes and opponents between rounds!</p>
+        <p>The higher the Boss star level,<br>the higher the bounty!</p>
+        <strong>Let's start the challenge!</strong>
+        <div class="bet-selector">
+          <b>BET</b>
+          <div><button id="betDown" type="button" aria-label="降低押注">◀</button><span id="prestartBet">1</span><button id="betUp" type="button" aria-label="提高押注">▶</button></div>
+        </div>
+      </div>
+
+      <div class="magic-row" id="magicRow" aria-label="魔法卡"></div>
+
+      <div id="combatMessage" class="combat-message" role="status" aria-live="polite">
+        擊敗 BOSS，揭開首次 START 成功時就鎖定的骰子獎勵。
+      </div>
+
+      <div class="hand-zone">
+        <div id="playerCards" class="cards" aria-live="polite"></div>
+        <button id="deckStackButton" class="deck-stack" type="button" aria-label="查看剩餘牌堆" aria-expanded="false"><span></span><b>48</b></button>
+      </div>
+
+      <div id="handPlaque" class="hand-plaque">
+        <strong id="playerHandName">等待發牌</strong>
+        <span id="damagePreview">DMG —</span>
+      </div>
+
+      <div class="boss-hand-state" aria-hidden="true">
+        <span>BOSS HAND</span><strong id="bossHandName">HIDDEN</strong>
+      </div>
+
+      <div class="action-bar" id="actionBar">
+        <button id="rerollButton" type="button" class="game-button blue"><b>REROLL BOSS</b><small></small></button>
+        <button id="entryButton" type="button" class="game-button red wide"><b><img class="action-word" src="assets/mobile/text-start.png" alt="START"></b><small>1.00 CREDITS</small></button>
+        <button id="betButton" type="button" class="game-button green"><b><img class="action-word" src="assets/mobile/text-bet.png" alt="BET"></b><small>1</small></button>
+        <button id="compareButton" type="button" class="game-button red" disabled><b><img class="action-word" src="assets/mobile/text-fight.png" alt="FIGHT"></b><small>COMPARE</small></button>
+        <button id="drawButton" type="button" class="game-button purple" disabled><b><img class="action-word" src="assets/mobile/text-redraw.png" alt="REDRAW"></b><small></small></button>
+        <button id="nextButton" type="button" class="game-button red next" hidden><b><img class="action-word" src="assets/mobile/text-continue-white.png" alt="CONTINUE"></b><small>NEXT BOSS</small></button>
+      </div>
+
+      <footer class="wallet-bar">
+        <div><span id="playerName">1787312715171012</span><strong id="credits">10000</strong></div>
+        <div class="brand-mark">BOSS <i>DUEL</i></div>
+        <div><span>TOTAL BET</span><strong id="betValue">0</strong></div>
+      </footer>
+    </section>
+
+    <section id="rerollConfirm" class="reroll-confirm" hidden aria-label="重抽 BOSS 確認">
+      <div class="reroll-confirm-card">
+        <div class="reroll-alert">!</div>
+        <p>Pay <strong id="rerollConfirmCost">1</strong> to Redraw BOSS</p>
+        <small>Losing Killstreak &amp; Magic Card bonuses</small>
+        <div class="reroll-confirm-actions">
+          <button id="rerollCancel" type="button" class="confirm-cancel">CANCEL</button>
+          <button id="rerollAccept" type="button" class="confirm-accept">CONFIRM</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="tutorialOverlay" class="tutorial-overlay" hidden aria-label="玩法說明">
+      <div class="tutorial-card">
+        <img class="tutorial-title-art" src="assets/mobile/ui-supplied/tutorial-title.png" alt="Boss Duel Instructions">
+        <div id="tutorialPages" class="tutorial-pages">
+          <article class="tutorial-page active" data-tutorial-page="0">
+            <div class="tutorial-visual">
+              <img class="tutorial-page-art page-p1" src="assets/mobile/ui-supplied/tutorial-p1.png" alt="Choose a Boss and inspect its stars, HP, round limit, and treasure reward">
+              <span id="tutorialRound" class="sr-only">ROUND 1/3</span><b id="tutorialBossName" class="sr-only">DRUNKARD</b><i id="tutorialWinUpTo" class="sr-only">WIN UP TO 6X</i>
+              <img id="tutorialBossCharacter" class="sr-only" src="assets/mobile/boss-fallback/drunkard.png" alt="Boss">
+            </div>
+            <div class="tutorial-copy">
+              <h3 data-copy-en="DEFEAT THE BOSS" data-copy-zh="擊敗 BOSS">DEFEAT THE BOSS</h3>
+              <p data-copy-en="Within a limited number of rounds, defeat the BOSS to earn a Kill Reward!" data-copy-zh="在限定回合內擊敗 BOSS，才能進入擊殺骰獎！">Within a limited number of rounds, defeat the BOSS to earn a Kill Reward!</p>
+            </div>
+          </article>
+          <article class="tutorial-page" data-tutorial-page="1" hidden>
+            <div class="tutorial-visual"><img class="tutorial-page-art page-p2" src="assets/mobile/ui-supplied/tutorial-p2.png" alt="Use BET, START, and REDRAW while magic cards remain left of the player hand"></div>
+            <div class="tutorial-copy">
+              <h3 data-copy-en="KEEP FIVE. REDRAW THE REST." data-copy-zh="鎖定五張，換掉其餘牌">KEEP FIVE. REDRAW THE REST.</h3>
+              <p data-copy-en="Tap cards to keep or discard. JOKER and bound magic effects stay attached to their card." data-copy-zh="點牌決定保留或換牌；JOKER 與暴擊／固傷效果會綁在指定牌上。">Tap cards to keep or discard. JOKER and bound magic effects stay attached to their card.</p>
+            </div>
+          </article>
+          <article class="tutorial-page" data-tutorial-page="2" hidden>
+            <div class="tutorial-visual"><div class="tutorial-composite-p3"><img src="assets/mobile/ui-supplied/tutorial-p3b.png" alt="Magic cards"><img src="assets/mobile/ui-supplied/tutorial-p3.png" alt="Player hand and poker hand type"></div></div>
+            <div class="tutorial-copy">
+              <h3 data-copy-en="KILL FIRST. REVEAL DICE AFTER." data-copy-zh="先擊殺，再揭骰">KILL FIRST. REVEAL DICE AFTER.</h3>
+              <p data-copy-en="The dice promise is locked on START. Dice are revealed only after BOSS HP reaches zero." data-copy-zh="START 時鎖定骰型；只有 BOSS HP 歸零後才揭曉骰面。">The dice promise is locked on START. Dice are revealed only after BOSS HP reaches zero.</p>
+            </div>
+          </article>
+          <article class="tutorial-page" data-tutorial-page="3" hidden>
+            <div class="tutorial-visual"><img class="tutorial-page-art page-p4" src="assets/mobile/ui-supplied/tutorial-p4.png" alt="Boss reward panels and treasure maximum reward"></div>
+            <div class="tutorial-copy">
+              <h3 data-copy-en="BUILD YOUR BONUS. CLAIM THE TREASURE." data-copy-zh="累積加成，贏取寶箱獎勵">BUILD YOUR BONUS. CLAIM THE TREASURE.</h3>
+              <p data-copy-en="Killstreak and Magic Card bonuses raise the maximum Boss reward." data-copy-zh="連殺與魔法卡加成，會提高 BOSS 寶箱的最高獎勵。">Killstreak and Magic Card bonuses raise the maximum Boss reward.</p>
+            </div>
+          </article>
+        </div>
+        <button id="tutorialPrev" class="tutorial-arrow prev" type="button" aria-label="上一頁"></button>
+        <button id="tutorialNext" class="tutorial-arrow next" type="button" aria-label="下一頁"></button>
+        <div id="tutorialDots" class="tutorial-dots" aria-label="說明頁數"></div>
+        <label class="tutorial-again"><input id="tutorialSkipPreference" type="checkbox"><i aria-hidden="true"></i><span data-copy-en="Don't show automatically again" data-copy-zh="下次不要自動顯示">Don't show automatically again</span></label>
+        <button id="tutorialClose" type="button" aria-label="SKIP"><img src="assets/mobile/ui-supplied/tutorial-skip-word.png" alt=""></button>
+      </div>
+    </section>
+
+    <section id="cardHelpPanel" class="info-overlay card-help-panel" hidden aria-label="牌型說明">
+      <div class="info-card card-help-card">
+        <button id="cardHelpClose" class="overlay-close" type="button" aria-label="關閉">×</button>
+        <h2>POKER HANDS</h2>
+        <div id="cardHelpList" class="card-help-list"></div>
+      </div>
+    </section>
+
+    <section id="deckPanel" class="info-overlay deck-panel" hidden aria-label="剩餘牌堆">
+      <div class="info-card deck-panel-card">
+        <button id="deckPanelClose" class="overlay-close" type="button" aria-label="關閉">×</button>
+        <h2>CARDS LEFT <span id="deckPanelTotal">52/52</span></h2>
+        <div id="deckMatrix" class="deck-matrix"></div>
+        <div id="deckSuitTotals" class="deck-suit-totals"></div>
+      </div>
+    </section>
+
+    <section id="historyPanel" class="info-overlay history-panel" hidden aria-label="戰局紀錄">
+      <div class="info-card history-card">
+        <button id="historyClose" class="overlay-close" type="button" aria-label="關閉">×</button>
+        <h2>BATTLE HISTORY</h2>
+        <div id="historyList" class="history-list"><p>NO BATTLES YET</p></div>
+      </div>
+    </section>
+
+    <section id="magicReveal" class="magic-reveal" hidden aria-live="assertive">
+      <div id="magicRevealCard" class="magic-reveal-card">
+        <small id="magicRevealStep" class="magic-reveal-step">MAGIC 1 / 2</small>
+        <div id="magicRevealIcon" class="magic-suits">♠ ♥ ♣ ♦</div>
+        <strong id="magicRevealValue">1x~3x</strong>
+        <b id="magicRevealHand">FULL HOUSE</b>
+      </div>
+      <p id="magicRevealDetail">Get a Full House to receive a<br><strong>1x~3x DMG multiplier</strong></p>
+    </section>
+
+    <section id="magicPreview" class="magic-preview" hidden role="dialog" aria-modal="true" aria-label="魔法卡說明">
+      <button id="magicPreviewClose" class="overlay-close magic-preview-close" type="button" aria-label="關閉魔法卡說明">×</button>
+      <div id="magicPreviewCard" class="magic-reveal-card magic-preview-card">
+        <small id="magicPreviewStep" class="magic-reveal-step">MAGIC CARD</small>
+        <div id="magicPreviewIcon" class="magic-suits">♠ ♥ ♣ ♦</div>
+        <strong id="magicPreviewValue">1x~3x</strong>
+        <b id="magicPreviewHand">FULL HOUSE</b>
+      </div>
+      <p id="magicPreviewDetail"></p>
+    </section>
+
+    <section id="compareFx" class="compare-fx" hidden aria-live="assertive">
+      <div class="compare-hand player">
+        <small>PLAYER</small>
+        <strong id="comparePlayerHand">FULL HOUSE</strong>
+      </div>
+      <div id="comparePlayerCards" class="compare-card-row player" aria-label="玩家最佳五張"></div>
+      <div class="compare-clash" aria-hidden="true"><i></i><b id="compareVerdict">VS</b><i></i></div>
+      <div id="compareBossCards" class="compare-card-row boss" aria-label="BOSS 最佳五張"></div>
+      <div class="compare-hand boss">
+        <small>BOSS</small>
+        <strong id="compareBossHand">TWO PAIR</strong>
+      </div>
+    </section>
+
+    <section id="resultBoard" class="result-board" hidden aria-live="assertive">
+      <div class="result-board-frame">
+        <span id="resultBoardEyebrow">SHOWDOWN</span>
+        <strong id="resultBoardTitle"></strong>
+        <small id="resultBoardDetail">FULL HOUSE</small>
+      </div>
+    </section>
+
+    <section id="combatFx" class="combat-fx" hidden aria-live="assertive">
+      <div id="combatSpineStage" class="combat-spine-stage" aria-hidden="true"></div>
+      <div class="combat-fx-panel">
+        <output id="combatLiveDamage" class="combat-live-damage" aria-live="polite"><span>HAND DAMAGE</span><strong>0</strong><b>DMG</b></output>
+        <span id="combatFxEyebrow">MAGIC ACTIVATED</span>
+        <div id="combatFxCards" class="combat-fx-cards"></div>
+        <div class="combat-projectile" aria-hidden="true"></div>
+        <div class="combat-impact" aria-hidden="true"></div>
+        <b id="combatImpactLabel" class="combat-impact-label">-24 HP</b>
+        <strong id="combatFxTitle">FULL HOUSE HIT</strong>
+        <p id="combatFxEquation">8 × 3 = 24 DMG</p>
+      </div>
+    </section>
+
+    <section id="bossDefeatFx" class="boss-defeat-fx" hidden aria-hidden="true"></section>
+
+    <section id="roundStartFx" class="round-start-fx" hidden aria-hidden="true">
+      <strong>START</strong>
+    </section>
+
+    <aside id="settingsSheet" class="settings-sheet" hidden aria-label="模型設定資訊">
+      <div class="settings-card">
+        <button id="closeSettings" type="button" class="settings-close" aria-label="關閉">×</button>
+        <p id="settingsEyebrow" class="eyebrow">FIVE-ROUTE MODEL</p>
+        <h2 id="settingsHeading">五路線故事狀態</h2>
+        <dl>
+          <div><dt id="cyclePositionLabel">公開 BOSS 序號</dt><dd id="cyclePosition">—</dd></div>
+          <div><dt>骰子承諾</dt><dd id="diceLockState">已鎖定</dd></div>
+          <div><dt>故事版本</dt><dd id="combatLockState">v1</dd></div>
+          <div><dt id="targetRtpLabel">目標 RTP</dt><dd id="targetRtp">96.00%</dd></div>
+          <div><dt id="couplingLabel">供應模型</dt><dd id="couplingValue">五路線 × VI</dd></div>
+          <div><dt>本次投入</dt><dd id="sessionSpend">0.00</dd></div>
+          <div><dt>本次派彩</dt><dd id="sessionPayout">0.00</dd></div>
+          <div><dt>本次 RTP</dt><dd id="sessionRtp">—</dd></div>
+          <div><dt>長期核心投入</dt><dd id="personalSpend">0.00</dd></div>
+          <div><dt>長期派彩</dt><dd id="personalPayout">0.00</dd></div>
+          <div><dt>個人水池</dt><dd id="personalPool">不存在</dd></div>
+          <div><dt>目前 Bet 桶</dt><dd id="activeBetPool">等待故事</dd></div>
+          <div><dt>本隻故事</dt><dd id="supplyDecision">尚未 START</dd></div>
+        </dl>
+        <p id="settingsNote" class="pool-note">每隻 BOSS 從贏多／贏少／輸各抽一個自然故事，依三個具體結果與目標 RTP 即時配籤。每筆花費按同一 RTP 比例加入 Bet 三桶，自然派彩出桶；擊殺時以合法骰面補正，原 BOSS 獎限制為 10%～1,000 倍。</p>
+        <a class="tool-link" href="%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v29" target="_blank" rel="noopener">開啟機率工具</a>
+        <button id="resetButton" type="button" class="reset-button">重置個人體驗</button>
+      </div>
+    </aside>
+
+    <section id="rewardPanel" class="reward-panel" hidden aria-live="assertive">
+      <div class="reward-card">
+        <h2>REVEAL YOUR LUCK!</h2>
+        <div id="rewardStars" class="reward-stars" aria-hidden="true"></div>
+        <div id="rewardDice" class="reward-dice"></div>
+        <p id="rewardPrompt" class="reward-prompt">TOUCH TO REVEAL</p>
+        <div id="rewardEquation" class="reward-equation"></div>
+        <div class="reward-total"><span>TOTAL WIN</span><strong id="rewardTotal">0x</strong></div>
+        <p id="rewardDetail"></p>
+        <button id="rewardContinue" type="button" class="game-button red next" hidden><b>COLLECT</b><small>NEXT BOSS</small></button>
+      </div>
+    </section>
+  </main>
+
+  <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
+  <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
+  <script src="dice-first-core.js?v=release-final-v16"></script>
+  <script src="boss-duel-five-route.js?v=release-final-v16"></script>
+  <script src="boss-duel-poker-arrangement-lab-core.js?v=frontend-v84"></script>
+  <script src="boss-duel-rules.js?v=frontend-v84"></script>
+  <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
+  <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
+  <script src="boss-duel-natural-story-core.js?v=frontend-v84"></script>
+  <script src="boss-duel-demo.js?v=frontend-v84"></script>
+</body>
+</html>

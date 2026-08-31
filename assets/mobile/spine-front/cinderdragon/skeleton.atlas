@@ -1,0 +1,27 @@
+texture.png
+size: 388, 140
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+back_blue
+  rotate: false
+  xy: 298, 25
+  size: 88, 113
+  orig: 88, 113
+  offset: 0, 0
+  index: -1
+hand_R_1_1
+  rotate: false
+  xy: 2, 11
+  size: 152, 127
+  orig: 152, 127
+  offset: 0, 0
+  index: -1
+hand_R_2_1
+  rotate: true
+  xy: 156, 2
+  size: 136, 140
+  orig: 136, 140
+  offset: 0, 0
+  index: -1
+

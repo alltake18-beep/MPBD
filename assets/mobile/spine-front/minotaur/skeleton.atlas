@@ -1,0 +1,48 @@
+texture.png
+size: 127, 251
+format: RGBA8888
+filter: Linear, Linear
+repeat: none
+R_hand_02_5
+  rotate: false
+  xy: 2, 62
+  size: 81, 81
+  orig: 84, 82
+  offset: 2, 1
+  index: -1
+R_hand_02_6
+  rotate: false
+  xy: 2, 145
+  size: 123, 104
+  orig: 123, 104
+  offset: 0, 0
+  index: -1
+R_hand_02_f_1
+  rotate: false
+  xy: 2, 2
+  size: 58, 58
+  orig: 58, 58
+  offset: 0, 0
+  index: -1
+R_hand_02_f_2
+  rotate: false
+  xy: 85, 39
+  size: 36, 45
+  orig: 36, 45
+  offset: 0, 0
+  index: -1
+R_hand_02_f_3
+  rotate: true
+  xy: 85, 86
+  size: 57, 40
+  orig: 57, 40
+  offset: 0, 0
+  index: -1
+R_hand_02_f_4
+  rotate: false
+  xy: 62, 2
+  size: 53, 35
+  orig: 53, 35
+  offset: 0, 0
+  index: -1
+
