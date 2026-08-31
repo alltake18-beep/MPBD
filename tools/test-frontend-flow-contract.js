@@ -10,6 +10,7 @@ const css = fs.readFileSync(path.join(root, "boss-duel-demo.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "boss-duel-demo.js"), "utf8");
 const toolHtml = fs.readFileSync(path.join(root, "機率工具.html"), "utf8");
 const DiceCore = require(path.join(root, "dice-first-core.js"));
+const Rules = require(path.join(root, "boss-duel-rules.js"));
 const cssForBalance = css.replace(/\/\*[\s\S]*?\*\//g, "");
 let cssBraceDepth = 0;
 let cssMinimumDepth = 0;
@@ -205,6 +206,7 @@ assert(js.includes("function jokerCardMarkup(rank, revealSubstituteRank = true)"
 assert(expandedWidth >= 38 && expandedWidth <= cardWidth - cardOverlap, "expanded bound-effect final value must stay inside the exposed card slice and never cover the next card");
 assert(expandedCardRule.includes("z-index: 30 !important") && expandedCardRule.includes("overflow: visible"), "expanded bound-effect card must rise above neighboring cards without clipping its panel");
 assert(js.includes('class="combat-magic-chip') && js.includes('data-combat-roll=') && js.includes('data-locked-final=') && css.includes(".combat-final-value.rolling") && css.includes(".combat-final-value.settled"), "post-compare magic must use RandomNum-style rolls that retain locked X/+ values");
+assert(js.includes('const hasHiddenDamageEffect = breakdown.activeEffects.some((effect) => effect.key !== "joker")') && js.includes("if (!hasHiddenDamageEffect)"), "crit, fixed damage, and every hand-type damage multiplier must all reveal their final value during compare");
 assert(html.includes('id="combatLiveDamage"') && css.includes(".combat-live-damage") && js.includes("function combatPreviewDamage(base, effects)") && js.includes('rollingValue === "X1"') && js.includes("setCombatLiveDamage(breakdown.base, true)"), "magic reward rolling must show live damage above the card, with X1 equal to the original hand damage");
 assert(/async function showCombatResolution\(state, result, breakdownInput = null\)[\s\S]*?await runCombatRandomNumbers\(breakdown\.activeEffects, breakdown, token\)[\s\S]*?classList\.add\("formula-ready"\)[\s\S]*?beginAttackPlayback\(state, result, breakdown, attackTier, token\)/.test(js), "all magic values and live damage must stop before formula and attack playback");
 const attackBody = js.match(/async function beginAttackPlayback\([^]*?\n  }\n\n  async function showCombatResolution/)?.[0] || "";
@@ -234,11 +236,12 @@ assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.include
 assert(css.includes("height: 584px") && css.includes("grid-template-rows: 252px auto") && css.includes("tutorial-page-art.page-p1 { width: 288px"), "tutorial proportions must reserve dedicated image and copy areas without the oversized empty panel");
 assert(css.includes("round-panel.png") && html.includes("round-word.png") && css.includes("round-numbers.png"), "the supplied ROUND panel, word, and number sheet must replace system text");
 assert(/\.round-ribbon\s*\{[^}]*width:\s*84px;[^}]*height:\s*59px;[^}]*transform:\s*none;/.test(css), "the top-left ROUND panel must use the original 84x59 reference size without the oversized 2x transform");
-assert(html.includes("boss-duel-poker-arrangement-lab-core.js?v=frontend-v85") && html.includes("boss-duel-rules.js?v=frontend-v85") && html.includes("boss-duel-natural-story-core.js?v=frontend-v85") && html.includes("boss-duel-demo.js?v=frontend-v85") && html.includes("boss-duel-demo.css?v=frontend-v85"), "Demo code, shared arrangement, and live story assets must share the v85 cache key");
+assert(html.includes("boss-duel-poker-arrangement-lab-core.js?v=frontend-v86") && html.includes("boss-duel-rules.js?v=frontend-v86") && html.includes("boss-duel-natural-story-core.js?v=frontend-v86") && html.includes("boss-duel-demo.js?v=frontend-v86") && html.includes("boss-duel-demo.css?v=frontend-v86"), "Demo code, shared arrangement, and live story assets must share the v86 cache key");
 assert(js.includes("STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION") && js.includes("NaturalCore.materializeStoryForBet") && js.includes("storyBetContract"), "game must use the shared X-multiplier story contract across every Bet and expose it in replay audit");
 assert(js.includes("NaturalCore.drawUniformPresetStoryCommit") && js.includes("ticketPreferencePct: { win: 1, push: 1, lose: 1 }") && js.includes("ticketBasis: 1000000"), "normal Demo play must draw one candidate uniformly from each full class pool and score-ticket the three candidates");
 assert(html.includes("boss-duel-story-planner.js?v=boss-plan-v10") && html.includes("boss-duel-story-preset-v1.js?v=story-catalog-v11"), "Demo must load the planner and freshly regenerated 240,000-story seed preset");
 assert(js.includes("executeRuntimeRedraw") && js.includes("plannedKeepIds") && js.includes("actualKeepIds") && js.includes("suppressionActive"), "Demo must compare each successful redraw with the planned action and persist suppression state");
+assert(js.includes("suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy") && js.includes("SUPPRESSION_STORAGE_KEY"), "game redraw and showdown must use the versioned suppression policy selected by the tool");
 assert(js.includes("window.getBossDuelReplayAudit") && js.includes("actionLog") && js.includes("replayContract") && js.includes("bossInstanceId") && js.includes("requestId") && js.includes("bossCardIds"), "backend-facing replay audit must expose unique ordered operations, both initial hands, and the exact replay contract");
 assert(js.includes('qaParams.get("storyMode") !== "1"') && js.includes("NaturalCore.simulateNaturalStory") && js.includes("naturalStorySeed: story.seed"), "a tool-selected story must still load its exact classified Natural seed into the Demo");
 assert(js.includes("STORY_REWARD_FLOOR_PCT = 10") && js.includes("STORY_REWARD_CEILING_MULTIPLE = 1000") && js.includes("amount * encounter.poolTargetRtpPct / 100"), "normal Demo play must accrue each paid event at the locked target RTP and enforce 10%-to-1000x reward bounds");
@@ -247,9 +250,14 @@ assert(js.includes("Rules.createNaturalRound") && js.includes("1201 + tieIndex *
 assert(js.includes("故事節奏：照自動保留再換") && js.includes("? 120 : HAND_SECONDS"), "story experience must show the exact redraw rhythm and give the player enough time to follow it");
 assert(js.includes("let storyExperience = loadStoryExperience(runtimeConfig)") && js.includes("if (leavingFixedStory) storyExperience = null"), "paid reroll from a fixed story must leave the selected story before spawning the next dynamic Boss");
 assert(js.includes("els.rerollButton.hidden = !(ready || roundResult)") && !js.includes('packet.storyRuntimeMode === "FIXED" || !(ready || roundResult)'), "REROLL BOSS must be visible before play and between rounds in fixed and dynamic stories");
-assert(js.includes('.filter((key) => hasBoundMagicEffect(card, key))') && js.includes('Object.prototype.hasOwnProperty.call(card.magicEffects, key)'), "a bound 0X critical card must still render its playing-card badge");
+assert(js.includes('.filter((key) => hasBoundMagicEffect(card, key))') && js.includes('Object.prototype.hasOwnProperty.call(card.magicEffects, key)') && js.includes("數值於比牌結算揭露"), "a bound damage card must render without exposing its hidden value before showdown");
+assert(js.includes("publicBaseDamage") && js.includes("魔法值比牌時揭露") && !js.includes("現有傷害 ${result.damage}"), "hand phase must show only base hand damage and must not leak magic values through the total");
+assert.deepEqual(Rules.magicDisplay({ key: "crit", label: "CRITICAL", type: "DMG", value: 5 }), { type: "DMG", label: "CRITICAL" });
+assert.deepEqual(Rules.magicDisplay({ key: "flatDamage", label: "FIXED DMG", type: "DMG", value: 6 }), { type: "DMG", label: "FIXED DMG" });
+assert.equal(Rules.magicDisplay({ key: "threeBoost", label: "THREE OF A KIND", type: "DMG", value: 3 }).label, "THREE OF A KIND");
+assert.equal(Rules.magicDisplay({ key: "coin", label: "GOLD", type: "GOLD", value: 6 }).label, "+6x", "coin is the only card that exposes its amount at reveal");
 assert(js.includes('source: "NATURAL"') && js.includes('archetype: ""'), "story experience must use the Natural-only catalog");
-assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v85"'), "probability tool must keep a direct link to the current frontend Demo");
+assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v86"'), "probability tool must keep a direct link to the current frontend Demo");
 
 console.log(JSON.stringify({
   status: "ok",

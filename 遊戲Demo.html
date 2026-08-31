@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v85");
+      params.set("v", "frontend-v86");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="boss-duel-demo.css?v=frontend-v85">
+  <link rel="stylesheet" href="boss-duel-demo.css?v=frontend-v86">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -51,7 +51,7 @@
         <button id="exitButton" type="button" aria-label="離開遊戲" title="EXIT">×</button>
         <span class="quick-menu-divider" aria-hidden="true"></span>
         <button id="modelInfoButton" class="developer-menu-item" type="button" aria-label="模型資訊" title="MODEL">▤</button>
-        <a class="developer-menu-item" href="%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v30" target="_blank" rel="noopener" aria-label="開啟機率工具" title="PROBABILITY TOOL">↗</a>
+        <a class="developer-menu-item" href="%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v31" target="_blank" rel="noopener" aria-label="開啟機率工具" title="PROBABILITY TOOL">↗</a>
       </nav>
       <button class="round-icon help-button" type="button" aria-label="玩法提示">?</button>
       <button class="round-icon turbo-button" type="button" aria-label="快速模式" aria-pressed="false">»</button>
@@ -298,7 +298,7 @@
           <div><dt>本隻故事</dt><dd id="supplyDecision">尚未 START</dd></div>
         </dl>
         <p id="settingsNote" class="pool-note">每隻 BOSS 從贏多／贏少／輸各抽一個自然故事，依三個具體結果與目標 RTP 即時配籤。每筆花費按同一 RTP 比例加入 Bet 三桶，自然派彩出桶；擊殺時以合法骰面補正，原 BOSS 獎限制為 10%～1,000 倍。</p>
-        <a class="tool-link" href="%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v30" target="_blank" rel="noopener">開啟機率工具</a>
+        <a class="tool-link" href="%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v31" target="_blank" rel="noopener">開啟機率工具</a>
         <button id="resetButton" type="button" class="reset-button">重置個人體驗</button>
       </div>
     </aside>
@@ -321,11 +321,11 @@
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
   <script src="dice-first-core.js?v=release-final-v16"></script>
   <script src="boss-duel-five-route.js?v=release-final-v16"></script>
-  <script src="boss-duel-poker-arrangement-lab-core.js?v=frontend-v85"></script>
-  <script src="boss-duel-rules.js?v=frontend-v85"></script>
+  <script src="boss-duel-poker-arrangement-lab-core.js?v=frontend-v86"></script>
+  <script src="boss-duel-rules.js?v=frontend-v86"></script>
   <script src="boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="boss-duel-story-preset-v1.js?v=story-catalog-v11"></script>
-  <script src="boss-duel-natural-story-core.js?v=frontend-v85"></script>
-  <script src="boss-duel-demo.js?v=frontend-v85"></script>
+  <script src="boss-duel-natural-story-core.js?v=frontend-v86"></script>
+  <script src="boss-duel-demo.js?v=frontend-v86"></script>
 </body>
 </html>

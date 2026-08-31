@@ -1230,6 +1230,14 @@
     }
   }
 
+  function loadSuppressionPolicy() {
+    try {
+      return NaturalCore.normalizeSuppressionPolicy(JSON.parse(localStorage.getItem(NaturalCore.SUPPRESSION_STORAGE_KEY) || "null") || NaturalCore.DEFAULT_SUPPRESSION_POLICY);
+    } catch (_error) {
+      return NaturalCore.normalizeSuppressionPolicy(NaturalCore.DEFAULT_SUPPRESSION_POLICY);
+    }
+  }
+
   function loadStoryExperience(currentConfig) {
     if (qaParams.get("storyMode") !== "1" || !NaturalCore) return null;
     const seed = Number(qaParams.get("storySeed"));
@@ -1238,6 +1246,7 @@
     const config = NaturalCore.normalizeConfig({
       seed,
       drawFeesX: currentConfig.drawCostsX,
+      suppression: loadSuppressionPolicy(),
       storyPool: {
         seed: 20260824,
         storiesPerClass: 10000,
@@ -1270,6 +1279,7 @@
         rewardFloorPct: STORY_REWARD_FLOOR_PCT,
         rewardCeilingMultiple: STORY_REWARD_CEILING_MULTIPLE
       },
+      suppression: loadSuppressionPolicy(),
       storyPool: {
         seed: 20260824, storiesPerClass: 10000, directedStoriesPerCell: 0,
         directedMixPct: 0, winMinReturnX: 3, pushMinReturnX: 1,
@@ -1866,7 +1876,8 @@
           drawNumber: encounter.draws,
           actionSequence: redrawOperation.sequence,
           discardedIndexes: discarded,
-          suppressionActive: encounter.suppressionActive
+          suppressionActive: encounter.suppressionActive,
+          suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy
         });
         encounter.suppressionActive = redrawAudit.suppressionActive;
       } else Rules.redraw(encounter.presentation, discarded);
@@ -2012,7 +2023,8 @@
         ? NaturalCore.resolveRuntimeMagic(state, {
           story: encounter.packet.storyRecord,
           actionSequence: encounter.pendingFightOperation?.sequence || encounter.operationSequence,
-          suppressionActive: encounter.suppressionActive
+          suppressionActive: encounter.suppressionActive,
+          suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy
         })
         : { breakdown: Rules.damageBreakdown(state.playerEval, state.magicCards), values: [], suppressionActive: false };
       result.damage = magicAudit.breakdown.total;
@@ -2224,9 +2236,9 @@
           : "normal";
     const token = ++combatSequenceToken;
     encounter.phase = "effect-charge";
-    const hasDamageCard = breakdown.activeEffects.some((effect) => ["crit", "flatDamage"].includes(effect.key));
-    if (!hasDamageCard) {
-      // 沒有暴擊／固傷時不開黑幕、不秀公式、不等待，直接承接牌堆破碎後的攻擊。
+    const hasHiddenDamageEffect = breakdown.activeEffects.some((effect) => effect.key !== "joker");
+    if (!hasHiddenDamageEffect) {
+      // 沒有任何需在比牌時揭露的傷害值時，不開黑幕、不秀公式、不等待，直接承接牌堆破碎後的攻擊。
       els.combatFx.hidden = true;
       beginAttackPlayback(state, result, breakdown, attackTier, token, true);
       return;
@@ -2530,7 +2542,7 @@
         ? `｜故事節奏：照自動保留再換 ${remainingStoryDraws} 次`
         : `｜故事節奏：現在 ${storyStep.action}`;
     if (result.playerRank === 0) return discardCount ? `HIGH CARD｜已建議更換 ${discardCount} 張牌${boundWarning}${storyHint}。` : `HIGH CARD｜可 FOLD${storyHint}。`;
-    return `${result.playerHand.label}｜建議更換 ${discardCount} 張${boundWarning}｜現有傷害 ${result.damage} DMG${storyHint}。`;
+    return `${result.playerHand.label}｜建議更換 ${discardCount} 張${boundWarning}｜牌型基礎傷害 ${result.playerEval.damage} DMG；魔法值比牌時揭露${storyHint}。`;
   }
 
   function magicCards() {
@@ -2764,12 +2776,12 @@
       const boundEffects = ["flatDamage", "crit"]
         .filter((key) => hasBoundMagicEffect(card, key))
         .map((key) => [key, card.magicEffects[key]]);
-      const effectBadges = boundEffects.map(([key, value]) => {
-        const display = key === "crit" ? `X${value}` : `+${value}`;
+      const effectBadges = boundEffects.map(([key]) => {
+        const display = "?";
         const effectToggle = `${sourceIndex}:${key}`;
         const expanded = playerHand && encounter?.expandedEffect === effectToggle;
         const effectName = key === "crit" ? "暴擊" : "固傷";
-        return `<button type="button" class="bound-effect bound-${key}" data-effect-toggle="${effectToggle}" aria-expanded="${expanded}" aria-label="${expanded ? "收合" : "顯示"}${effectName} ${display}"><span>${damageGlyphMarkup(display)}</span></button>`;
+        return `<button type="button" class="bound-effect bound-${key}" data-effect-toggle="${effectToggle}" aria-expanded="${expanded}" aria-label="${effectName}已綁定；數值於比牌結算揭露"><span>?</span></button>`;
       }).join("");
       const effectExpanded = playerHand && boundEffects.some(([key]) => encounter?.expandedEffect === `${sourceIndex}:${key}`);
       const rankForArt = card.rank === 14 ? 1 : card.rank;
@@ -2995,7 +3007,8 @@
       els.bossHandName.textContent = encounter.bossRevealed ? handPresentationLabel(encounter.presentation.bossHand) : "HIDDEN";
       const arrangingCards = ["hand", "redraw-out", "redraw-in"].includes(encounter.phase);
       const lockedCards = encounter.presentation.playerCards.length - encounter.presentation.discardIndexes.size;
-      els.damagePreview.textContent = arrangingCards ? `LOCK ${lockedCards}/5 · DMG ${encounter.presentation.damage}` : `DMG ${encounter.presentation.damage}`;
+      const publicBaseDamage = Math.max(0, Number(encounter.presentation.playerEval?.damage) || 0);
+      els.damagePreview.textContent = arrangingCards ? `LOCK ${lockedCards}/5 · BASE ${publicBaseDamage}` : `BASE DMG ${publicBaseDamage}`;
       // 原站在一局演出完成、等待 CONTINUE 時已切到 nextRound 視覺狀態：
       // 牌已退場，牌堆標示同時回到 52/52；下一次實際發牌才再顯示剩餘張數。
       const atRoundBoundary = encounter.phase === "round-result";
