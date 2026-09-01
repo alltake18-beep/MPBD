@@ -11,9 +11,22 @@ assert.equal(config.storiesPerClass, 10000);
 assert.equal(config.storiesPerStar, 30000);
 assert.equal(8 * config.storiesPerStar, 240000);
 assert.equal(config.rewardFloorPct, 10);
-assert.equal(config.rewardCeilingMultiple, 1000);
+assert.equal(config.rewardCeilingMultiple, 10);
 assert.equal(config.playerBadHighRerollPct, 50);
 assert.equal(config.bossBadHighRerollPct, 25);
+assert.equal(StoryCore.normalizeTargetRtpPct(undefined), 96);
+assert.equal(StoryCore.normalizeTargetRtpPct(79), 80);
+assert.equal(StoryCore.normalizeTargetRtpPct(100), 99);
+assert.equal(StoryCore.MONEY_SCALE, 10000);
+assert.equal(StoryCore.roundMoney(0.00005), 0.0001);
+assert.equal(StoryCore.roundMoney(-0.00005), -0.0001);
+assert.equal(DiceCore.hash32(20260824, 12345, 7098), 553687176);
+const vectorRng = DiceCore.mulberry32(0x12345678);
+assert.deepEqual(Array.from({ length: 5 }, () => Math.floor(vectorRng() * 4294967296)), [455919406, 4042750857, 4036713555, 1004527575, 3885174651]);
+assert.deepEqual(DiceCore.inverseDiceOutcome(7, 2, 0.3141592653, DiceCore.hash32(20260824, 7, 901)), {
+  normalDice: 4, multiplierDice: 3, normalFaces: [1, 3, 4, 5], multiplierFaces: [2, 2, 5],
+  normalSum: 13, multiplierSum: 9, total: 117, maxTotal: 432
+});
 
 assert.equal(StoryCore.storyClass(3, config), "win");
 assert.equal(StoryCore.storyClass(2.999999, config), "push");
@@ -67,7 +80,7 @@ const diceStory = {
   killed: true, netX: 5, spendX: 10, payoutX: 15, originalBossRewardX: 20,
   originalDice: { normalDice: 2, multiplierDice: 1, normalFaces: [2, 3], multiplierFaces: [4], normalSum: 5, multiplierSum: 4, total: 20 }
 };
-const rewardBounds = { rewardFloorPct: 10, rewardCeilingMultiple: 1000 };
+const rewardBounds = { rewardFloorPct: 10, rewardCeilingMultiple: 10 };
 const increase = StoryCore.correctBossDiceReward(diceStory, 10, 1, rewardBounds, DiceCore.mulberry32(3));
 assert.equal(increase.correctedRewardX, 30);
 assert.equal(increase.deltaCredits, 10);
@@ -86,7 +99,7 @@ const settlement = StoryCore.settleCommittedStory(
   { selectedStory: cashflowStory }, [0, 0, 0], 1,
   {
     actualSpendCredits: 100, organicPayoutCredits: 80, targetRtpPct: 96,
-    rewardFloorPct: 10, rewardCeilingMultiple: 1000, rng: DiceCore.mulberry32(5)
+    rewardFloorPct: 10, rewardCeilingMultiple: 10, rng: DiceCore.mulberry32(5)
   }
 );
 assert.equal(settlement.targetAccrualCredits, 96);
@@ -114,7 +127,7 @@ const debtSettlement = StoryCore.settleStartedStory(
   {
     actualSpendCredits: 100, targetAccrualCredits: 96, targetRtpPct: 96,
     organicPayoutCredits: 4000, actualKilled: true, actualBossRewardX: 20,
-    actualDice: diceStory.originalDice, rewardFloorPct: 10, rewardCeilingMultiple: 1000,
+    actualDice: diceStory.originalDice, rewardFloorPct: 10, rewardCeilingMultiple: 10,
     rng: DiceCore.mulberry32(13)
   }
 );
@@ -122,5 +135,29 @@ assert.equal(debtSettlement.bucketIndex, 1);
 assert(debtSettlement.correction.deltaCredits < 0, "negative pool must reduce the current killed BOSS reward");
 assert.equal(debtSettlement.correction.correctedRewardX >= 2, true, "reward may not fall below 10% of the original");
 assert.equal(debtSettlement.balances[2], 9, "other Bet buckets must stay isolated");
+
+const reservedA = StoryCore.reserveBossReward([], "A", diceStory, 1, { targetRtpPct: 96, releaseVersion: "release-a" });
+const reservedAReplay = StoryCore.reserveBossReward(reservedA.reservations, "A", diceStory, 1, { targetRtpPct: 96, releaseVersion: "release-a" });
+const reservedB = StoryCore.reserveBossReward(reservedAReplay.reservations, "B", diceStory, 10, { targetRtpPct: 96, releaseVersion: "release-a" });
+assert.equal(reservedA.reservation.originalBossRewardCredits, 20);
+assert.equal(reservedAReplay.idempotent, true, "same encounter reservation must be idempotent");
+assert.equal(StoryCore.reservedCreditsForBucket(reservedB.reservations, 0), 220);
+assert.deepEqual(StoryCore.availablePoolCredits([300, 0, 0], reservedB.reservations, 1), {
+  bucketIndex: 0, bucketKey: "B1", bookBalanceCredits: 300, reservedCredits: 220, availableCredits: 80
+});
+const reservedSettlement = StoryCore.settleStartedStory(
+  { selectedStory: diceStory }, { bucketIndex: 0, targetRtpPct: 96 }, [300, 0, 0], 10,
+  {
+    encounterId: "B", reservations: reservedB.reservations, actualSpendCredits: 0, targetAccrualCredits: 0,
+    organicPayoutCredits: 200, actualKilled: true, actualBossRewardX: 20, actualDice: diceStory.originalDice,
+    rewardFloorPct: 10, rewardCeilingMultiple: 10, rng: DiceCore.mulberry32(17)
+  }
+);
+assert.equal(reservedSettlement.otherReservedCredits, 20);
+assert.equal(reservedSettlement.preCorrectionBookCredits, 100);
+assert.equal(reservedSettlement.preCorrectionPoolCredits, 80);
+assert.equal(reservedSettlement.releasedReservation.encounterId, "B");
+assert.deepEqual(reservedSettlement.reservations.map((row) => row.encounterId), ["A"]);
+assert.equal(reservedSettlement.version, StoryCore.POOL_SETTLEMENT_VERSION);
 
 console.log("natural-story-core: current-only contract passed");

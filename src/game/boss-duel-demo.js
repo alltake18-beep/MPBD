@@ -13,7 +13,7 @@
   const LOCALE_KEY = "boss-duel:locale";
   const HISTORY_KEY = "boss-duel:battle-history";
   const STORY_REWARD_FLOOR_PCT = 10;
-  const STORY_REWARD_CEILING_MULTIPLE = 1000;
+  const STORY_REWARD_CEILING_MULTIPLE = 10;
   const STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION;
   const HAND_SECONDS = 40;
   const TURBO_TIME_SCALE = 1.65;
@@ -252,7 +252,8 @@
     return `<span class="die-fallback die-pips" aria-hidden="true">${positions.map((position) => `<i class="die-pip pip-${position}"></i>`).join("")}</span>`;
   }
 
-  const runtimeConfig = Object.freeze({ seed: 20260824, targetRtp: 0.96, cycleSize: 256, bet: 1, entryCostX: 1, drawCostsX: Object.freeze([1, 2, 3]) });
+  const platformTargetRtpPct = NaturalCore.normalizeTargetRtpPct(window.BOSS_DUEL_PLATFORM_CONFIG?.targetRtpPct);
+  const runtimeConfig = Object.freeze({ seed: 20260824, targetRtp: platformTargetRtpPct / 100, cycleSize: 256, bet: 1, entryCostX: 1, drawCostsX: Object.freeze([1, 2, 3]) });
   let storyExperience = loadStoryExperience(runtimeConfig);
   let encounter = null;
   let playerState = loadPlayerState();
@@ -1483,9 +1484,10 @@
       storyRecord: story,
       storySource: activeStoryExperience.source,
       storyRuntimeMode: storyExperience ? "FIXED" : "DYNAMIC",
+      lockedTargetRtpPct: runtimeConfig.targetRtp * 100,
       storyConfig: activeStoryExperience.config,
       storyCommit: activeStoryExperience.commit,
-      ledgerDecision: storyExperience ? "指定故事體驗" : "三分類全池各抽一個，再配籤至 96%",
+      ledgerDecision: storyExperience ? "指定故事體驗" : `三分類全池各抽一個，再配籤至 ${platformTargetRtpPct}%`,
       ledgerProjectedX: 0
     };
     encounter = {
@@ -1563,24 +1565,24 @@
     session.spend += amount;
     if (!playerState.referenceBet) playerState.referenceBet = activeBet;
     playerState.spendX += amount;
-    playerState.targetCreditX += amount * runtimeConfig.targetRtp;
+    playerState.targetCreditX = NaturalCore.roundMoney(playerState.targetCreditX + amount * runtimeConfig.targetRtp);
     const storySpend = options.storySpend !== false;
     if (encounter?.packet?.storyCommit && storySpend) {
       beginStoryPoolCommit();
       encounter.storySpendCredits += amount;
-      const targetAccrualCredits = amount * encounter.poolTargetRtpPct / 100;
+      const targetAccrualCredits = NaturalCore.roundMoney(amount * encounter.poolTargetRtpPct / 100);
       const posted = NaturalCore.addPoolCredits(playerState.storyBucketBalances, activeBet, targetAccrualCredits);
       playerState.storyBucketBalances = posted.balances;
-      encounter.storyTargetAccrualCredits += targetAccrualCredits;
+      encounter.storyTargetAccrualCredits = NaturalCore.roundMoney(encounter.storyTargetAccrualCredits + targetAccrualCredits);
     } else if (NaturalCore && options.poolAccrual !== false) {
       const targetRtpPct = Number(options.targetRtpPct ?? runtimeConfig.targetRtp * 100);
       const posted = NaturalCore.addPoolCredits(playerState.storyBucketBalances, activeBet, amount * targetRtpPct / 100);
       playerState.storyBucketBalances = posted.balances;
-      playerState.storyPoolTotals.targetAccrualCredits += amount * targetRtpPct / 100;
+      playerState.storyPoolTotals.targetAccrualCredits = NaturalCore.roundMoney(playerState.storyPoolTotals.targetAccrualCredits + amount * targetRtpPct / 100);
     }
     const ledger = activeBetLedger();
     ledger.spendX += amount;
-    ledger.targetCreditX += amount * runtimeConfig.targetRtp;
+    ledger.targetCreditX = NaturalCore.roundMoney(ledger.targetCreditX + amount * runtimeConfig.targetRtp);
     savePlayerState();
     return true;
   }
@@ -2773,7 +2775,7 @@
     const skinClass = ` skin-${bossSkin.key}`;
     els.gameShell.className = `game-shell ${phaseClass}${startedClass}${skinClass}${encounter.bossRevealed ? " boss-revealed" : ""}${encounter.handEntering ? " hand-entering" : ""}${encounter.cardsCleared ? " cards-cleared" : ""}${encounter.compareOutcome ? ` compare-${encounter.compareOutcome}` : ""}${isTurbo() ? " turbo" : ""}`;
 
-    els.modelVersion.textContent = packet.storyRuntimeMode === "DYNAMIC" ? `NATURAL 96% · ${packet.storyRecord.classLabel}` : `STORY ${packet.storyRecord.classLabel}`;
+    els.modelVersion.textContent = packet.storyRuntimeMode === "DYNAMIC" ? `NATURAL ${packet.lockedTargetRtpPct}% · ${packet.storyRecord.classLabel}` : `STORY ${packet.storyRecord.classLabel}`;
     els.updateStatus.textContent = "● LIVE";
     els.updateStatus.classList.remove("pending");
     // 原站 BossDuelCommonUIController.setPlayerBalance() 直接把數值轉成字串；
@@ -2860,7 +2862,7 @@
     els.cyclePosition.textContent = `${packet.star} 星｜seed ${packet.naturalStorySeed}`;
     els.targetRtp.textContent = packet.storyRecord.classLabel;
     els.couplingValue.textContent = dynamicStoryMode
-      ? "三分類全池各抽 1 個 → 配籤 96%"
+      ? `三分類全池各抽 1 個 → 配籤 ${packet.lockedTargetRtpPct}%`
       : "指定 Natural 故事";
     const weightCopy = packet.storyCommit?.weights
       ? `贏多 ${(packet.storyCommit.weights.win * 100).toFixed(2)}%／贏少 ${(packet.storyCommit.weights.push * 100).toFixed(2)}%／輸 ${(packet.storyCommit.weights.lose * 100).toFixed(2)}%`

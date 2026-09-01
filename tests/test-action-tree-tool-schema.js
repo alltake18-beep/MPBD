@@ -20,18 +20,19 @@ for (const asset of [
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v32/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v33/);
 assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v5/);
 assert.match(html, /src\/core\/boss-duel-poker-arrangement-core\.js\?v=arrange-v9/);
 assert.match(html, /class="app-shell action-tree-tool"/);
 assert.match(html, /class="workbench"/);
-assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v4"/);
+assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v5"/);
 assert.match(html, /data-panel="suppressionPanel"/);
 for (const id of ["suppressionActivationGrid", "suppressionRedrawGrid", "suppressionMagicSwitchGrid", "suppressionMagicTableBody", "suppressionPolicySummary"]) tag(id);
 assert.match(html, /所有牌型傷害魔法卡共用/);
 assert.match(html, /id="resultsArea"[^>]*is-hidden/);
 assert.equal((html.match(/class="control-card"/g) || []).length, 5);
-assert.equal((html.match(/data-report-panel=/g) || []).length, 8);
+assert.equal((html.match(/data-report-panel=/g) || []).length, 7);
+assert.doesNotMatch(html, /reportChainPanel|chainStatsBody|連殺/);
 assert.match(html, /id="simulationPanel" class="tab-panel active"/);
 assert.doesNotMatch(html, /id="simulationPanel"[^>]*compat-hidden/);
 
@@ -43,6 +44,8 @@ function tag(id) {
 
 assert.match(tag("targetCoreRtp"), /type="number"/);
 assert.doesNotMatch(tag("targetCoreRtp"), /readonly|disabled/);
+assert.match(tag("targetCoreRtp"), /min="80"/);
+assert.match(tag("targetCoreRtp"), /max="99"/);
 assert.match(tag("winMinReturnX"), /value="3"/);
 assert.match(tag("pushMinReturnX"), /value="1"/);
 assert.match(tag("candidateDrawMode"), /disabled/);
@@ -89,7 +92,7 @@ for (const behavior of ["OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME"]) {
 
 for (const required of [
   /240,000/, /正式故事/, /贏多/, /贏少/, /輸/,
-  /Bet 1–10/, /20–200/, /500–2000/, /合法骰面/, /10%～1,000 倍/, /同花順基礎傷害 30/,
+  /Bet 1–10/, /20–200/, /500–2000/, /合法骰面/, /10%～1,000%/, /同花順基礎傷害 30/,
   /buildNaturalStoryPoolFromPreset/, /selectedStoryExperience/, /openStoryExperience/, /storyMode/
 ]) assert.match(combined, required, `missing new model contract ${required}`);
 
@@ -134,8 +137,8 @@ assert.match(engineerDoc, /Boss Duel 後端文件/);
 assert.match(engineerDoc, /人工智慧可以做/);
 assert.match(engineerDoc, /每筆花費按目標 RTP 入桶/);
 assert.match(engineerDoc, /原獎 10%/);
-assert.match(engineerDoc, /R₀ × 1,000/);
-assert.match(engineerDoc, /deviation-suppression-v2-separate-tables/);
+assert.match(engineerDoc, /R₀ × 1,000%/);
+assert.match(engineerDoc, /deviation-suppression-v3-configurable-tables/);
 assert.match(engineerDoc, /只有金幣卡立即公開實際加成/);
 assert.match(engineerDoc, /共用一張「牌型傷害倍率抑制表」/);
 assert.doesNotMatch(engineerDoc, /個人差額池|個人故事差額池|StoryCommit|Credits|PASS/);
@@ -150,9 +153,13 @@ assert.equal(suppressionConfig.suppression.redraw.improvedAcceptPct, 12.5);
 assert.equal(suppressionConfig.suppression.redraw.sameOrLowerAcceptPct, 87.5);
 assert.equal(suppressionConfig.suppression.redraw.maxCandidates, 44);
 assert.deepEqual(suppressionConfig.suppression.magic.tables.handBoost.outcomes, [{ value: 7, weight: 3 }, { value: 9, weight: 1 }]);
-assert.equal(ActionCore.NaturalCore.SUPPRESSION_POLICY_VERSION, "deviation-suppression-v2-separate-tables");
+assert.equal(ActionCore.NaturalCore.SUPPRESSION_POLICY_VERSION, "deviation-suppression-v3-configurable-tables");
+assert.equal(ActionCore.NaturalCore.POOL_SETTLEMENT_VERSION, "target-rtp-personal-pool-v2-reservation");
+assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.crit.outcomes.map((row) => row.weight), [69, 25, 3, 2, 1]);
+assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.flatDamage.outcomes.map((row) => row.weight), [70, 25, 3, 2]);
+assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.handBoost.outcomes.map((row) => row.weight), [80, 19, 1]);
 
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v32", storyCount: 240000,
+  status: "ok", cacheKey: "action-tree-v33", storyCount: 240000,
   localScripts, uniqueDomIds: ids.length, catalogOnly: false, fullClassUniformTickets: true
 }, null, 2));

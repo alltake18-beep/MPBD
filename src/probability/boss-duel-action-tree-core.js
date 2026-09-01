@@ -80,7 +80,7 @@
       debtExpiryBosses: 0,
       rewardCorrectionPct: 50,
       rewardFloorPct: 10,
-      rewardCeilingMultiple: 1000
+      rewardCeilingMultiple: 10
     },
     storyPool: {
       seed: 20260824,
@@ -104,7 +104,7 @@
       pokerBoostEnabled: true, chainEnabled: false, bossRerollEnabled: true,
       paidDrawEnabled: true, tieRedealEnabled: true, strictNaturalGate: true
     },
-    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: "target-rtp-personal-pool-v1", bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v10-score-ticket" },
+    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v10-score-ticket" },
     ruleSettings: {
       refreshCostX: 1, deckStopCount: 10,
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
@@ -143,7 +143,7 @@
   function sanitizeConfig(input) {
     const config = merge(DEFAULT_CONFIG, input || {});
     config.revision = integer(config.revision, 1, 1, 999999);
-    config.targetCoreRtpPct = clamp(finite(config.targetCoreRtpPct, 96), 80, 110);
+    config.targetCoreRtpPct = NaturalCore.normalizeTargetRtpPct(config.targetCoreRtpPct);
     config.tolerancePp = clamp(finite(config.tolerancePp, 0.01), 0, 2);
     config.minPushBps = 0;
     config.ticketMode = "DYNAMIC";
@@ -180,7 +180,7 @@
     c.debtExpiryBosses = integer(c.debtExpiryBosses, 0, 0, 1000000);
     c.rewardCorrectionPct = clamp(finite(c.rewardCorrectionPct, 50), 0, 100);
     c.rewardFloorPct = clamp(finite(c.rewardFloorPct, 10), 0, 100);
-    c.rewardCeilingMultiple = clamp(finite(c.rewardCeilingMultiple, 1000), 1, 1000);
+    c.rewardCeilingMultiple = clamp(finite(c.rewardCeilingMultiple, 10), 1, 10);
     const story = config.storyPool;
     story.seed = integer(story.seed, 20260824, 0, 4294967295) >>> 0;
     story.storiesPerClass = integer(story.storiesPerClass, 10000, 1, 10000000);

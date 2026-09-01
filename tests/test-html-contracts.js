@@ -10,13 +10,13 @@ const cases = [
     html: "遊戲Demo.html",
     js: "src/game/boss-duel-demo.js",
     redirectPath: "/%E9%81%8A%E6%88%B2Demo.html",
-    expectedVersion: "frontend-v88"
+    expectedVersion: "frontend-v89"
   },
   {
     html: "機率工具.html",
     js: "src/probability/boss-duel-action-tree-lab.js",
     redirectPath: "/%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html",
-    expectedVersion: "action-tree-v32"
+    expectedVersion: "action-tree-v33"
   }
 ];
 

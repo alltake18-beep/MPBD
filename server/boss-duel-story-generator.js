@@ -33,7 +33,7 @@ const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionTreeCore = require("../src/probability/boss-duel-action-tree-core.js");
 
 const SERVICE_VERSION = "boss-duel-story-generator-v1";
-const GENERATOR_REVISION = "boss-plan-v10-arrange-v9-action-trace-v1-suppression-v2-runtime-quota10000-production-v2";
+const GENERATOR_REVISION = "boss-plan-v10-arrange-v9-action-trace-v1-suppression-v3-runtime-quota10000-production-v2";
 const PRESET_VERSION = "natural-story-preset-v11";
 const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v6";
 const ARRANGEMENT_VERSION = "arrange-v9";
@@ -45,7 +45,7 @@ const SUPPORTED_BETS = Object.freeze((NaturalCore.BET_VALUES || []).slice());
 const EXPECTED_RULES_VERSION = "rules-v10";
 const EXPECTED_PLANNER_VERSION = "boss-plan-v10";
 const EXPECTED_ACTION_TRACE_VERSION = "story-action-trace-v1";
-const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v2-separate-tables";
+const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v3-configurable-tables";
 const EXPECTED_STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
 const UINT32_MAX = 0xffffffff;
 

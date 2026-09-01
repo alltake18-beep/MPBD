@@ -139,7 +139,7 @@
     config.carry.rewardCorrectionPct = Math.min(config.carry.maxDeductionPctOfGross, config.carry.maxCreditPctOfGross);
     config.carry.maxCreditX = number($("maxCreditX").value, 100);
     config.carry.rewardFloorPct = number($("rewardFloorPct").value, 10);
-    config.carry.rewardCeilingMultiple = number($("rewardCeilingMultiple").value, 1000);
+    config.carry.rewardCeilingMultiple = number($("rewardCeilingMultiple").value, 10);
     config.carry.disconnectMode = $("disconnectMode").value;
     config.carry.eligibleTermination.explicitAbandon = $("termExplicitAbandon").checked;
     config.carry.eligibleTermination.bossReroll = $("termBossReroll").checked;
@@ -232,7 +232,7 @@
     if (!c.enabled) issues.push("個人劇本水池未啟用");
     if (!c.correctionBothWays) issues.push("個人劇本水池必須正負雙向補正");
     if (c.rewardFloorPct !== 10) issues.push("逐利玩家 BOSS 原骰獎最低必須為原獎 10%");
-    if (c.rewardCeilingMultiple !== 1000) issues.push("逐利玩家 BOSS 原骰獎最高必須為原獎 1,000 倍");
+    if (c.rewardCeilingMultiple !== 10) issues.push("逐利玩家 BOSS 原骰獎最高必須為原獎 10 倍（1,000%）");
     return { pass: issues.length === 0, issues };
   }
 
@@ -326,7 +326,7 @@
   const switchLabels = {
     actionTreeEnabled: "自然故事池／三候選", magicEnabled: "魔法卡", jokerEnabled: "Joker",
     freeDrawEnabled: "免費換牌", coinEnabled: "金幣卡", critEnabled: "暴擊卡", flatEnabled: "固傷卡",
-    pokerBoostEnabled: "牌型傷害卡", chainEnabled: "連殺", bossRerollEnabled: "REROLL BOSS",
+    pokerBoostEnabled: "牌型傷害卡", bossRerollEnabled: "REROLL BOSS",
     paidDrawEnabled: "付費 REDRAW", tieRedealEnabled: "完全平手免費重發"
   };
 
@@ -420,16 +420,16 @@
       flatDamage: ["固定傷害", "FIXED DMG"],
       handBoost: ["牌型傷害倍率", "三條／四條／順子／同花／葫蘆等全部共用"]
     };
-    $("suppressionMagicTableBody").innerHTML = Object.entries(suppressionTableMeta).map(([key, meta]) => {
+    $("suppressionMagicTableBody").innerHTML = Object.entries(suppressionTableMeta).flatMap(([key, meta]) => {
       const table = suppression.magic.tables[key];
-      const outcomes = [table.outcomes[0] || { value: 0, weight: 0 }, table.outcomes[1] || { value: 0, weight: 0 }];
-      return `<tr><th>${meta[0]}</th><td>${meta[1]}</td>${outcomes.map((outcome, index) => `<td><input data-suppression-table="${key}" data-outcome-index="${index}" data-outcome-field="value" type="number" min="0" step="0.01" value="${outcome.value}"></td><td><input data-suppression-table="${key}" data-outcome-index="${index}" data-outcome-field="weight" type="number" min="0" step="0.01" value="${outcome.weight}"></td>`).join("")}<td><label class="switch compact-switch" aria-label="${meta[0]}抑制表啟用"><input data-suppression-table-enabled="${key}" type="checkbox" ${table.enabled ? "checked" : ""}><span></span></label></td></tr>`;
+      return table.outcomes.map((outcome, index) => `<tr><th>${index === 0 ? meta[0] : ""}</th><td>${index === 0 ? meta[1] : ""}</td><td><input data-suppression-table="${key}" data-outcome-index="${index}" data-outcome-field="value" type="number" min="0" step="0.01" value="${outcome.value}"></td><td><input data-suppression-table="${key}" data-outcome-index="${index}" data-outcome-field="weight" type="number" min="0" max="100" step="0.01" value="${outcome.weight}"></td><td>${index === 0 ? `<label class="switch compact-switch" aria-label="${meta[0]}抑制表啟用"><input data-suppression-table-enabled="${key}" type="checkbox" ${table.enabled ? "checked" : ""}><span></span></label>` : ""}</td></tr>`);
     }).join("");
     const expectedValue = (table) => {
       const totalWeight = table.outcomes.reduce((sum, row) => sum + Math.max(0, number(row.weight)), 0);
       return totalWeight > 0 ? table.outcomes.reduce((sum, row) => sum + number(row.value) * Math.max(0, number(row.weight)), 0) / totalWeight : 0;
     };
-    $("suppressionPolicySummary").textContent = `${Core.NaturalCore.SUPPRESSION_POLICY_VERSION}｜預設目前期望：暴擊 ${expectedValue(suppression.magic.tables.crit).toFixed(3)}x、固傷 +${expectedValue(suppression.magic.tables.flatDamage).toFixed(3)}、共用牌型傷害 ${expectedValue(suppression.magic.tables.handBoost).toFixed(3)}x。傷害值在比牌結算才公開；抑制時不沿用正常表原值。`;
+    const weightTotal = (table) => table.outcomes.reduce((sum, row) => sum + Math.max(0, number(row.weight)), 0);
+    $("suppressionPolicySummary").textContent = `${Core.NaturalCore.SUPPRESSION_POLICY_VERSION}｜目前期望：暴擊 ${expectedValue(suppression.magic.tables.crit).toFixed(3)}x、固傷 +${expectedValue(suppression.magic.tables.flatDamage).toFixed(3)}、共用牌型傷害 ${expectedValue(suppression.magic.tables.handBoost).toFixed(3)}x。三表權重合計：${weightTotal(suppression.magic.tables.crit).toFixed(2)}%／${weightTotal(suppression.magic.tables.flatDamage).toFixed(2)}%／${weightTotal(suppression.magic.tables.handBoost).toFixed(2)}%。傷害值在比牌結算才公開；抑制時不沿用正常表原值。`;
   }
 
   function setNestedValue(target, path, value) {
@@ -561,7 +561,6 @@
       ["玩家實付獎", x(t.net)],
       ["挑戰 BOSS", count(t.bosses)],
       ["擊殺率", pct(t.killRatePct, 2)],
-      ["最高連殺", count(p.maxKillStreak)],
       ["平均回合／BOSS", t.avgRoundsPerBoss.toFixed(2)],
       ["平均換牌／BOSS", t.avgDrawsPerBoss.toFixed(2)]
     ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
@@ -573,7 +572,6 @@
     $("bossExperienceBody").innerHTML = [
       ["挑戰總次數", count(t.bosses), "實際建立並結算的 BOSS"],
       ["擊殺率", pct(t.killRatePct, 2), "擊殺 BOSS ÷ 挑戰總次數"],
-      ["最高連殺次數", count(p.maxKillStreak), "單一玩家最長連續擊殺"],
       ["平均獲得 Joker", t.jokerDraws ? `${(t.rounds / t.jokerDraws).toFixed(2)} 回合／次` : "—", "只計實際抽出的 Joker"],
       ["BOSS 獎平均賠率", t.bossRewardCount ? `${(t.bossRewardXSum / t.bossRewardCount).toFixed(2)}x` : "—", "只計成功派發的 BOSS 擊殺獎"],
       ["三候選配籤最大誤差", `${number(t.ticketErrorPpMax).toFixed(9)}pp`, "每隻 BOSS 依三個具體自然故事即時求解"],
@@ -623,7 +621,7 @@
     ].map(([label, value]) => rowHtml([label, x(value), pct(ratioPct(value, t.spend), 2)], true)).join("");
 
     const payoutRows = [
-      ["BOSS 擊殺獎", t.bossGross], ["牌型獎", t.handGross], ["魔法卡獎", t.magicGross], ["連殺獎", t.chainGross],
+      ["BOSS 擊殺獎", t.bossGross], ["牌型獎", t.handGross], ["魔法卡獎", t.magicGross],
       [t.bonus >= t.deduction ? "個人劇本水池補正" : "個人劇本水池扣抵", t.bonus - t.deduction]
     ];
     $("payoutSourceBody").innerHTML = payoutRows.map(([label, value]) =>
@@ -706,12 +704,6 @@
       row.draws ? (t.rounds / row.draws).toFixed(2) : "—"
     ], true)).join("");
 
-    $("chainStatsBody").innerHTML = result.killStreakStats.map((row) => rowHtml([
-      row.level >= 10 ? "≥10" : count(row.level), pct(ratioPct(row.payoutAttributed, t.spend), 3),
-      row.count ? (t.bosses / row.count).toFixed(2) : "—",
-      row.count ? (row.payoutXSum / row.count).toFixed(2) : "—"
-    ], true)).join("");
-
     $("storySummaryCards").innerHTML = [
       ["劇情原定投入", x(t.baselineSpend)], ["玩家實際投入", x(t.spend)],
       ["劇情承諾獎", x(t.gross)], ["玩家最終實付獎", x(t.net)],
@@ -789,7 +781,7 @@
       ["劇情原定投入／玩家實際投入", `${x(t.baselineSpend)}／${x(t.spend)}`, `實際－原定 ${signedX(t.actualSpendDeltaCredits)}；比率 ${pct(t.actualSpendVsPlannedPct, 3)}`],
       ["目標 RTP 入池額", signedX(t.targetAccrualCredits), `玩家實際投入 × ${pct(config.targetCoreRtpPct, 3)}`],
       ["自然派彩／自然淨結果", `${x(t.organicPayout)}／${signedX(t.organicActualNetCredits)}`, "自然派彩從同桶扣除；淨結果＝自然派彩－玩家實際投入"],
-      ["BOSS 合法骰面補正／扣抵", `${x(t.bonus)}／${x(t.deduction)}`, `原獎 10%～1,000 倍；觸發率 ${pct(t.correctionRatePct, 2)}`],
+      ["BOSS 合法骰面補正／扣抵", `${x(t.bonus)}／${x(t.deduction)}`, `原獎 10%～1,000%（0.1～10 倍）；觸發率 ${pct(t.correctionRatePct, 2)}`],
       ["玩家最終淨結果", signedX(t.actualNetCredits), "玩家最終實付獎－玩家實際投入"],
       ["期末個人劇情水池", signedX(t.endingCarryX), `占實際投入 ${pct(carryTailPp, 4)}`],
       ["守恆：期末池＝目標 RTP 入池額－玩家最終派彩", x(t.telescopeErrorX, 8), Math.abs(t.telescopeErrorX) < 1e-7 ? "通過" : "阻擋"],
@@ -809,7 +801,7 @@
 
     const correctionReasonLabels = {
       APPLIED: "已套用合法骰面", ZERO_POOL: "差額為 0", NOT_KILLED: "未擊殺，無 BOSS 獎可改",
-      NO_ORIGINAL_REWARD: "原 BOSS 獎為 0", NO_LEGAL_OUTCOME: "10%～1,000 倍內沒有可用合法骰面",
+      NO_ORIGINAL_REWARD: "原 BOSS 獎為 0", NO_LEGAL_OUTCOME: "原獎 10%～1,000% 內沒有可用合法骰面",
       CORRECTION_DISABLED: "補正已關閉", UNKNOWN: "未分類"
     };
     const correctionRows = [
@@ -855,7 +847,7 @@
     ["simSpend", "simPayout", "simGrossRtp", "simNetRtp", "simOffset", "simKillAbort", "simRoundsDraws", "simCarry"].forEach((id) => { $(id).textContent = "—"; });
     ["reportOverviewCards", "storySummaryCards", "bossExperienceBody", "cashoutStatsBody", "drawByHandBody", "runInfoBody",
       "spendSourceBody", "payoutSourceBody", "rtpTrendBody", "storyTrendBody", "playerBossBucketBody", "starStatsBody",
-      "handStatsBody", "chainStatsBody", "magicStatsBody", "playerDistributionBody", "storyBucketBody", "roundBucketBody",
+      "handStatsBody", "magicStatsBody", "playerDistributionBody", "storyBucketBody", "roundBucketBody",
       "cellStatsBody", "treeStatsBody", "carryBucketBody", "carryAuditBody", "terminationStatsBody",
       "riskFindingsBody", "ticketHealthBody", "ticketWeightBody", "ticketSamplesBody", "ticketStarHealthBody", "storySelectionCoverageBody", "settlementFunnelBody", "correctionHealthBody", "correctionCoverageBody",
       "carryBucketTailBody", "classMigrationBody"].forEach((id) => { if ($(id)) $(id).innerHTML = ""; });
@@ -952,6 +944,11 @@
     if ($("seed").value.trim() === "") config.seed = randomSimulationSeed();
     config.seedMode = "FIXED";
     config = Core.sanitizeConfig(config);
+    const suppressionState = Core.NaturalCore.validateSuppressionPolicy(config.suppression);
+    if (!suppressionState.pass) {
+      $("simulationState").textContent = `抑制參數錯誤：${suppressionState.issues.join("；")}`;
+      return;
+    }
     hydrateFixedControls();
     $("simulationState").textContent = usesNaturalStories
       ? `正在以逐利玩家重播真實劇情，從三個完整分類各等機率抽 1 個候選，再配成 ${config.targetCoreRtpPct}%…`
@@ -1022,7 +1019,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v88",
+      v: "frontend-v89",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),

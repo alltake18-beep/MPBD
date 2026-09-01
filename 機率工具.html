@@ -8,13 +8,13 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v32");
+      params.set("v", "action-tree-v33");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v32">
-  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v32">
+  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v33">
+  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v33">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
@@ -26,8 +26,8 @@
       </div>
       <div class="header-actions" aria-label="工具捷徑">
         <button id="restoreButton" class="secondary" type="button">還原範例</button>
-        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v4" target="_blank" rel="noopener">後端文件</a>
-        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v88" target="_blank" rel="noopener">開啟遊戲</a>
+        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v5" target="_blank" rel="noopener">後端文件</a>
+        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v89" target="_blank" rel="noopener">開啟遊戲</a>
       </div>
     </header>
 
@@ -45,7 +45,7 @@
           <summary><span>01</span><strong>故事產生</strong><small>完整跑出、歸類與重播</small></summary>
           <div class="control-card-body">
             <div class="control-grid primary-controls">
-              <label>目標長期 RTP（%）<input id="targetCoreRtp" type="number" min="80" max="110" step="0.001" value="96"></label>
+              <label>目標長期 RTP（%）<input id="targetCoreRtp" type="number" min="80" max="99" step="0.001" value="96"><span class="field-help">出廠 96%；平台可設 80%～99%。每隻 Boss 建立時鎖定，之後改設定不影響進行中 Boss。</span></label>
               <label>配籤 RTP 容許差（百分點）<input id="tolerancePp" type="number" min="0" max="2" step="0.001" value="0.01"><span class="field-help">目標 96%、容許 0.01，代表配籤理論值須落在 95.99%～96.01%；不是短期實跑 RTP 波動。</span></label>
               <label>贏多門檻（倍）<input id="winMinReturnX" type="number" min="0.001" max="1000000" step="0.1" value="3"><span class="field-help">分類倍率＝總派彩 ÷ 總押；等於此門檻也算贏多。</span></label>
               <label>贏少門檻（倍）<input id="pushMinReturnX" type="number" min="0" max="999999.999" step="0.1" value="1"><span class="field-help">等於此門檻算贏少；低於此門檻才算輸。贏多門檻必須較高。</span></label>
@@ -156,7 +156,7 @@
               <div class="advanced-body">
                 <div class="carry-controls">
                   <label>逐利玩家原骰獎最低比例（%）<input id="rewardFloorPct" type="number" min="0" max="100" step="0.1" value="10"></label>
-                  <label>逐利玩家原骰獎最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="1000" step="1" value="1000"></label>
+                  <label>逐利玩家原骰獎最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="10" step="0.1" value="10"><span class="field-help">10 倍就是原獎的 1,000%。</span></label>
                   <label>三玩家統計：補正方向<select id="correctionBothWays"><option value="true">雙向：少花扣抵、多花補正</option><option value="false">只扣抵，不補正（不可發布）</option></select></label>
                   <label>三玩家統計：基準投入認列<select id="baselineRecognitionMode"><option value="FULL_STORY_COMMIT">完整 StoryCommit 基準</option><option value="REACHED_NODE_BASELINE">只認列已到達節點（研究用）</option></select></label>
                   <label>三玩家統計：投入差容忍帶（%）<input id="deviationBandPct" type="number" min="0" max="100" step="0.1" value="0"></label>
@@ -177,7 +177,7 @@
                 <div class="formula-block">
                   <strong>poolAfter = poolBefore + 實際花費 × 目標 RTP − 自然派彩 − Boss 獎補正額</strong>
                   <span>REROLL BOSS、START／CONTINUE 與付費 REDRAW 都按付款當下鎖定的目標 RTP 入對應 Bet 桶；自然派彩從同桶扣除。</span>
-                  <span>擊殺時只改該 BOSS 原骰獎，維持相同骰型與合法骰面；最終原骰獎限制為原值 10%～1,000 倍（100,000%）。</span>
+                  <span>擊殺時只改該 BOSS 原骰獎，維持相同骰型與合法骰面；最終原骰獎限制為原值 10%～1,000%（0.1～10 倍）。同桶若有其他進行中 Boss，先扣除其原骰獎預留額後才可補正。</span>
                 </div>
                 <div class="example-grid">
                   <div class="example-inputs">
@@ -241,7 +241,7 @@
                 <h3>03｜傷害魔法抑制專用抽取表</h3>
                 <p class="compact-copy">暴擊、固傷各自使用一張表；三條、四條、順子、同花、葫蘆等所有牌型傷害魔法卡共用「牌型傷害倍率」表。權重不必加總為 100，系統會依比例抽取。</p>
                 <div id="suppressionMagicSwitchGrid" class="switch-grid"></div>
-                <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>抑制表</th><th>套用卡片</th><th>結果 A</th><th>A 權重</th><th>結果 B</th><th>B 權重</th><th>啟用</th></tr></thead><tbody id="suppressionMagicTableBody"></tbody></table></div>
+                <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>抑制表</th><th>套用卡片</th><th>結果</th><th>權重（%）</th><th>啟用</th></tr></thead><tbody id="suppressionMagicTableBody"></tbody></table></div>
               </section>
               <section class="sub-control-block">
                 <h3>04｜前端揭露與稽核</h3>
@@ -301,7 +301,6 @@
             <button type="button" class="report-tab" data-report-panel="reportBucketsPanel">BOSS 倍數</button>
             <button type="button" class="report-tab" data-report-panel="reportBossPanel">BOSS</button>
             <button type="button" class="report-tab" data-report-panel="reportHandsPanel">牌型</button>
-            <button type="button" class="report-tab" data-report-panel="reportChainPanel">連殺</button>
             <button type="button" class="report-tab" data-report-panel="reportMagicPanel">魔法卡</button>
             <button type="button" class="report-tab report-tab-audit" data-report-panel="reportStoryPoolPanel">劇本／水池</button>
           </div>
@@ -362,11 +361,6 @@
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>牌型</th><th>RTP</th><th>玩家勝率</th><th>初始手牌</th><th>比牌牌型</th><th>BOSS 手牌</th><th>平均傷害</th><th>基礎傷害</th></tr></thead><tbody id="handStatsBody"></tbody></table></div>
             </section>
 
-            <section id="reportChainPanel" class="report-panel">
-              <h3>連殺 RTP</h3>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>連殺次數</th><th>RTP</th><th>平均幾次獲得</th><th>平均賠率 x</th></tr></thead><tbody id="chainStatsBody"></tbody></table></div>
-            </section>
-
             <section id="reportMagicPanel" class="report-panel">
               <h3>魔法卡</h3>
               <p class="proxy-note">魔法卡依普通／高星正式權重逐回合自然抽取；統計只使用正式遊戲故事池。</p>
@@ -412,7 +406,7 @@
               <h3>補正實際使用狀態</h3>
               <p class="proxy-note">抽劇本與每筆花費入池共用目標 RTP；固定故事重播可直接觀察合法骰面吸收率與三桶池尾。</p>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>指標</th><th>數值</th><th>說明</th></tr></thead><tbody id="correctionHealthBody"></tbody></table></div>
-              <h3>合法骰面 10%～1,000 倍補正能力</h3>
+              <h3>合法骰面 10%～1,000% 補正能力</h3>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>自然故事</th><th>有 BOSS 獎</th><th>可上修</th><th>可下修</th><th>達最高界</th><th>達最低界</th><th>平均上修容量</th><th>平均下修容量</th><th>最小上修跳格</th><th>最小下修跳格</th></tr></thead><tbody id="correctionCoverageBody"></tbody></table></div>
               <h3>三桶玩家尾部</h3>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>正餘額玩家</th><th>負餘額玩家</th><th>歸零玩家</th><th>平均餘額</th><th>|餘額| P50</th><th>P90</th><th>P95</th><th>P99</th><th>最大 |餘額|</th><th>|餘額|／投入</th></tr></thead><tbody id="carryBucketTailBody"></tbody></table></div>
@@ -428,14 +422,14 @@
 
   </div>
 
-  <script src="src/core/boss-duel-random.js?v=action-tree-v32"></script>
+  <script src="src/core/boss-duel-random.js?v=action-tree-v33"></script>
   <script src="src/core/boss-duel-poker-arrangement-core.js?v=arrange-v9"></script>
-  <script src="src/core/boss-duel-rules.js?v=action-tree-v32"></script>
+  <script src="src/core/boss-duel-rules.js?v=action-tree-v33"></script>
   <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v12"></script>
   <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v32"></script>
-  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v32"></script>
-  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v32"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v33"></script>
+  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v33"></script>
+  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v33"></script>
 </body>
 </html>

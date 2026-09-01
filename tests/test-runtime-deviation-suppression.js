@@ -15,6 +15,17 @@ const config = NaturalCore.normalizeConfig({
     smartMaxDraws: 9
   }
 });
+assert.deepEqual(config.suppressionPolicy.magic.tables.crit.outcomes, [
+  { value: 1, weight: 69 }, { value: 2, weight: 25 }, { value: 3, weight: 3 }, { value: 4, weight: 2 }, { value: 5, weight: 1 }
+]);
+assert.deepEqual(config.suppressionPolicy.magic.tables.flatDamage.outcomes, [
+  { value: 3, weight: 70 }, { value: 4, weight: 25 }, { value: 5, weight: 3 }, { value: 6, weight: 2 }
+]);
+assert.deepEqual(config.suppressionPolicy.magic.tables.handBoost.outcomes, [
+  { value: 1, weight: 80 }, { value: 2, weight: 19 }, { value: 3, weight: 1 }
+]);
+assert.equal(NaturalCore.validateSuppressionPolicy(config.suppressionPolicy).pass, true);
+assert.equal(NaturalCore.validateSuppressionPolicy({ magic: { tables: { crit: { outcomes: [{ value: 1, weight: 90 }, { value: 2, weight: 5 }] } } } }).pass, false);
 
 let story = null;
 for (let attempt = 0; attempt < 5000 && !story; attempt += 1) {
@@ -81,9 +92,9 @@ magicState.magicCards = [{ key: `${magicState.playerEval.key}Boost`, target: mag
 const magicA = NaturalCore.resolveRuntimeMagic(magicState, { story, actionSequence: 3, suppressionActive: true });
 const magicB = NaturalCore.resolveRuntimeMagic(magicState, { story, actionSequence: 3, suppressionActive: true });
 assert.deepEqual(magicA, magicB, "final magic suppression must replay exactly");
-assert.ok(magicA.values.find((row) => row.kind === "crit" && row.tableKey === "crit" && row.sourceTable === "SUPPRESSION" && [1, 2].includes(row.final)));
-assert.ok(magicA.values.find((row) => row.kind === "flatDamage" && row.tableKey === "flatDamage" && row.sourceTable === "SUPPRESSION" && [3, 4].includes(row.final)));
-assert.ok(magicA.values.find((row) => /Boost$/.test(row.kind) && row.tableKey === "handBoost" && row.sourceTable === "SUPPRESSION" && [1, 2].includes(row.final)));
+assert.ok(magicA.values.find((row) => row.kind === "crit" && row.tableKey === "crit" && row.sourceTable === "SUPPRESSION" && [1, 2, 3, 4, 5].includes(row.final)));
+assert.ok(magicA.values.find((row) => row.kind === "flatDamage" && row.tableKey === "flatDamage" && row.sourceTable === "SUPPRESSION" && [3, 4, 5, 6].includes(row.final)));
+assert.ok(magicA.values.find((row) => /Boost$/.test(row.kind) && row.tableKey === "handBoost" && row.sourceTable === "SUPPRESSION" && [1, 2, 3].includes(row.final)));
 
 const customPolicy = NaturalCore.normalizeSuppressionPolicy({
   redraw: { improvedAcceptPct: 12.5, sameOrLowerAcceptPct: 87.5, maxCandidates: 44 },

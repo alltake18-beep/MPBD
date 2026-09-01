@@ -28,9 +28,14 @@
   const DEFAULT_TICKET_BASIS = 10000;
   const STORIES_PER_CLASS = 10000;
   const ACTION_TRACE_VERSION = "story-action-trace-v1";
-  const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v2-separate-tables";
-  const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v2";
+  const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v3-configurable-tables";
+  const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v3";
   const STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
+  const POOL_SETTLEMENT_VERSION = "target-rtp-personal-pool-v2-reservation";
+  const DEFAULT_TARGET_RTP_PCT = 96;
+  const MIN_TARGET_RTP_PCT = 80;
+  const MAX_TARGET_RTP_PCT = 99;
+  const MONEY_SCALE = 10000;
   const BET_VALUES = Object.freeze([1, 2, 5, 10, 20, 50, 100, 200, 500, 800, 1000, 1200, 1500, 1800, 2000]);
   const BET_BUCKETS = Object.freeze([
     Object.freeze({ key: "B1", label: "Bet 1–10", bets: Object.freeze([1, 2, 5, 10]) }),
@@ -59,17 +64,27 @@
         crit: Object.freeze({
           enabled: true,
           label: "暴擊倍率",
-          outcomes: Object.freeze([Object.freeze({ value: 1, weight: 50 }), Object.freeze({ value: 2, weight: 50 })])
+          outcomes: Object.freeze([
+            Object.freeze({ value: 1, weight: 69 }), Object.freeze({ value: 2, weight: 25 }),
+            Object.freeze({ value: 3, weight: 3 }), Object.freeze({ value: 4, weight: 2 }),
+            Object.freeze({ value: 5, weight: 1 })
+          ])
         }),
         flatDamage: Object.freeze({
           enabled: true,
           label: "固定傷害",
-          outcomes: Object.freeze([Object.freeze({ value: 3, weight: 50 }), Object.freeze({ value: 4, weight: 50 })])
+          outcomes: Object.freeze([
+            Object.freeze({ value: 3, weight: 70 }), Object.freeze({ value: 4, weight: 25 }),
+            Object.freeze({ value: 5, weight: 3 }), Object.freeze({ value: 6, weight: 2 })
+          ])
         }),
         handBoost: Object.freeze({
           enabled: true,
           label: "共用牌型傷害倍率",
-          outcomes: Object.freeze([Object.freeze({ value: 1, weight: 50 }), Object.freeze({ value: 2, weight: 50 })])
+          outcomes: Object.freeze([
+            Object.freeze({ value: 1, weight: 80 }), Object.freeze({ value: 2, weight: 19 }),
+            Object.freeze({ value: 3, weight: 1 })
+          ])
         })
       })
     })
@@ -127,6 +142,23 @@
     return JSON.parse(JSON.stringify(value));
   }
 
+  function normalizeTargetRtpPct(value) {
+    return clamp(finite(value, DEFAULT_TARGET_RTP_PCT), MIN_TARGET_RTP_PCT, MAX_TARGET_RTP_PCT);
+  }
+
+  function toMoneyUnits(value) {
+    const amount = finite(value, 0);
+    return Math.sign(amount) * Math.floor(Math.abs(amount) * MONEY_SCALE + 0.5);
+  }
+
+  function fromMoneyUnits(units) {
+    return Math.trunc(finite(units, 0)) / MONEY_SCALE;
+  }
+
+  function roundMoney(value) {
+    return fromMoneyUnits(toMoneyUnits(value));
+  }
+
   function normalizeSuppressionOutcomes(input, fallback) {
     const source = Array.isArray(input) && input.length ? input : fallback;
     const outcomes = source.slice(0, 16).map((row, index) => ({
@@ -176,6 +208,17 @@
     };
   }
 
+  function validateSuppressionPolicy(input = {}) {
+    const policy = normalizeSuppressionPolicy(input);
+    const issues = [];
+    for (const [key, table] of Object.entries(policy.magic.tables)) {
+      if (!table.enabled) continue;
+      const total = table.outcomes.reduce((sum, row) => sum + row.weight, 0);
+      if (Math.abs(total - 100) > 1e-9) issues.push(`${key} 抑制表權重合計必須為 100%，目前為 ${total}%`);
+    }
+    return { pass: issues.length === 0, issues, policy };
+  }
+
   function randomInt(min, max, rng) {
     return min + Math.floor(rng() * (max - min + 1));
   }
@@ -204,7 +247,7 @@
     return {
       seed: integer(input.seed, 20260824, 0, 0xffffffff) >>> 0,
       poolSeed: integer(story.seed, 20260824, 0, 0xffffffff) >>> 0,
-      targetRtpPct: clamp(finite(input.targetCoreRtpPct ?? input.targetRtpPct, 96), 1, 500),
+      targetRtpPct: normalizeTargetRtpPct(input.targetCoreRtpPct ?? input.targetRtpPct),
       bossRows: (Array.isArray(input.bossRows) && input.bossRows.length ? input.bossRows : DEFAULT_BOSS_ROWS).map((row) => row.slice()),
       magicRows: (Array.isArray(input.magicRows) && input.magicRows.length ? input.magicRows : DEFAULT_MAGIC_ROWS).map((row) => Array.isArray(row) ? row.slice() : row),
       handRows,
@@ -218,7 +261,7 @@
       maxGenerationAttemptsPerStar: integer(story.maxGenerationAttemptsPerStar, 10000000, 100, 100000000),
       maxCandidateAttempts: integer(story.maxCandidateAttempts, 10000, 1, 1000000),
       rewardFloorPct: clamp(finite(carry.rewardFloorPct ?? story.rewardFloorPct, 10), 0, 100),
-      rewardCeilingMultiple: clamp(finite(carry.rewardCeilingMultiple ?? story.rewardCeilingMultiple, 1000), 1, 1000),
+      rewardCeilingMultiple: clamp(finite(carry.rewardCeilingMultiple ?? story.rewardCeilingMultiple, 10), 1, 10),
       refreshCostX: Math.max(0, finite(rules.refreshCostX, 1)),
       deckStopCount: integer(rules.deckStopCount, 10, 1, 54),
       playerBadHighRerollPct: clamp(finite(rules.playerBadHighRerollPct, 50), 0, 100),
@@ -1127,7 +1170,7 @@
       ? boundsInput
       : { rewardFloorPct: Math.max(0, 100 - finite(boundsInput, 0)), rewardCeilingMultiple: 1 + Math.max(0, finite(boundsInput, 0)) / 100 };
     const rewardFloorPct = clamp(finite(bounds.rewardFloorPct, 10), 0, 100);
-    const rewardCeilingMultiple = clamp(finite(bounds.rewardCeilingMultiple, 1000), 1, 1000);
+    const rewardCeilingMultiple = clamp(finite(bounds.rewardCeilingMultiple, 10), 1, 10);
     const minimumRewardX = original * rewardFloorPct / 100;
     const maximumRewardX = original * rewardCeilingMultiple;
     const requestedAbsCredits = Math.abs(incoming);
@@ -1168,7 +1211,7 @@
       return { ...base, reason: "NO_LEGAL_OUTCOME", legalOutcomeCount: outcomes.length };
     }
     const deltaX = selected.total - original;
-    const deltaCredits = deltaX * wager;
+    const deltaCredits = roundMoney(deltaX * wager);
     const appliedAbsCredits = Math.abs(deltaCredits);
     return {
       ...base,
@@ -1185,14 +1228,76 @@
     };
   }
 
+  function normalizeBossReservations(input) {
+    return (Array.isArray(input) ? input : []).filter((row) => row && row.encounterId).map((row) => ({
+      encounterId: String(row.encounterId),
+      bucketIndex: integer(row.bucketIndex, 0, 0, 2),
+      bucketKey: BET_BUCKETS[integer(row.bucketIndex, 0, 0, 2)].key,
+      bet: Math.max(1e-12, finite(row.bet, 1)),
+      originalBossRewardCredits: roundMoney(Math.max(0, finite(row.originalBossRewardCredits, 0))),
+      targetRtpPct: normalizeTargetRtpPct(row.targetRtpPct),
+      releaseVersion: String(row.releaseVersion || "")
+    }));
+  }
+
+  function reserveBossReward(reservationsInput, encounterIdInput, story, bet = 1, options = {}) {
+    const encounterId = String(encounterIdInput || "").trim();
+    if (!encounterId) throw new Error("預留 Boss 獎必須提供 encounterId");
+    const reservations = normalizeBossReservations(reservationsInput);
+    const existing = reservations.find((row) => row.encounterId === encounterId);
+    if (existing) return { reservation: existing, reservations, idempotent: true };
+    const wager = Math.max(1e-12, finite(bet, 1));
+    const bucketIndex = bucketIndexForBet(wager);
+    const originalBossRewardCredits = roundMoney(Math.max(0, finite(
+      options.originalBossRewardCredits,
+      finite(story?.originalDice?.total, story?.originalBossRewardX) * wager
+    )));
+    const reservation = {
+      encounterId, bucketIndex, bucketKey: BET_BUCKETS[bucketIndex].key, bet: wager,
+      originalBossRewardCredits,
+      targetRtpPct: normalizeTargetRtpPct(options.targetRtpPct),
+      releaseVersion: String(options.releaseVersion || "")
+    };
+    reservations.push(reservation);
+    return { reservation, reservations, idempotent: false };
+  }
+
+  function releaseBossReward(reservationsInput, encounterIdInput) {
+    const reservations = normalizeBossReservations(reservationsInput);
+    const encounterId = String(encounterIdInput || "").trim();
+    if (!encounterId) return { released: null, reservations, idempotent: true };
+    const index = reservations.findIndex((row) => row.encounterId === encounterId);
+    if (index < 0) return { released: null, reservations, idempotent: true };
+    const [released] = reservations.splice(index, 1);
+    return { released, reservations, idempotent: false };
+  }
+
+  function reservedCreditsForBucket(reservationsInput, bucketIndexInput) {
+    const bucketIndex = integer(bucketIndexInput, 0, 0, 2);
+    return roundMoney(normalizeBossReservations(reservationsInput)
+      .filter((row) => row.bucketIndex === bucketIndex)
+      .reduce((sum, row) => sum + row.originalBossRewardCredits, 0));
+  }
+
+  function availablePoolCredits(bucketBalancesInput, reservationsInput, bet = 1) {
+    const bucketIndex = bucketIndexForBet(bet);
+    const bookBalanceCredits = roundMoney(Array.isArray(bucketBalancesInput) ? bucketBalancesInput[bucketIndex] : 0);
+    const reservedCredits = reservedCreditsForBucket(reservationsInput, bucketIndex);
+    return {
+      bucketIndex, bucketKey: BET_BUCKETS[bucketIndex].key,
+      bookBalanceCredits, reservedCredits,
+      availableCredits: roundMoney(bookBalanceCredits - reservedCredits)
+    };
+  }
+
   function addPoolCredits(bucketBalancesInput, bet = 1, credits = 0) {
     const balances = Array.isArray(bucketBalancesInput) ? bucketBalancesInput.slice(0, 3) : emptyBucketBalances();
     while (balances.length < 3) balances.push(0);
     const wager = Math.max(1e-12, finite(bet, 1));
     const bucketIndex = bucketIndexForBet(wager);
-    const incomingPoolCredits = finite(balances[bucketIndex], 0);
-    const deltaCredits = finite(credits, 0);
-    const endingPoolCredits = incomingPoolCredits + deltaCredits;
+    const incomingPoolCredits = roundMoney(balances[bucketIndex]);
+    const deltaCredits = roundMoney(credits);
+    const endingPoolCredits = roundMoney(incomingPoolCredits + deltaCredits);
     balances[bucketIndex] = Math.abs(endingPoolCredits) < 1e-9 ? 0 : endingPoolCredits;
     return {
       bucketIndex, bucketKey: BET_BUCKETS[bucketIndex].key, bet: wager,
@@ -1203,8 +1308,8 @@
   function commitStoryToBuckets(commit, bucketBalancesInput, bet = 1, options = {}) {
     if (!commit?.selectedStory) throw new Error("StoryCommit 缺少 selectedStory");
     const actualSpendCredits = Math.max(0, finite(options.actualSpendCredits, commit.selectedStory.spendX * bet));
-    const targetRtpPct = clamp(finite(options.targetRtpPct, 96), 0, 500);
-    const targetAccrualCredits = actualSpendCredits * targetRtpPct / 100;
+    const targetRtpPct = normalizeTargetRtpPct(options.targetRtpPct);
+    const targetAccrualCredits = roundMoney(actualSpendCredits * targetRtpPct / 100);
     const posted = addPoolCredits(bucketBalancesInput, bet, targetAccrualCredits);
     return {
       ...posted,
@@ -1224,15 +1329,18 @@
     const story = commit?.selectedStory;
     if (!story) throw new Error("StoryCommit 缺少 selectedStory");
     const actualSpendCredits = Math.max(0, finite(options.actualSpendCredits, startedCommit?.actualSpendCredits ?? story.spendX * wager));
-    const targetRtpPct = clamp(finite(options.targetRtpPct, startedCommit?.targetRtpPct ?? 96), 0, 500);
-    const targetAccrualCredits = Math.max(0, finite(options.targetAccrualCredits, startedCommit?.targetAccrualCredits ?? actualSpendCredits * targetRtpPct / 100));
-    const afterSpendCredits = finite(balances[bucketIndex], 0);
-    const organicPayoutCredits = Math.max(0, finite(
+    const targetRtpPct = normalizeTargetRtpPct(options.targetRtpPct ?? startedCommit?.targetRtpPct);
+    const targetAccrualCredits = roundMoney(Math.max(0, finite(options.targetAccrualCredits, startedCommit?.targetAccrualCredits ?? actualSpendCredits * targetRtpPct / 100)));
+    const afterSpendCredits = roundMoney(balances[bucketIndex]);
+    const organicPayoutCredits = roundMoney(Math.max(0, finite(
       options.organicPayoutCredits ?? options.actualPayoutCredits,
       story.payoutX * wager
-    ));
+    )));
     // 所有付費事件依鎖定 RTP 正向入桶；自然派彩在擊殺補正前從同桶扣除。
-    const preCorrectionPoolCredits = afterSpendCredits - organicPayoutCredits;
+    const releasedReservation = releaseBossReward(options.reservations, options.encounterId);
+    const otherReservedCredits = reservedCreditsForBucket(releasedReservation.reservations, bucketIndex);
+    const preCorrectionBookCredits = roundMoney(afterSpendCredits - organicPayoutCredits);
+    const preCorrectionPoolCredits = roundMoney(preCorrectionBookCredits - otherReservedCredits);
     const correctionStory = {
       ...story,
       killed: options.actualKilled === undefined ? story.killed : Boolean(options.actualKilled),
@@ -1245,22 +1353,24 @@
       wager,
       {
         rewardFloorPct: options.rewardFloorPct ?? commit.poolConfig?.rewardFloorPct ?? 10,
-        rewardCeilingMultiple: options.rewardCeilingMultiple ?? commit.poolConfig?.rewardCeilingMultiple ?? 1000
+        rewardCeilingMultiple: options.rewardCeilingMultiple ?? commit.poolConfig?.rewardCeilingMultiple ?? 10
       },
       options.rng || Math.random
     );
-    const actualPayoutCredits = organicPayoutCredits + correction.deltaCredits;
-    const organicActualNetCredits = organicPayoutCredits - actualSpendCredits;
-    const actualNetCredits = actualPayoutCredits - actualSpendCredits;
-    const endingPoolCredits = preCorrectionPoolCredits - correction.deltaCredits;
+    const actualPayoutCredits = roundMoney(organicPayoutCredits + correction.deltaCredits);
+    const organicActualNetCredits = roundMoney(organicPayoutCredits - actualSpendCredits);
+    const actualNetCredits = roundMoney(actualPayoutCredits - actualSpendCredits);
+    const endingPoolCredits = roundMoney(preCorrectionBookCredits - correction.deltaCredits);
     balances[bucketIndex] = Math.abs(endingPoolCredits) < 1e-9 ? 0 : endingPoolCredits;
     return {
+      version: POOL_SETTLEMENT_VERSION,
       bucketIndex, bucketKey: BET_BUCKETS[bucketIndex].key,
       incomingPoolCredits: finite(startedCommit?.incomingPoolCredits, afterSpendCredits - targetAccrualCredits),
       targetRtpPct, targetAccrualCredits, commitNetCredits: targetAccrualCredits,
       afterSpendCredits, afterCommitCredits: afterSpendCredits,
-      organicPayoutCredits, organicActualNetCredits, preCorrectionPoolCredits, actualNetCredits,
-      endingPoolCredits: balances[bucketIndex], balances, correction,
+      organicPayoutCredits, organicActualNetCredits, preCorrectionBookCredits, otherReservedCredits, preCorrectionPoolCredits, actualNetCredits,
+      endingPoolCredits: balances[bucketIndex], endingAvailableCredits: roundMoney(balances[bucketIndex] - otherReservedCredits), balances,
+      releasedReservation: releasedReservation.released, reservations: releasedReservation.reservations, correction,
       actualPayoutCredits, actualSpendCredits
     };
   }
@@ -1272,16 +1382,20 @@
 
   return {
     STORY_KEYS, STORY_LABELS, BET_VALUES, BET_BUCKETS,
-    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, SUPPRESSION_STORAGE_KEY, STORY_BET_CONTRACT_VERSION,
-    DEFAULT_SUPPRESSION_POLICY: clone(DEFAULT_SUPPRESSION_POLICY), normalizeSuppressionPolicy,
+    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, SUPPRESSION_STORAGE_KEY, STORY_BET_CONTRACT_VERSION, POOL_SETTLEMENT_VERSION,
+    DEFAULT_TARGET_RTP_PCT, MIN_TARGET_RTP_PCT, MAX_TARGET_RTP_PCT, MONEY_SCALE,
+    DEFAULT_SUPPRESSION_POLICY: clone(DEFAULT_SUPPRESSION_POLICY), normalizeSuppressionPolicy, validateSuppressionPolicy,
     DEFAULT_TICKET_PREFERENCE_PCT, DEFAULT_TICKET_BASIS,
     DEFAULT_BOSS_ROWS: clone(DEFAULT_BOSS_ROWS), DEFAULT_MAGIC_ROWS: clone(DEFAULT_MAGIC_ROWS), DEFAULT_HAND_ROWS: clone(DEFAULT_HAND_ROWS),
-    normalizeConfig, storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,
+    normalizeConfig, normalizeTargetRtpPct, toMoneyUnits, fromMoneyUnits, roundMoney,
+    storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,
     sortedCardIds, sameCardIds, storyStepAt, plannedKeepIdsAt, replayContract, executeRuntimeRedraw, resolveRuntimeMagic,
     packStorySummary, unpackStorySummary,
     simulateNaturalStory, poolSignature, presetMatchesOutcomeRules, buildNaturalStoryPoolFromPreset,
     targetScorePoints, solveCandidateProbabilities, drawUniformPresetStoryCommit,
-    legalDiceOutcomes, correctBossDiceReward, addPoolCredits, commitStoryToBuckets, settleStartedStory, settleCommittedStory,
+    legalDiceOutcomes, correctBossDiceReward,
+    normalizeBossReservations, reserveBossReward, releaseBossReward, reservedCreditsForBucket, availablePoolCredits,
+    addPoolCredits, commitStoryToBuckets, settleStartedStory, settleCommittedStory,
     clearPoolCache() { poolCache.clear(); }
   };
 });
