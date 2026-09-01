@@ -915,7 +915,6 @@ button { color: inherit; }
 @keyframes reward-tier-pulse { to { filter: brightness(1.13) saturate(1.15); } }
 @keyframes reward-touch-pulse { to { transform: translateY(-4px) scale(1.06); filter: brightness(1.22) drop-shadow(0 0 7px #fff3a0); } }
 
-/* frontend-v45: original control surfaces and result communication */
 .quick-menu { max-height: 320px; padding-bottom: 2px; overflow: hidden; }
 .quick-menu-divider { display: block; width: 25px; height: 1px; margin: 1px auto; background: linear-gradient(90deg,transparent,#f7da8c,transparent); }
 .quick-menu .developer-menu-item { opacity: .62; filter: saturate(.65); }
