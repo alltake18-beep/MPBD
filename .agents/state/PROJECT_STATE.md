@@ -1,0 +1,61 @@
+# Project State
+
+## Current Goal
+
+讓 Boss Duel 收斂為單一現行實作、單一現行規格與清楚的檔案責任，使新 Session 不必重讀專案歷史也能正確接續。
+
+## Current Status
+
+- 現行遊戲：`frontend-v92`。
+- 現行機率工具：`action-tree-v33`。
+- 現行後端文件：`backend-doc-v6`。
+- 現行規劃器：`boss-plan-v10`；理牌核心：`arrange-v9`。
+- 現行正式劇本：`natural-story-preset-v11`，共 240,000 筆，不分 Bet。
+- Repository 專案工作規則在根目錄 `AGENTS.md`；完整產品規格維持於 `docs/Boss Duel 交接.md`。
+- 目前沒有進行中的產品程式修改。
+
+## Active Decisions
+
+- 每星各有贏多、贏少、輸 10,000 筆；這三類是結果分類，不是 Bet 水池。
+- 每回合表演十種魔法卡候選，再揭示後端已鎖定的兩張結果；前端不得重新抽取。
+- 前端表演調整不包含理牌、數學、劇本、抑制或水池邏輯修改。
+- 個人劇本帳務使用三個持久 Bet 桶；劇本本身通用所有 Bet。
+- 詳細且具權威性的決策只維護在 `docs/Boss Duel 交接.md`，不在本文件重複。
+
+## In Progress
+
+無。
+
+## Next Steps
+
+1. 以現行 Android 與 iOS 實體裝置驗證 `frontend-v92`。
+2. 執行長期 RTP 與三桶水池模擬，包含各星補正能力及期末餘額。
+3. 獨立實作贏錢玩家提領模擬，不複用主三桶結果。
+4. 將正式劇本產生器接入版本化後端儲存，驗證原子切版與失敗復原。
+5. 對起手 17／18 不可達邊界完成窮舉驗證。
+
+## Important Files
+
+- `docs/Boss Duel 交接.md`：現行產品規格與詳細驗證紀錄。
+- `README.md`：檔案責任與驗證入口。
+- `遊戲Demo.html`、`src/game/`：遊戲頁面與前端表演。
+- `機率工具.html`、`src/probability/`：機率工具。
+- `src/core/`：共用規則、理牌、規劃與劇本核心。
+- `server/boss-duel-story-generator.js`：正式 240,000 筆劇本產生入口。
+- `後端文件.html`：交付工程師的後端規格。
+
+## Known Issues
+
+- 尚未完成現行 Android 與 iOS 實體裝置流程驗證。
+- 尚未驗證百萬局波動與長期三桶水池行為。
+- 尚未整合版本化後端持久儲存、索引原子切換、回滾與失敗復原。
+- 尚未壓測稀有分類每日產能與長期資源使用量。
+- 尚未實作獨立的贏錢玩家提領模擬。
+- 起手 17／18 不可達邊界已有固定與隨機回歸測試，但尚無窮舉證明。
+
+## Validation Status
+
+- 最近一次完整自動測試已通過全部 10 組，包含 240,000 筆正式劇本。
+- 本機瀏覽器已驗證一般／Turbo 魔法卡表演，以及 1 星／8 星擊殺開獎流程。
+- 公開頁面已確認為 `frontend-v92`、`action-tree-v33`、`backend-doc-v6`。
+- Android 與 iOS 實體裝置驗證尚未完成。
