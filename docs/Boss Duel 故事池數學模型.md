@@ -8,7 +8,7 @@
 
 | 項目 | 版本／提交 |
 |---|---|
-| 手機遊戲 | `frontend-v90` |
+| 手機遊戲 | `frontend-v91` |
 | 機率工具 | `action-tree-v33` |
 | 玩家規劃 | `boss-plan-v10` |
 | 理牌核心 | `arrange-v9` |
@@ -20,7 +20,7 @@
 
 對外連結：
 
-- 遊戲Demo：<https://alltake18-beep.github.io/MPBD/%E9%81%8A%E6%88%B2Demo.html?v=frontend-v90>
+- 遊戲Demo：<https://alltake18-beep.github.io/MPBD/%E9%81%8A%E6%88%B2Demo.html?v=frontend-v91>
 - 機率工具：<https://alltake18-beep.github.io/MPBD/%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v33>
 - 後端文件：<https://alltake18-beep.github.io/MPBD/%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v5>
 
@@ -308,10 +308,10 @@ Bet 不參與 seed、發牌、魔法卡、換牌、AI 路線、結果分類或 2
 
 已實際驗證：
 
-- 遊戲 `frontend-v90` 沿用已驗證的完整分類各抽一個、三者正籤、1,000,000 張籤及普通／Turbo 比牌時間軸，並在重播稽核保存 `story-bet-scaling-v1`。
+- 遊戲 `frontend-v91` 沿用已驗證的完整分類各抽一個、三者正籤、1,000,000 張籤及普通／Turbo 比牌時間軸，並在重播稽核保存 `story-bet-scaling-v1`。
 - 遊戲 80 次自動抽取：零籤 0，最大重抽 3，最大理論誤差約 0.0000392167 個百分點。
 - 遊戲與共享核心已驗證：平台 RTP 輸入限制為 80%～99%，建立 Boss 後鎖定；目標 96% 時花費 100 入池 96；三桶隔離；自然派彩扣池；未擊殺不補正；擊殺只以合法 Boss 骰面在原獎 10%～1,000% 內同方向吸收。
-- `frontend-v90` 保留玩家自由 FIGHT／FOLD、有序操作稽核、逐次保留集合比較及確定性偏離候選；傷害魔法值在比牌前隱藏，抑制時改抽專用表。靜態 Demo 只有在網址明確加入 `qaAudit=1` 時才可匯出同一 Boss 的完整重播稽核，一般玩家網址不掛載稽核介面。
+- `frontend-v91` 保留玩家自由 FIGHT／FOLD、有序操作稽核、逐次保留集合比較及確定性偏離候選；傷害魔法值在比牌前隱藏，抑制時改抽專用表。靜態 Demo 只有在網址明確加入 `qaAudit=1` 時才可匯出同一 Boss 的完整重播稽核，一般玩家網址不掛載稽核介面。
 - 本機固定種子已實測兩種偏離：高牌在劇本原定 REDRAW 時直接 FIGHT；以及改變保留集合後 REDRAW 啟動抑制，再於劇本原定 FIGHT 時 FOLD。兩者都保存雙方初始手牌、魔法卡、原定／實際操作與候選稽核，主控台錯誤 0。
 - 四張基礎核心的暴擊優先／無暴擊留固傷、三張基礎核心同留暴擊與固傷、同牌去重及 `X0` 暴擊皆有初始與 REDRAW 自動回歸。
 - 機率工具 `action-tree-v33` 的逐利玩家沿用已驗證的配籤核心與目標 RTP 三桶水池模擬；目標範圍 80%～99%，抑制參數頁可編輯三張完整多結果表，並共用 `materializeStoryCredits()` 以同一 X 倍數劇本換算任意 Bet。真實玩家偏離分布待後續另定。

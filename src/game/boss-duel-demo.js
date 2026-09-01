@@ -43,7 +43,7 @@
     8: Object.freeze({ maximum: 432, art: "assets/mobile/treasure-labels/cinderdragon-432x.png" })
   });
   const REWARD_DIE_RENDER_SIZE = 80;
-  const REWARD_DIE_FLIP_SECONDS = 1.7333;
+  const REWARD_DIE_FLIP_SECONDS = 0.85;
   const bossSkins = [
     { key: "drunkard", name: "DRUNKARD", title: "assets/mobile/text-drunkard.png", fallback: "assets/mobile/boss-fallback/drunkard.png" },
     { key: "unicorn", name: "UNICORN", title: "assets/mobile/text-unicorn.png", fallback: "assets/mobile/boss-fallback/unicorn.png" },
@@ -72,12 +72,12 @@
   const localeCopy = Object.freeze({
     en: {
       tutorialClose: "SKIP", cardHelpTitle: "POKER HANDS", historyTitle: "BATTLE HISTORY",
-      deckTitle: "CARDS LEFT", rewardTitle: "KILL REWARD", totalBet: "TOTAL BET",
+      deckTitle: "CARDS LEFT", totalBet: "TOTAL BET",
       audioOn: "SOUND: ON", audioOff: "SOUND: OFF", language: "INTERFACE LANGUAGE: EN-US"
     },
     "zh-Hant": {
       tutorialClose: "略過", cardHelpTitle: "牌型說明", historyTitle: "戰局紀錄",
-      deckTitle: "剩餘牌堆", rewardTitle: "擊殺獎勵", totalBet: "TOTAL BET",
+      deckTitle: "剩餘牌堆", totalBet: "TOTAL BET",
       audioOn: "音效：開", audioOff: "音效：關", language: "介面語言：繁體中文"
     }
   });
@@ -278,7 +278,6 @@
   let treasureMaximumPulseTimer = null;
   let defeatFxTimer = null;
   let prizeTimer = null;
-  let rewardCountFrame = null;
   let countdownTimer = null;
   let countdownDeadline = 0;
   let countdownRemaining = 0;
@@ -469,7 +468,6 @@
     document.querySelector(".card-help-card h2").textContent = localeText("cardHelpTitle");
     document.querySelector(".history-card h2").textContent = localeText("historyTitle");
     document.querySelector(".deck-panel-card h2").childNodes[0].nodeValue = `${localeText("deckTitle")} `;
-    document.querySelector(".reward-card h2").textContent = localeText("rewardTitle");
     document.querySelector(".wallet-bar > div:last-child span").textContent = localeText("totalBet");
     els.languageButton.classList.toggle("active", currentLocale === "en");
     els.languageButton.setAttribute("aria-pressed", String(currentLocale === "en"));
@@ -1760,15 +1758,15 @@
       finishMagicReveal();
       return;
     }
-    const backCount = 10;
+    const backCount = cards.length;
+    const spacing = backCount <= 3 ? 72 : Math.min(52, 260 / Math.max(1, backCount - 1));
     els.magicDrawFan.dataset.label = `DRAW ${cards.length} MAGIC CARD${cards.length > 1 ? "S" : ""}`;
     els.magicDrawFan.innerHTML = Array.from({ length: backCount }, (_value, index) => {
       const offset = index - (backCount - 1) / 2;
-      const x = Math.round(offset * 25);
-      const y = Math.round(Math.abs(offset) * 4);
-      const rotation = Math.round(offset * 6);
-      const selected = index === Math.floor(backCount / 2) ? " selected" : "";
-      return `<span class="${selected.trim()}" style="--fan-x:${x}px;--fan-y:${y}px;--fan-r:${rotation}deg;--fan-delay:${(index * .035).toFixed(3)}s;--fan-delay-fast:${(index * .016).toFixed(3)}s" aria-hidden="true"></span>`;
+      const x = Math.round(offset * spacing);
+      const y = Math.round(Math.abs(offset) * 5);
+      const rotation = Math.round(offset * 5);
+      return `<span style="--fan-x:${x}px;--fan-y:${y}px;--fan-r:${rotation}deg;--fan-delay:${(index * .035).toFixed(3)}s;--fan-delay-fast:${(index * .016).toFixed(3)}s" aria-hidden="true"></span>`;
     }).join("");
     els.magicReveal.className = `magic-reveal${isTurbo() ? " turbo" : ""}`;
     els.magicReveal.dataset.stage = "draw";
@@ -2331,14 +2329,10 @@
       ? Number(dice.normalFaces[index])
       : Number(dice.multiplierFaces[index - dice.normalDice]);
     die.setAttribute("aria-label", kind === "normal" ? `普通骰點數 ${face}` : `倍數骰 ×${face}`);
-    const rewardStar = els.rewardStars.querySelector(`[data-reward-star="${index}"]`);
-    if (rewardStar) rewardStar.classList.add("spent");
     const totalDice = dice.normalDice + dice.multiplierDice;
-    els.rewardPrompt.textContent = `${state.opened.size} / ${totalDice}`;
-    els.rewardEquation.textContent = "";
 
     // 每顆骰子各自完成演出；任何一顆都不鎖住其他骰子的點擊。
-    const flipDuration = REWARD_DIE_FLIP_SECONDS * 1000 / (isTurbo() ? TURBO_TIME_SCALE : 1) + 120;
+    const flipDuration = REWARD_DIE_FLIP_SECONDS * 1000 / (isTurbo() ? TURBO_TIME_SCALE : 1) + 40;
     setTimeout(() => {
       if (state !== prizeRevealState || state.encounter !== encounter || !["prize-reveal", "resolved-win"].includes(encounter.phase)) return;
       die.classList.remove("rolling");
@@ -2353,47 +2347,14 @@
         void finishPrizeTotal(state);
       }
     }, flipDuration);
-
-    if (state.opened.size === totalDice) els.rewardPrompt.textContent = "ROLLING";
   }
 
-  function animateRewardTotal(target, duration, state) {
-    cancelAnimationFrame(rewardCountFrame);
-    const startValue = Number(els.rewardTotal.dataset.value) || 0;
-    const startedAt = performance.now();
-    return new Promise((resolve) => {
-      const tick = (now) => {
-        if (prizeRevealState !== state || encounter !== state.encounter) {
-          resolve();
-          return;
-        }
-        const progress = Math.min(1, (now - startedAt) / Math.max(1, duration));
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setRewardTotal(startValue + (target - startValue) * eased);
-        if (progress < 1) rewardCountFrame = requestAnimationFrame(tick);
-        else resolve();
-      };
-      rewardCountFrame = requestAnimationFrame(tick);
-    });
-  }
-
-  function prizePause(duration, state) {
-    return new Promise((resolve) => setTimeout(() => resolve(prizeRevealState === state), duration));
-  }
-
-  async function finishPrizeTotal(state) {
+  function finishPrizeTotal(state) {
     if (!state || state !== prizeRevealState || state.encounter !== encounter || encounter.phase !== "prize-reveal") return;
     const dice = encounter.packet.dice;
-    const speed = isTurbo() ? 0.38 : 1;
     const totalRewardX = dice.total + encounter.coinBonusX;
-    els.rewardDice.classList.remove("tally-normal", "tally-multiplier");
-    els.rewardDice.classList.add("tally-complete");
-    els.rewardPrompt.textContent = "TOTAL WIN";
-    els.rewardEquation.textContent = encounter.coinBonusX > 0
-      ? `${dice.total} + ${encounter.coinBonusX} = ${totalRewardX}X`
-      : `${totalRewardX}x`;
-    await animateRewardTotal(totalRewardX, 540 * speed, state);
-    if (!await prizePause(260 * speed, state)) return;
+    setRewardTotal(totalRewardX);
+    els.rewardTotalBlock.hidden = false;
     settlePrizePayout(totalRewardX);
   }
 
@@ -2409,13 +2370,12 @@
     encounter.phase = "resolved-win";
     const rewardTier = totalRewardX >= 40 ? "full" : totalRewardX >= 30 ? "mega" : totalRewardX >= 20 ? "big" : totalRewardX >= 10 ? "medium" : "small";
     els.rewardPanel.querySelector(".reward-card").dataset.winTier = rewardTier;
-    els.rewardPrompt.textContent = `TOTAL WIN｜${totalRewardX}x × BET ${activeBet}`;
-    els.rewardDetail.textContent = `BET ${activeBet} · WIN ${payout.toFixed(payout % 1 ? 2 : 0)} CREDITS`;
-    els.rewardContinue.hidden = false;
     els.rewardPanel.querySelector(".reward-card").classList.add("complete");
     addHistory("KILL REWARD", `${totalRewardX}x · ${payout.toFixed(payout % 1 ? 2 : 0)} CREDITS`, "win");
     playSfx("collect");
     render();
+    clearTimeout(prizeTimer);
+    prizeTimer = setTimeout(advanceBoss, isTurbo() ? 650 : 1150);
   }
 
   function advanceBoss() {
@@ -2436,7 +2396,6 @@
     stopCountdown();
     hideResultBoard();
     clearTimeout(bossSpineRetryTimer);
-    cancelAnimationFrame(rewardCountFrame);
     els.magicReveal.hidden = true;
     els.roundStartFx.hidden = true;
     els.roundWarningFx.hidden = true;
@@ -2827,15 +2786,8 @@
       ? `<div class="dice-group normal-dice-group">${normal}</div><span class="times">×</span><div class="dice-group multiplier-dice-group">${multiplier}</div>`
       : `<div class="dice-group normal-dice-group">${normal}</div>`;
     els.rewardDice.className = "reward-dice stage-all";
-    els.rewardStars.innerHTML = [
-      ...Array.from({ length: dice.normalDice }, (_, index) => `<img data-reward-star="${index}" src="assets/mobile/ui-supplied/star.png" alt="">`),
-      ...Array.from({ length: dice.multiplierDice }, (_, index) => `<img class="premium" data-reward-star="${dice.normalDice + index}" src="assets/mobile/ui-supplied/star-rainbow.png" alt="">`)
-    ].join("");
-    els.rewardPrompt.textContent = "TOUCH TO REVEAL";
-    els.rewardEquation.textContent = "";
     setRewardTotal(0);
-    els.rewardDetail.textContent = "";
-    els.rewardContinue.hidden = true;
+    els.rewardTotalBlock.hidden = true;
     els.rewardPanel.querySelector(".reward-card").classList.remove("complete");
     els.rewardPanel.querySelector(".reward-card").dataset.winTier = "pending";
     els.rewardPanel.hidden = false;
@@ -3078,7 +3030,6 @@
     clearTimeout(bossSpineRetryTimer);
     combatSequenceToken += 1;
     clearCombatRollTimers();
-    cancelAnimationFrame(rewardCountFrame);
     stopCountdown();
     els.magicReveal.hidden = true;
     els.magicPreview.hidden = true;
@@ -3197,7 +3148,6 @@
     revealPrizeDie(Number(die.dataset.prizeIndex));
   });
   els.nextButton.addEventListener("click", advanceBoss);
-  els.rewardContinue.addEventListener("click", advanceBoss);
   els.menuButton.addEventListener("click", () => {
     els.quickMenu.hidden = !els.quickMenu.hidden;
     els.menuButton.setAttribute("aria-expanded", String(!els.quickMenu.hidden));
