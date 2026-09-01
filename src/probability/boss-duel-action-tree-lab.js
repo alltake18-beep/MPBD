@@ -1019,7 +1019,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v91",
+      v: "frontend-v92",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),

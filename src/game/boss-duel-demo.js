@@ -43,7 +43,7 @@
     8: Object.freeze({ maximum: 432, art: "assets/mobile/treasure-labels/cinderdragon-432x.png" })
   });
   const REWARD_DIE_RENDER_SIZE = 80;
-  const REWARD_DIE_FLIP_SECONDS = 0.85;
+  const REWARD_DIE_FLIP_SECONDS = 0.48;
   const bossSkins = [
     { key: "drunkard", name: "DRUNKARD", title: "assets/mobile/text-drunkard.png", fallback: "assets/mobile/boss-fallback/drunkard.png" },
     { key: "unicorn", name: "UNICORN", title: "assets/mobile/text-unicorn.png", fallback: "assets/mobile/boss-fallback/unicorn.png" },
@@ -1750,7 +1750,7 @@
       magicRevealIndex += 1;
       if (magicRevealIndex < cards.length) revealMagicThenHand();
       else finishMagicReveal();
-    }, isTurbo() ? 360 : 1000);
+    }, isTurbo() ? 260 : 760);
   }
 
   function showMagicDrawFan(cards) {
@@ -1758,15 +1758,12 @@
       finishMagicReveal();
       return;
     }
-    const backCount = cards.length;
-    const spacing = backCount <= 3 ? 72 : Math.min(52, 260 / Math.max(1, backCount - 1));
-    els.magicDrawFan.dataset.label = `DRAW ${cards.length} MAGIC CARD${cards.length > 1 ? "S" : ""}`;
-    els.magicDrawFan.innerHTML = Array.from({ length: backCount }, (_value, index) => {
-      const offset = index - (backCount - 1) / 2;
-      const x = Math.round(offset * spacing);
-      const y = Math.round(Math.abs(offset) * 5);
-      const rotation = Math.round(offset * 5);
-      return `<span style="--fan-x:${x}px;--fan-y:${y}px;--fan-r:${rotation}deg;--fan-delay:${(index * .035).toFixed(3)}s;--fan-delay-fast:${(index * .016).toFixed(3)}s" aria-hidden="true"></span>`;
+    const optionKeys = Object.keys(MAGIC_ART_PATHS);
+    const selectedKeys = new Set(cards.map((card) => card.key));
+    els.magicDrawFan.setAttribute("aria-label", `從 ${optionKeys.length} 種魔法卡抽取 ${cards.length} 張`);
+    els.magicDrawFan.innerHTML = optionKeys.map((key, index) => {
+      const selected = selectedKeys.has(key) ? " selected" : "";
+      return `<span class="${selected.trim()}" data-magic-option="${key}" style="--fan-delay:${(index * .022).toFixed(3)}s;--fan-delay-fast:${(index * .009).toFixed(3)}s" aria-hidden="true"></span>`;
     }).join("");
     els.magicReveal.className = `magic-reveal${isTurbo() ? " turbo" : ""}`;
     els.magicReveal.dataset.stage = "draw";
@@ -1774,7 +1771,7 @@
     els.magicReveal.hidden = false;
     render();
     clearTimeout(magicTimer);
-    magicTimer = setTimeout(revealMagicThenHand, isTurbo() ? 360 : 1050);
+    magicTimer = setTimeout(revealMagicThenHand, isTurbo() ? 300 : 720);
   }
 
   function beginRoundReveal() {
@@ -1791,7 +1788,7 @@
     render();
     showRoundStartFx();
     clearTimeout(magicTimer);
-    magicTimer = setTimeout(() => showMagicDrawFan(encounter?.presentation?.magicCards || []), isTurbo() ? 260 : 940);
+    magicTimer = setTimeout(() => showMagicDrawFan(encounter?.presentation?.magicCards || []), isTurbo() ? 200 : 900);
   }
 
   function drawCards() {
@@ -2281,12 +2278,8 @@
     const defeatedEncounter = encounter;
     defeatFxTimer = setTimeout(() => {
       if (!encounter || encounter !== defeatedEncounter || encounter.phase !== "boss-defeat") return;
-      playBossSequence("16_end", null);
-      defeatFxTimer = setTimeout(() => {
-        if (!encounter || encounter !== defeatedEncounter || encounter.phase !== "boss-defeat") return;
-        beginPrizeReveal();
-      }, animationWindowMs(1));
-    }, animationWindowMs(2));
+      beginPrizeReveal();
+    }, animationWindowMs(.9));
   }
 
   function beginPrizeReveal() {
@@ -2312,6 +2305,12 @@
     const kind = die.dataset.prizeKind;
     // 點擊結果必須先落地；Spine／CSS 只負責各顆骰子的非阻塞演出。
     // 不可用一顆骰子的動畫鎖住整排輸入，否則手機連點會被直接丟棄。
+    if (!state.opened.size) {
+      els.rewardPanel.querySelector(".reward-card").classList.add("revealing");
+      els.rewardDice.classList.remove("stage-all");
+      els.rewardIntro.hidden = true;
+      els.rewardTouch.hidden = true;
+    }
     state.opened.add(index);
     die.disabled = true;
     die.classList.remove("covered", "revealed");
@@ -2787,8 +2786,10 @@
       : `<div class="dice-group normal-dice-group">${normal}</div>`;
     els.rewardDice.className = "reward-dice stage-all";
     setRewardTotal(0);
+    els.rewardIntro.hidden = false;
+    els.rewardTouch.hidden = false;
     els.rewardTotalBlock.hidden = true;
-    els.rewardPanel.querySelector(".reward-card").classList.remove("complete");
+    els.rewardPanel.querySelector(".reward-card").classList.remove("complete", "revealing");
     els.rewardPanel.querySelector(".reward-card").dataset.winTier = "pending";
     els.rewardPanel.hidden = false;
     document.documentElement.dataset.rewardDiceError = "";

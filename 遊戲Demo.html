@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v91");
+      params.set("v", "frontend-v92");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v91">
+  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v92">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -311,7 +311,9 @@
 
     <section id="rewardPanel" class="reward-panel" hidden aria-live="assertive">
       <div class="reward-card">
+        <div id="rewardIntro" class="reward-intro"><strong>REVEAL YOUR LUCK!</strong></div>
         <div id="rewardDice" class="reward-dice"></div>
+        <div id="rewardTouch" class="reward-touch">TOUCH</div>
         <div id="rewardTotalBlock" class="reward-total" hidden><span>TOTAL WIN</span><strong id="rewardTotal">0x</strong></div>
       </div>
     </section>
@@ -319,12 +321,12 @@
 
   <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
-  <script src="src/core/boss-duel-random.js?v=frontend-v91"></script>
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v91"></script>
-  <script src="src/core/boss-duel-rules.js?v=frontend-v91"></script>
+  <script src="src/core/boss-duel-random.js?v=frontend-v92"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v92"></script>
+  <script src="src/core/boss-duel-rules.js?v=frontend-v92"></script>
   <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v12"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v91"></script>
-  <script src="src/game/boss-duel-demo.js?v=frontend-v91"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v92"></script>
+  <script src="src/game/boss-duel-demo.js?v=frontend-v92"></script>
 </body>
 </html>

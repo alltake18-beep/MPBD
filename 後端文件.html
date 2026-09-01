@@ -18,7 +18,7 @@
     <header>
       <p class="eyebrow">工程唯一現行規格 · 2026-09-01</p>
       <h1>Boss Duel 後端文件</h1>
-      <div class="badges"><span class="badge">backend-doc-v5</span><span class="badge">suppression-v3 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
+      <div class="badges"><span class="badge">backend-doc-v6</span><span class="badge">suppression-v3 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
       <div class="grid four" style="margin-top:16px">
         <div class="card"><strong>劇本來源</strong>預知完整固定種子的固定規則規劃器，依法規劃並跑完整隻 Boss；同一劇本以 X 倍數通用所有 Bet。</div>
         <div class="card"><strong>新 Boss 抽取</strong>贏多、贏少、輸三個完整分類各抽 1 個，再做分數配籤。</div>
@@ -156,6 +156,7 @@
         <tr><td>隨機結果</td><td>換牌只接收最後被接受的牌；魔法開卡只接收種類，只有金幣卡同時接收實際加成。其餘傷害值到比牌結算才接收。</td><td>先完成換牌抑制判斷，被拒絕候選永遠不送前端；比牌時依鎖定狀態選正常表或抑制表，抽出本次傷害有效值。</td></tr>
         <tr><td>結算</td><td>表演 Boss 骰獎、Coin Bonus、玩家最終派彩與餘額。</td><td>先算個人劇本水池，再選合法骰面，最後只結算一次。</td></tr>
       </tbody></table></div>
+      <div class="note"><strong>魔法卡抽取契約：</strong>每回合的候選池固定為十種不同魔法卡，後端依鎖定故事亂數不放回抽出兩種並保存結果。前端的十張牌背只負責表演「十選二」，之後必須依後端既定順序逐張揭示這兩張；前端不得自行重抽、替換或改變魔法卡結果。</div>
       <div class="note"><strong>完整重播契約：</strong>本隻鎖定故事種子、星級、分類、牌局規則版、規劃器版、操作紀錄版、完整抑制參數、抑制政策簽章與故事池簽章。第一次 START 後保存玩家與 Boss 初始手牌 ID、魔法卡種類、後端正常表隱藏值與綁定位；每筆操作保存遞增序號、冪等請求號、操作前後手牌／保留／牌堆／HP、劇本原定操作及實際操作，FIGHT 再保存使用哪張表、抽取亂數、結果索引與最終有效值。相同契約加相同有序操作，雙方初始手牌、魔法卡、換牌與結算必須完全一致；只存種子或只存最後手牌都不完整。</div>
       <div class="warning"><strong>鎖定後不得偷改：</strong>不能換劇本、改 Boss 手牌、改對手牌、改劇本種子，或為了貼近承諾結果而直接指定玩家牌。允許的執行期控制只有下一節明定的換牌／最終魔法抑制，以及個人劇本水池驅動的合法 Boss 骰獎補正。</div>
       <div class="note"><strong>正式前端只收當下公開結果：</strong>劇本種子、未來牌序、Boss 未公開手牌、三候選、分數、籤數、中籤整數 K、抑制亂數狀態與個人劇本水池餘額都只留後端。前端每次操作只送請求與序號，不能預載完整劇本後自行結算。</div>
