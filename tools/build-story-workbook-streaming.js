@@ -177,7 +177,7 @@ async function buildSummarySheet(statsRows) {
   }, { count: 0, kills: 0, classCounts: { win: 0, push: 0, lose: 0 }, spend: 0, payout: 0, returnX: 0, net: 0, redrawStories: 0 });
   const rows = [];
   rows.push(`<row r="1" ht="34" customHeight="1">${stringCell("A1", "Boss Duel｜逐利型聰明玩家劇情總覽（8 星 × 30,000 局）", 1)}</row>`);
-  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v89／action-tree-v33／boss-plan-v10／arrange-v9／natural-story-preset-v11；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
+  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v90／action-tree-v33／boss-plan-v10／arrange-v9／natural-story-preset-v11；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
   const summaryHeaders = ["星級", "故事數", "擊殺", "擊殺率", "贏多", "贏少", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌故事", "完整稽核", "重播契約"];
   rows.push(`<row r="4" ht="40" customHeight="1">${summaryHeaders.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   statsRows.forEach((stats, index) => rows.push(summaryRowXml(stats, index + 5)));

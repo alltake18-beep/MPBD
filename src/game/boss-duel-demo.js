@@ -204,10 +204,14 @@
     image.src = src;
   }
 
+  function assetUrl(path) {
+    return new URL(path, document.baseURI).href;
+  }
+
   function magicArtVariables(key) {
     const art = MAGIC_ART_PATHS[key];
     const label = MAGIC_LABEL_PATHS[key];
-    return [art ? `--magic-art:url('${art}')` : "", label ? `--magic-label:url('${label}')` : ""].filter(Boolean).join(";");
+    return [art ? `--magic-art:url('${assetUrl(art)}')` : "", label ? `--magic-label:url('${assetUrl(label)}')` : ""].filter(Boolean).join(";");
   }
 
   function directCardMarkup(src) {
@@ -261,6 +265,8 @@
   let session = { credits: 10000, spend: 0, payout: 0, hasStarted: playerState.spendX > 0 };
   let magicTimer = null;
   let roundFxTimer = null;
+  let roundWarningTimer = null;
+  let bossSpeechTimer = null;
   let settleTimer = null;
   let redrawTimer = null;
   let combatFxTimer = null;
@@ -1546,6 +1552,10 @@
     clearAttackSpine();
     els.compareFx.hidden = true;
     els.magicPreview.hidden = true;
+    els.bossSpeech.hidden = true;
+    els.roundWarningFx.hidden = true;
+    clearTimeout(bossSpeechTimer);
+    clearTimeout(roundWarningTimer);
     hideResultBoard();
     stopCountdown();
     els.bossDefeatFx.hidden = true;
@@ -1553,6 +1563,7 @@
     prizeRevealState = null;
     setMessage("", "");
     render();
+    bossSpeechTimer = setTimeout(() => showBossSpeech("WELCOME TO THE DUEL!", "", isTurbo() ? 720 : 1800), isTurbo() ? 100 : 260);
   }
 
   function spend(amountX, options = {}) {
@@ -1685,6 +1696,8 @@
   function finishMagicReveal() {
     if (!encounter || encounter.phase !== "magic-reveal") return;
     els.magicReveal.hidden = true;
+    els.magicReveal.removeAttribute("data-stage");
+    els.magicDrawFan.hidden = true;
     encounter.revealedCoinBonusX = encounter.coinBonusX;
     encounter.phase = "hand";
     encounter.handEntering = true;
@@ -1713,6 +1726,8 @@
       if (card.key === "coin") encounter.revealedCoinBonusX += Math.max(0, Number(card.value) || 0);
     }
     const copy = magicRevealCopy(card);
+    els.magicReveal.dataset.stage = "reveal";
+    els.magicDrawFan.hidden = true;
     els.magicRevealCard.style.animation = "none";
     void els.magicRevealCard.offsetWidth;
     els.magicRevealCard.style.animation = "";
@@ -1740,8 +1755,35 @@
     }, isTurbo() ? 360 : 1000);
   }
 
+  function showMagicDrawFan(cards) {
+    if (!cards.length) {
+      finishMagicReveal();
+      return;
+    }
+    const backCount = 10;
+    els.magicDrawFan.dataset.label = `DRAW ${cards.length} MAGIC CARD${cards.length > 1 ? "S" : ""}`;
+    els.magicDrawFan.innerHTML = Array.from({ length: backCount }, (_value, index) => {
+      const offset = index - (backCount - 1) / 2;
+      const x = Math.round(offset * 25);
+      const y = Math.round(Math.abs(offset) * 4);
+      const rotation = Math.round(offset * 6);
+      const selected = index === Math.floor(backCount / 2) ? " selected" : "";
+      return `<span class="${selected.trim()}" style="--fan-x:${x}px;--fan-y:${y}px;--fan-r:${rotation}deg;--fan-delay:${(index * .035).toFixed(3)}s;--fan-delay-fast:${(index * .016).toFixed(3)}s" aria-hidden="true"></span>`;
+    }).join("");
+    els.magicReveal.className = `magic-reveal${isTurbo() ? " turbo" : ""}`;
+    els.magicReveal.dataset.stage = "draw";
+    els.magicDrawFan.hidden = false;
+    els.magicReveal.hidden = false;
+    render();
+    clearTimeout(magicTimer);
+    magicTimer = setTimeout(revealMagicThenHand, isTurbo() ? 360 : 1050);
+  }
+
   function beginRoundReveal() {
     stopCountdown();
+    hideBossSpeech();
+    clearTimeout(roundWarningTimer);
+    els.roundWarningFx.hidden = true;
     hideResultBoard();
     encounter.phase = "magic-reveal";
     playBossSequence("12_take", "11_idle");
@@ -1751,7 +1793,7 @@
     render();
     showRoundStartFx();
     clearTimeout(magicTimer);
-    magicTimer = setTimeout(revealMagicThenHand, isTurbo() ? 260 : 940);
+    magicTimer = setTimeout(() => showMagicDrawFan(encounter?.presentation?.magicCards || []), isTurbo() ? 260 : 940);
   }
 
   function drawCards() {
@@ -1836,6 +1878,20 @@
     encounter.phase = "round-result";
     if (!encounter.cardsCleared) playBossSequence("11_idle", "11_idle");
     setMessage(message, tone);
+    if (encounter.round === encounter.packet.roundLimit - 1) showLastRoundWarning();
+  }
+
+  function hideBossSpeech() {
+    clearTimeout(bossSpeechTimer);
+    els.bossSpeech.hidden = true;
+  }
+
+  function showBossSpeech(text, tone = "", duration = isTurbo() ? 720 : 1700) {
+    clearTimeout(bossSpeechTimer);
+    els.bossSpeechText.textContent = text;
+    els.bossSpeech.className = `boss-speech${tone ? ` ${tone}` : ""}`;
+    els.bossSpeech.hidden = false;
+    bossSpeechTimer = setTimeout(() => { els.bossSpeech.hidden = true; }, duration);
   }
 
   function beginBossVictoryDialogue(comparedEncounter, message) {
@@ -1844,7 +1900,8 @@
     hideResultBoard();
     encounter.compareOutcome = "";
     encounter.cardsCleared = true;
-    // BOSS 不再插入台詞或等待台詞結束；碰撞結果完成後直接回到牌局流程。
+    // 台詞只留在 BOSS 舞台，不遮牌桌、不延後 CONTINUE。
+    showBossSpeech("I WIN THIS TIME!");
     finishRound(message || "BOSS WIN", "lose");
     render();
   }
@@ -1877,9 +1934,18 @@
     const fightOperation = beginOperation("FIGHT");
     encounter.pendingFightOperation = completeOperation(fightOperation, { suppressionActive: encounter.suppressionActive });
 
-    // 比牌以最終最佳五張為準；直接在牌桌完成理牌與 BOSS 攤牌，不插入全屏 VS 卡。
+    // 比牌以最終最佳五張為準；先演 FIGHT 字卡，再在牌桌完成理牌與 BOSS 攤牌。
     encounter.playerCardOrder = buildCardOrder(state.playerCards, state.playerEval);
     encounter.bossCardOrder = buildCardOrder(state.bossCards, state.bossEval);
+    encounter.phase = "fight-intro";
+    encounter.compareOutcome = "";
+    render();
+    clearTimeout(settleTimer);
+    settleTimer = setTimeout(() => beginFightReveal(state), showRoundActionFx("FIGHT"));
+  }
+
+  function beginFightReveal(state) {
+    if (!encounter || encounter.phase !== "fight-intro" || encounter.presentation !== state) return;
     encounter.bossRevealed = true;
     encounter.phase = "compare-reveal";
     encounter.compareOutcome = "";
@@ -2137,7 +2203,8 @@
       render();
       return;
     }
-    // 非擊殺不再讓 BOSS 說話或遮住牌桌；傷害落地後直接進下一回合狀態。
+    // 傷害完成後以 BOSS 舞台短台詞回應；不遮牌桌，也不阻塞下一回合。
+    showBossSpeech("COME BACK AND CHALLENGE ME!", "hurt");
     finishRound("", "win");
     render();
   }
@@ -2356,6 +2423,8 @@
     const previousStar = encounter.packet.star;
     clearTimeout(magicTimer);
     clearTimeout(roundFxTimer);
+    clearTimeout(roundWarningTimer);
+    clearTimeout(bossSpeechTimer);
     clearTimeout(settleTimer);
     clearTimeout(redrawTimer);
     clearTimeout(combatFxTimer);
@@ -2370,6 +2439,8 @@
     cancelAnimationFrame(rewardCountFrame);
     els.magicReveal.hidden = true;
     els.roundStartFx.hidden = true;
+    els.roundWarningFx.hidden = true;
+    els.bossSpeech.hidden = true;
     els.combatFx.hidden = true;
     clearAttackSpine();
     els.compareFx.hidden = true;
@@ -2517,11 +2588,27 @@
     return costs[Math.min(paidDraws, costs.length - 1)] ?? costs[costs.length - 1] ?? 3;
   }
 
-  function showRoundStartFx() {
+  function showRoundActionFx(action) {
     clearTimeout(roundFxTimer);
+    const key = String(action || "START").toLowerCase();
+    const duration = key === "fight" ? isTurbo() ? 220 : 640 : isTurbo() ? 260 : 960;
+    els.roundActionLabel.textContent = key.toUpperCase();
+    els.roundStartFx.dataset.action = key;
     els.roundStartFx.className = `round-start-fx${isTurbo() ? " turbo" : ""}`;
     els.roundStartFx.hidden = false;
-    roundFxTimer = setTimeout(() => { els.roundStartFx.hidden = true; }, isTurbo() ? 260 : 960);
+    roundFxTimer = setTimeout(() => { els.roundStartFx.hidden = true; }, duration);
+    return duration;
+  }
+
+  function showRoundStartFx() {
+    return showRoundActionFx("START");
+  }
+
+  function showLastRoundWarning() {
+    clearTimeout(roundWarningTimer);
+    hideBossSpeech();
+    els.roundWarningFx.hidden = false;
+    roundWarningTimer = setTimeout(() => { els.roundWarningFx.hidden = true; }, isTurbo() ? 720 : 1800);
   }
 
   function isTurbo() {
@@ -2615,8 +2702,8 @@
     const container = strong?.closest?.(".compare-hand");
     if (!container) return;
     container.classList.add("has-hand-art");
-    container.style.setProperty("--compare-hand-base", `url("${art.base}")`);
-    container.style.setProperty("--compare-hand-word", `url("${art.word}")`);
+    container.style.setProperty("--compare-hand-base", `url("${assetUrl(art.base)}")`);
+    container.style.setProperty("--compare-hand-word", `url("${assetUrl(art.word)}")`);
     container.style.setProperty("--compare-hand-word-width", art.wordWidth);
   }
 
@@ -2895,8 +2982,8 @@
       els.playerHandName.classList.toggle("long", playerHandLabel.length > 10);
       els.handPlaque.classList.toggle("low", encounter.presentation.playerRank === 0);
       els.handPlaque.classList.add("has-hand-art");
-      els.handPlaque.style.setProperty("--hand-base", `url('${playerHandArt.base}')`);
-      els.handPlaque.style.setProperty("--hand-word", `url('${playerHandArt.word}')`);
+      els.handPlaque.style.setProperty("--hand-base", `url('${assetUrl(playerHandArt.base)}')`);
+      els.handPlaque.style.setProperty("--hand-word", `url('${assetUrl(playerHandArt.word)}')`);
       els.handPlaque.style.setProperty("--hand-word-width", playerHandArt.wordWidth);
       els.handPlaque.setAttribute("aria-label", playerHandLabel);
       els.bossHandName.textContent = encounter.bossRevealed ? handPresentationLabel(encounter.presentation.bossHand) : "HIDDEN";
@@ -2978,6 +3065,8 @@
   function resetExperience() {
     clearTimeout(magicTimer);
     clearTimeout(roundFxTimer);
+    clearTimeout(roundWarningTimer);
+    clearTimeout(bossSpeechTimer);
     clearTimeout(settleTimer);
     clearTimeout(redrawTimer);
     clearTimeout(combatFxTimer);
@@ -2994,6 +3083,8 @@
     els.magicReveal.hidden = true;
     els.magicPreview.hidden = true;
     els.roundStartFx.hidden = true;
+    els.roundWarningFx.hidden = true;
+    els.bossSpeech.hidden = true;
     els.combatFx.hidden = true;
     clearAttackSpine();
     els.compareFx.hidden = true;

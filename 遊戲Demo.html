@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v89");
+      params.set("v", "frontend-v90");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v89">
+  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v90">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -63,6 +63,7 @@
 
       <div id="bossSpineStage" class="boss-spine-stage" aria-hidden="true"></div>
       <img id="bossCharacter" class="boss-character" alt="" hidden>
+      <div id="bossSpeech" class="boss-speech" hidden aria-live="polite"><span id="bossSpeechText">WELCOME TO THE DUEL!</span></div>
 
       <div id="countdownPanel" class="countdown-panel" hidden aria-live="assertive">
         <span id="countdownValue">10</span><small>S</small>
@@ -215,6 +216,7 @@
     </section>
 
     <section id="magicReveal" class="magic-reveal" hidden aria-live="assertive">
+      <div id="magicDrawFan" class="magic-draw-fan" hidden aria-label="正在抽取魔法卡"></div>
       <div id="magicRevealCard" class="magic-reveal-card">
         <small id="magicRevealStep" class="magic-reveal-step">MAGIC 1 / 2</small>
         <div id="magicRevealIcon" class="magic-suits">♠ ♥ ♣ ♦</div>
@@ -274,7 +276,11 @@
     <section id="bossDefeatFx" class="boss-defeat-fx" hidden aria-hidden="true"></section>
 
     <section id="roundStartFx" class="round-start-fx" hidden aria-hidden="true">
-      <strong>START</strong>
+      <strong id="roundActionLabel">START</strong>
+    </section>
+
+    <section id="roundWarningFx" class="round-warning-fx" hidden aria-live="assertive">
+      <span>!</span><strong>1 ROUND LEFT!</strong>
     </section>
 
     <aside id="settingsSheet" class="settings-sheet" hidden aria-label="模型設定資訊">
@@ -319,12 +325,12 @@
 
   <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
-  <script src="src/core/boss-duel-random.js?v=frontend-v89"></script>
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v89"></script>
-  <script src="src/core/boss-duel-rules.js?v=frontend-v89"></script>
+  <script src="src/core/boss-duel-random.js?v=frontend-v90"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v90"></script>
+  <script src="src/core/boss-duel-rules.js?v=frontend-v90"></script>
   <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v12"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v89"></script>
-  <script src="src/game/boss-duel-demo.js?v=frontend-v89"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v90"></script>
+  <script src="src/game/boss-duel-demo.js?v=frontend-v90"></script>
 </body>
 </html>
