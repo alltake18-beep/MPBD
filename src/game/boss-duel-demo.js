@@ -2344,7 +2344,7 @@
       state.finished.add(index);
       if (state.opened.size === totalDice && state.finished.size === totalDice && !state.settling) {
         state.settling = true;
-        void finishPrizeTotal(state);
+        finishPrizeTotal(state);
       }
     }, flipDuration);
   }
