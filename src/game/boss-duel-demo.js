@@ -73,12 +73,16 @@
     en: {
       tutorialClose: "SKIP", cardHelpTitle: "POKER HANDS", historyTitle: "BATTLE HISTORY",
       deckTitle: "CARDS LEFT", totalBet: "TOTAL BET",
-      audioOn: "SOUND: ON", audioOff: "SOUND: OFF", language: "INTERFACE LANGUAGE: EN-US"
+      audioOn: "SOUND: ON", audioOff: "SOUND: OFF", language: "INTERFACE LANGUAGE: EN-US",
+      rerollBoss: "Reroll Boss", startBattle: "Start battle", continueRound: "Continue to next round",
+      adjustBet: "Change bet", fold: "Fold", fight: "Fight", redraw: "Redraw cards", nextBoss: "Continue"
     },
     "zh-Hant": {
       tutorialClose: "略過", cardHelpTitle: "牌型說明", historyTitle: "戰局紀錄",
       deckTitle: "剩餘牌堆", totalBet: "TOTAL BET",
-      audioOn: "音效：開", audioOff: "音效：關", language: "介面語言：繁體中文"
+      audioOn: "音效：開", audioOff: "音效：關", language: "介面語言：繁體中文",
+      rerollBoss: "更換 Boss", startBattle: "開始戰鬥", continueRound: "進入下一回合",
+      adjustBet: "調整下注", fold: "棄牌", fight: "比牌", redraw: "換牌", nextBoss: "繼續"
     }
   });
   const HAND_ART = Object.freeze({
@@ -196,8 +200,8 @@
     "assets/mobile/ui-supplied/round-panel.png", "assets/mobile/ui-supplied/round-numbers.png", "assets/mobile/ui-supplied/round-word.png",
     "assets/mobile/ui-supplied/tutorial-title.png", "assets/mobile/ui-supplied/tutorial-arrow.png", "assets/mobile/ui-supplied/tutorial-skip-button.png",
     "assets/mobile/ui-supplied/tutorial-skip-word.png", "assets/mobile/ui-supplied/tutorial-check-frame.png", "assets/mobile/ui-supplied/tutorial-checkmark.png",
-    "assets/mobile/ui-supplied/tutorial-p1.png", "assets/mobile/ui-supplied/tutorial-p2.png", "assets/mobile/ui-supplied/tutorial-p3.png",
-    "assets/mobile/ui-supplied/tutorial-p3b.png", "assets/mobile/ui-supplied/tutorial-p4.png"
+    "assets/mobile/ui-supplied/tutorial-p2.png", "assets/mobile/ui-supplied/tutorial-p3.png",
+    "assets/mobile/ui-supplied/tutorial-p3b.png"
   ]);
   for (const src of [...Object.values(HAND_ART).flatMap((art) => [art.base, art.word]), ...Object.values(DIRECT_CARD_ART), ...Object.values(JOKER_RANK_PATHS), JOKER_FACE_PATH, JOKER_TITLE_PATH, ...Object.values(DAMAGE_GLYPH_PATHS), ...Object.values(WIN_GLYPH_PATHS), ...Object.values(MAGIC_ART_PATHS), ...Object.values(MAGIC_COPY_PATHS), ...Object.values(MAGIC_LABEL_PATHS), ...Object.values(TREASURE_PRESENTATION_BY_STAR).map((entry) => entry.art), TREASURE_TITLE_PATH, ...UI_PRELOAD_PATHS]) {
     const image = new Image();
@@ -1759,11 +1763,12 @@
       return;
     }
     const optionKeys = Object.keys(MAGIC_ART_PATHS);
-    const selectedKeys = new Set(cards.map((card) => card.key));
+    const selectedOrder = new Map(cards.map((card, index) => [card.key, index]));
     els.magicDrawFan.setAttribute("aria-label", `從 ${optionKeys.length} 種魔法卡抽取 ${cards.length} 張`);
     els.magicDrawFan.innerHTML = optionKeys.map((key, index) => {
-      const selected = selectedKeys.has(key) ? " selected" : "";
-      return `<span class="${selected.trim()}" data-magic-option="${key}" style="--fan-delay:${(index * .022).toFixed(3)}s;--fan-delay-fast:${(index * .009).toFixed(3)}s" aria-hidden="true"></span>`;
+      const pickOrder = selectedOrder.get(key);
+      const selected = pickOrder === undefined ? "" : "selected";
+      return `<span class="${selected}" data-magic-option="${key}" style="--fan-delay:${(index * .022).toFixed(3)}s;--fan-delay-fast:${(index * .009).toFixed(3)}s;--pick-delay:${(.52 + (pickOrder || 0) * .22).toFixed(2)}s;--pick-delay-fast:${(.23 + (pickOrder || 0) * .11).toFixed(2)}s" aria-hidden="true"></span>`;
     }).join("");
     els.magicReveal.className = `magic-reveal${isTurbo() ? " turbo" : ""}`;
     els.magicReveal.dataset.stage = "draw";
@@ -1771,7 +1776,7 @@
     els.magicReveal.hidden = false;
     render();
     clearTimeout(magicTimer);
-    magicTimer = setTimeout(revealMagicThenHand, isTurbo() ? 300 : 720);
+    magicTimer = setTimeout(revealMagicThenHand, isTurbo() ? 560 : 1120);
   }
 
   function beginRoundReveal() {
@@ -2177,6 +2182,7 @@
     els.combatFx.hidden = true;
     clearAttackSpine();
     encounter.phase = "damage";
+    encounter.hpLeft = Math.max(0, encounter.hpLeft - result.damage);
     setMessage(`-${result.damage} HP`, "win");
     playBossSequence("17_damage", null);
     render();
@@ -2184,7 +2190,6 @@
       combatFxTimer = setTimeout(resolve, bossAnimationWindowMs("17_damage", 1, 70));
     });
     if (!encounter || encounter !== attackEncounter || encounter.phase !== "damage" || token !== combatSequenceToken) return;
-    encounter.hpLeft = Math.max(0, encounter.hpLeft - result.damage);
     encounter.phase = "post-hit";
     playBossSequence("14_idle_nocard", "14_idle_nocard");
     render();
@@ -2480,7 +2485,7 @@
       step.round === encounter.round && step.tieIndex === (encounter.tieRedeals || 0)
     );
     const remainingStoryDraws = storyStep ? Math.max(0, storyStep.draws - encounter.draws) : null;
-    const storyHint = remainingStoryDraws === null
+    const storyHint = qaParams.get("qaAudit") !== "1" || remainingStoryDraws === null
       ? ""
       : remainingStoryDraws > 0
         ? `｜故事節奏：照自動保留再換 ${remainingStoryDraws} 次`
@@ -2890,6 +2895,8 @@
     els.tutorialRound.textContent = `ROUND ${packet.roundLimit}/${packet.roundLimit}`;
     els.tutorialBossName.textContent = bossSkin.name;
     els.tutorialWinUpTo.textContent = `WIN UP TO ${treasureMaximum}X`;
+    els.tutorialTreasureReward.src = treasurePresentation.art;
+    els.tutorialTreasureReward.alt = `${bossSkin.name} maximum reward ${treasureMaximum}X`;
     els.roundRibbon.hidden = false;
     els.bossHud.hidden = false;
     els.treasureBadge.hidden = false;
@@ -2995,7 +3002,7 @@
     els.rerollButton.querySelector("small").textContent = "";
     els.betButton.classList.toggle("fold-action", hand);
     els.betButton.innerHTML = hand
-      ? buttonMarkup("text-fold.png", "FOLD", "GIVE UP")
+      ? buttonMarkup("text-fold.png", "FOLD", "")
       : `${buttonMarkup("text-bet.png", "BET", compactBet)}<span class="bet-hit bet-hit-left" data-bet-direction="-1" aria-hidden="true"></span><span class="bet-hit bet-hit-right" data-bet-direction="1" aria-hidden="true"></span>`;
     els.betButton.disabled = !((ready && session.hasStarted) || hand || betReady || roundResult) || magicRevealing;
     const discardCount = hand ? encounter.presentation.discardIndexes.size : 0;
@@ -3012,6 +3019,12 @@
     els.compareButton.classList.remove("fold-mode");
     els.compareButton.innerHTML = buttonMarkup("text-fight.png", "FIGHT", "COMPARE");
     els.nextButton.innerHTML = buttonMarkup("text-continue-white.png", "CONTINUE", encounter.phase === "resolved-loss" ? "TRY AGAIN" : "NEXT BOSS");
+    els.rerollButton.setAttribute("aria-label", localeText("rerollBoss"));
+    els.entryButton.setAttribute("aria-label", roundResult ? localeText("continueRound") : `${localeText("startBattle")}，${currentConfig.entryCostX * activeBet} credits`);
+    els.betButton.setAttribute("aria-label", hand ? localeText("fold") : `${localeText("adjustBet")}，${compactBet}`);
+    els.drawButton.setAttribute("aria-label", `${localeText("redraw")}，${freeDraw ? "FREE" : nextDrawCost * activeBet}`);
+    els.compareButton.setAttribute("aria-label", localeText("fight"));
+    els.nextButton.setAttribute("aria-label", localeText("nextBoss"));
     if (!els.deckPanel.hidden) renderDeckPanel();
   }
 
@@ -3166,6 +3179,7 @@
   els.menuTurboButton.addEventListener("click", toggleTurboMode);
   els.languageButton.addEventListener("click", () => {
     applyLocale(currentLocale === "en" ? "zh-Hant" : "en");
+    render();
     setMessage(localeText("language"), "");
   });
   els.exitButton.addEventListener("click", () => {

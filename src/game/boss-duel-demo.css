@@ -174,6 +174,7 @@ button { color: inherit; }
 }
 
 .menu-button { top: 7px; right: 7px; display: grid; place-content: center; gap: 2px; }
+.menu-button::after,.deck-stack::after { content: ""; position: absolute; top: 50%; left: 50%; width: max(44px,100%); height: max(44px,100%); transform: translate(-50%,-50%); }
 .menu-button i { display: block; width: 14px; height: 2px; border-radius: 2px; background: #fff; box-shadow: 0 1px #07517d; }
 .quick-menu { position: absolute; z-index: 18; top: 38px; right: 7px; display: grid; gap: 3px; }
 .quick-menu button,.quick-menu a { display: grid; place-items: center; width: 29px; height: 29px; padding: 0; border: 2px solid #d5b570; border-radius: 3px; background: linear-gradient(#35b5e5,#0b74aa); box-shadow: 0 2px 0 #46260f,inset 0 1px #99e9ff; color: #fff; font-size: 16px; font-weight: 900; line-height: 1; text-decoration: none; text-shadow: 0 1px #07517d; }
@@ -533,7 +534,7 @@ button { color: inherit; }
 .phase-ready #rerollButton b { font-size: 14px; }
 .phase-ready.has-started .action-bar { height: 88px; grid-template-columns: 29% 42% 29%; padding: 0; gap: 0; }
 .phase-ready.has-started .game-button { height: 86px; padding: 19px 7px 8px; }
-.phase-ready.has-started #rerollButton { display: block; position: absolute; left: 0; bottom: 80px; width: 120px; height: 39px; padding: 6px 4px 3px; clip-path: polygon(0 8%,82% 0,100% 50%,82% 100%,0 92%); }
+.phase-ready.has-started #rerollButton { display: block; position: absolute; left: 0; bottom: 80px; width: 120px; height: 44px; padding: 6px 4px 3px; clip-path: polygon(0 8%,82% 0,100% 50%,82% 100%,0 92%); }
 .phase-ready.has-started #rerollButton b { height: 17px; font-size: 10px; }
 .phase-ready.has-started #rerollButton small { font-size: 6px; }
 .phase-ready.has-started #betButton { display: block; grid-column: 1; grid-row: 1; }
@@ -571,7 +572,7 @@ button { color: inherit; }
 .phase-round-result .action-bar { grid-template-columns: 29% 42% 29%; padding: 0; }
 .phase-round-result .table-panel { overflow: visible; }
 .phase-round-result .hand-plaque { display: none; }
-.phase-round-result #rerollButton { display: block; position: absolute; left: 0; bottom: 80px; width: 120px; height: 39px; padding: 6px 4px 3px; clip-path: polygon(0 8%,82% 0,100% 50%,82% 100%,0 92%); }
+.phase-round-result #rerollButton { display: block; position: absolute; left: 0; bottom: 80px; width: 120px; height: 44px; padding: 6px 4px 3px; clip-path: polygon(0 8%,82% 0,100% 50%,82% 100%,0 92%); }
 .phase-round-result #rerollButton b { height: 17px; font-size: 10px; }
 .phase-round-result #rerollButton small { font-size: 6px; }
 .phase-round-result #betButton { display: block; grid-column: 1; grid-row: 1; clip-path: polygon(0 8%,82% 0,100% 50%,82% 100%,0 92%); }
@@ -683,6 +684,8 @@ button { color: inherit; }
 .magic-draw-fan > span:nth-child(9) { --option-x: 289px; --option-y: 320px; --option-r: 20deg; }
 .magic-draw-fan > span:nth-child(10) { --option-x: 326px; --option-y: 258px; --option-r: -5deg; }
 .magic-reveal.turbo .magic-draw-fan > span { animation-duration: .18s; animation-delay: var(--fan-delay-fast); }
+.magic-draw-fan > span.selected { animation-name: magic-draw-deal,magic-draw-picked; animation-duration: .42s,.3s; animation-delay: var(--fan-delay),var(--pick-delay); animation-timing-function: cubic-bezier(.18,.72,.2,1.2),ease-out; animation-fill-mode: both,forwards; }
+.magic-reveal.turbo .magic-draw-fan > span.selected { animation-duration: .18s,.16s; animation-delay: var(--fan-delay-fast),var(--pick-delay-fast); }
 .magic-reveal-card { position: relative; width: 188px; height: 242px; display: grid; place-content: center; justify-items: center; gap: 9px; border: 0; border-radius: 18px; background: radial-gradient(circle at 50% 24%,#bc5af0,#65208c 58%,#260c43); box-shadow: 0 0 14px #fff,0 0 42px #df4fff,0 0 90px #b831ff; transform: rotate(-2deg); animation: magic-pop .62s ease both; }
 .magic-reveal-card::before { content: ""; position: absolute; z-index: 1; top: -5px; left: -5px; width: 198px; height: 244px; background: url("../../assets/mobile/original-card-open-2.png") 0 0 / 747px 504px no-repeat; pointer-events: none; }
 .magic-reveal-card.reveal-crit,.magic-reveal-card.reveal-flatDamage { border-color: #ffb35a; background: radial-gradient(circle at 50% 24%,#ff735c,#9c2239 58%,#3b0b22); box-shadow: 0 0 14px #fff,0 0 42px #ff674f,0 0 90px #b52d38,inset 0 0 0 5px #71242b; }
@@ -706,6 +709,7 @@ button { color: inherit; }
 .magic-reveal.turbo .magic-reveal-card { animation-duration: .24s; }
 @keyframes magic-pop { 0% { opacity: 0; transform: scale(.3) rotate(-10deg); } 65% { opacity: 1; transform: scale(1.08) rotate(2deg); } 100% { transform: scale(1) rotate(-2deg); } }
 @keyframes magic-draw-deal { from { opacity: 0; transform: translate(-50%,40%) rotate(-24deg) scale(.25); } to { opacity: 1; transform: translate(-50%,-50%) rotate(var(--option-r)) scale(.84); } }
+@keyframes magic-draw-picked { 0% { transform: translate(-50%,-50%) rotate(var(--option-r)) scale(.84); filter: hue-rotate(58deg) saturate(1.45); } 55% { transform: translate(-50%,-62%) rotate(var(--option-r)) scale(1.08); filter: hue-rotate(58deg) saturate(1.8) brightness(1.8); } 100% { transform: translate(-50%,-58%) rotate(var(--option-r)) scale(1); filter: hue-rotate(58deg) saturate(1.7) brightness(1.35); box-shadow: 0 7px 12px #000d,0 0 18px #ffe66d,0 0 30px #d54cff; } }
 
 .compare-fx { position: absolute; z-index: 57; inset: 0; overflow: hidden; background: linear-gradient(to bottom,rgba(6,23,42,.58),rgba(0,0,0,.08) 46%,rgba(51,8,21,.62)); pointer-events: none; animation: compare-screen-in .18s ease-out both; }
 .compare-hand { position: absolute; left: 35px; right: 35px; display: grid; justify-items: center; filter: drop-shadow(0 4px 4px #000); }
@@ -1005,18 +1009,28 @@ button { color: inherit; }
 
 /* 使用正式教學素材組成四頁首登說明。 */
 .tutorial-overlay { padding: 8px; background: rgba(0,0,0,.76); }
-.tutorial-card { width: 366px; height: 584px; min-height: 0; padding: 56px 14px 10px; border: 3px solid #e8bb52; border-radius: 8px; background: linear-gradient(#142c48,#071522); box-shadow: 0 12px 28px #000,inset 0 0 0 2px #754019; }
-.tutorial-card > img.tutorial-title-art { top: 12px; width: 340px; height: auto; object-fit: contain; filter: drop-shadow(0 3px 2px #381006); }
+.tutorial-card { width: min(366px,calc(100vw - 20px)); height: 584px; min-height: 0; padding: 56px 14px 10px; border: 3px solid #e8bb52; border-radius: 8px; background: linear-gradient(#142c48,#071522); box-shadow: 0 12px 28px #000,inset 0 0 0 2px #754019; }
+.tutorial-card > img.tutorial-title-art { top: 12px; width: min(340px,calc(100% - 8px)); height: auto; object-fit: contain; filter: drop-shadow(0 3px 2px #381006); }
 .tutorial-pages { height: 374px; }
 .tutorial-page { padding: 4px 12px 0; grid-template-rows: 252px auto; align-content: start; justify-items: center; gap: 7px; }
 .tutorial-visual { width: 100%; height: 252px; display: grid; place-items: center; }
 .tutorial-page-art { display: block; object-fit: contain; filter: drop-shadow(0 4px 4px #000a); }
-.tutorial-page-art.page-p1 { width: 288px; height: auto; max-height: 244px; }
-.tutorial-page-art.page-p2 { width: 318px; height: auto; max-height: 206px; }
-.tutorial-page-art.page-p4 { width: 306px; height: auto; max-height: 218px; }
-.tutorial-composite-p3 { width: 320px; height: 222px; display: flex; align-items: center; justify-content: center; gap: 0; }
+.tutorial-page-art.page-p2 { width: 318px; max-width: 100%; height: auto; max-height: 206px; }
+.tutorial-composite-p3 { width: 320px; max-width: 100%; height: 222px; display: flex; align-items: center; justify-content: center; gap: 0; }
 .tutorial-composite-p3 img:first-child { width: 62px; height: 214px; object-fit: contain; }
 .tutorial-composite-p3 img:last-child { width: 258px; height: auto; object-fit: contain; }
+.tutorial-bonus-preview { width: 306px; max-width: 100%; height: 218px; display: grid; grid-template-columns: 166px 24px 1fr; align-items: center; justify-items: center; gap: 4px; padding: 12px 10px; border: 2px solid #d6a74b; border-radius: 7px; background: radial-gradient(circle at 50% 40%,#6f2468 0,#291b49 44%,#111c35 100%); box-shadow: inset 0 0 0 2px #4f2412,0 4px 4px #000a; overflow: hidden; }
+.tutorial-bonus-cards { display: flex; align-items: center; justify-content: center; }
+.tutorial-bonus-cards img { width: 96px; height: auto; filter: drop-shadow(0 4px 3px #000b); }
+.tutorial-bonus-cards img + img { margin-left: -27px; }
+.tutorial-bonus-preview > span { color: #ffe26b; font-size: 27px; font-weight: 1000; text-shadow: 0 2px #7b280b,0 0 6px #fff3; }
+.tutorial-treasure-reward { width: 96px; max-width: 100%; height: auto; filter: drop-shadow(0 4px 3px #000b); }
+.tutorial-page .tutorial-preview { position: relative; width: 288px; max-width: 100%; height: 244px; display: block; overflow: hidden; border: 2px solid #d6a74b; border-radius: 5px; background: url("../../assets/mobile/original-scene-s1.jpg") center/cover; box-shadow: inset 0 0 0 2px #4f2412,0 4px 4px #000a; }
+.tutorial-page .tutorial-preview > img { position: absolute; left: 50%; bottom: -18px; width: auto; height: 226px; max-width: none; transform: translateX(-50%); filter: drop-shadow(0 5px 4px #0007); }
+.tutorial-page .tutorial-preview > div { position: absolute; z-index: 2; inset: 8px; display: grid; grid-template-columns: 72px 1fr 90px; align-items: start; color: #fff; font-size: 10px; font-weight: 1000; text-shadow: 0 2px #681900,0 0 3px #000; }
+.tutorial-page .tutorial-preview span { justify-self: start; padding: 5px 7px; border: 2px solid #e6b84d; border-radius: 5px; background: linear-gradient(#b93030,#6f1018); }
+.tutorial-page .tutorial-preview b { justify-self: center; padding: 4px 10px; color: #ffd34c; font-size: 13px; }
+.tutorial-page .tutorial-preview i { align-self: end; justify-self: end; margin-top: 188px; padding: 5px 7px; border: 2px solid #f1cf69; border-radius: 5px; background: #163d5edb; color: #fff06b; font-size: 11px; font-style: normal; }
 .tutorial-copy { width: 100%; min-height: 76px; display: grid; align-content: start; justify-items: center; gap: 5px; }
 .tutorial-page .tutorial-copy h3 { max-width: 316px; margin: 0; color: #ffe77e; font-size: 14px; line-height: 1.08; text-shadow: 0 2px #7b280b; }
 .tutorial-page .tutorial-copy p { max-width: 316px; margin: 0; color: #fff; font-size: 11.5px; font-weight: 900; line-height: 1.28; text-wrap: balance; }

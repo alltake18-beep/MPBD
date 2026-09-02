@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v92");
+      params.set("v", "frontend-v94");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v92">
+  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v94">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -150,10 +150,9 @@
         <img class="tutorial-title-art" src="assets/mobile/ui-supplied/tutorial-title.png" alt="Boss Duel Instructions">
         <div id="tutorialPages" class="tutorial-pages">
           <article class="tutorial-page active" data-tutorial-page="0">
-            <div class="tutorial-visual">
-              <img class="tutorial-page-art page-p1" src="assets/mobile/ui-supplied/tutorial-p1.png" alt="Choose a Boss and inspect its stars, HP, round limit, and treasure reward">
-              <span id="tutorialRound" class="sr-only">ROUND 1/3</span><b id="tutorialBossName" class="sr-only">DRUNKARD</b><i id="tutorialWinUpTo" class="sr-only">WIN UP TO 6X</i>
-              <img id="tutorialBossCharacter" class="sr-only" src="assets/mobile/boss-fallback/drunkard.png" alt="Boss">
+            <div class="tutorial-visual tutorial-preview">
+              <img id="tutorialBossCharacter" src="assets/mobile/boss-fallback/drunkard.png" alt="Boss">
+              <div><span id="tutorialRound">ROUND 1/3</span><b id="tutorialBossName">DRUNKARD</b><i id="tutorialWinUpTo">WIN UP TO 6X</i></div>
             </div>
             <div class="tutorial-copy">
               <h3 data-copy-en="DEFEAT THE BOSS" data-copy-zh="擊敗 BOSS">DEFEAT THE BOSS</h3>
@@ -175,7 +174,13 @@
             </div>
           </article>
           <article class="tutorial-page" data-tutorial-page="3" hidden>
-            <div class="tutorial-visual"><img class="tutorial-page-art page-p4" src="assets/mobile/ui-supplied/tutorial-p4.png" alt="Boss reward panels and treasure maximum reward"></div>
+            <div class="tutorial-visual">
+              <div class="tutorial-bonus-preview" aria-label="Magic card bonuses and current Boss maximum reward">
+                <div class="tutorial-bonus-cards"><img src="assets/mobile/magic-cards/crit.png" alt="Critical damage Magic Card"><img src="assets/mobile/magic-cards/coins.png" alt="Coin reward Magic Card"></div>
+                <span aria-hidden="true">＋</span>
+                <img id="tutorialTreasureReward" class="tutorial-treasure-reward" src="assets/mobile/treasure-labels/drunkard-6x.png" alt="Current Boss maximum reward">
+              </div>
+            </div>
             <div class="tutorial-copy">
               <h3 data-copy-en="BUILD YOUR BONUS. CLAIM THE TREASURE." data-copy-zh="累積加成，贏取寶箱獎勵">BUILD YOUR BONUS. CLAIM THE TREASURE.</h3>
               <p data-copy-en="Magic Cards can add damage or coin rewards. Damage values are revealed only when hands are compared." data-copy-zh="魔法卡可增加傷害或金幣獎勵；傷害加成與倍率只在比牌時揭露。">Magic Cards can add damage or coin rewards. Damage values are revealed only when hands are compared.</p>
@@ -321,12 +326,12 @@
 
   <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
-  <script src="src/core/boss-duel-random.js?v=frontend-v92"></script>
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v92"></script>
-  <script src="src/core/boss-duel-rules.js?v=frontend-v92"></script>
+  <script src="src/core/boss-duel-random.js?v=frontend-v94"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v94"></script>
+  <script src="src/core/boss-duel-rules.js?v=frontend-v94"></script>
   <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v10"></script>
   <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v12"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v92"></script>
-  <script src="src/game/boss-duel-demo.js?v=frontend-v92"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v94"></script>
+  <script src="src/game/boss-duel-demo.js?v=frontend-v94"></script>
 </body>
 </html>
