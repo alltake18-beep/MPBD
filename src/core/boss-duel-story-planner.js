@@ -245,9 +245,9 @@
     return rows.slice(0, maximum);
   }
 
-  function drawFee(config, paidDrawIndex) {
+  function drawFee(config, drawIndex) {
     const fees = Array.isArray(config.drawFeesX) && config.drawFeesX.length ? config.drawFeesX : [1, 2, 3];
-    return Math.max(0, finite(fees[Math.min(paidDrawIndex, fees.length - 1)], 0));
+    return Math.max(0, finite(fees[Math.min(drawIndex, fees.length - 1)], 0));
   }
 
   function plannedPaidDrawLimit(route, hasJoker = false) {
@@ -388,7 +388,7 @@
         } else {
           if (!config.paidDrawEnabled) break;
           if (paidDraws >= paidDrawLimit) break;
-          feeX = drawFee(config, paidDraws);
+          feeX = drawFee(config, drawLog.length);
           drawSpendX += feeX;
           paidDraws += 1;
         }
@@ -795,12 +795,12 @@
       payoutWithKillX: profitView.payoutWithKillX
     };
     outcome.behavior = "以最終有機率獲利為目標；用比牌勝率、擊殺機率與魔法卡連動估算，並扣除總押、換牌與手動操作成本";
-    outcome.plannerVersion = "boss-plan-v10";
+    outcome.plannerVersion = "boss-plan-v11";
     return outcome;
   }
 
   return {
-    VERSION: "boss-plan-v10",
+    VERSION: "boss-plan-v11",
     planBossStory,
     enumerateRoundActions,
     routeCandidates,

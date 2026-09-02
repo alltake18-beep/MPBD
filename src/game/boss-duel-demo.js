@@ -1812,7 +1812,7 @@
       return;
     }
     const hasFreeDraw = encounter.presentation.magicCards.some((card) => card.key === "freeDraw") && !encounter.presentation.freeUsed;
-    const costX = hasFreeDraw ? 0 : drawCostX(encounter.paidDraws);
+    const costX = hasFreeDraw ? 0 : drawCostX(encounter.draws);
     if (!spend(costX)) return;
     const redrawOperation = beginOperation("REDRAW");
     if (hasFreeDraw) encounter.presentation.freeUsed = true;
@@ -1845,6 +1845,7 @@
       completeOperation(redrawOperation, {
         costX,
         free: hasFreeDraw,
+        plannedRecordMissing: Boolean(redrawAudit?.plannedRecordMissing),
         plannedKeepIds: redrawAudit?.plannedKeepIds || [],
         actualKeepIds: redrawAudit?.actualKeepIds || NaturalCore.sortedCardIds(encounter.presentation.playerCards.filter((_card, index) => !discarded.has(index))),
         keepMatched: redrawAudit ? !redrawAudit.deviated : null,
@@ -2546,9 +2547,9 @@
     encounter.bossCardOrder = buildCardOrder(encounter.presentation.bossCards, encounter.presentation.bossEval);
   }
 
-  function drawCostX(paidDraws) {
+  function drawCostX(drawIndex) {
     const costs = runtimeConfig.drawCostsX;
-    return costs[Math.min(paidDraws, costs.length - 1)] ?? costs[costs.length - 1] ?? 3;
+    return costs[Math.min(drawIndex, costs.length - 1)] ?? costs[costs.length - 1] ?? 3;
   }
 
   function showRoundActionFx(action) {
@@ -3009,7 +3010,7 @@
     const deckCanDraw = hand && encounter.presentation.playerDeck.length - discardCount >= 10;
     els.drawButton.disabled = !hand || !discardCount || !deckCanDraw;
     const freeDraw = hand && encounter.presentation.magicCards.some((card) => card.key === "freeDraw") && !encounter.presentation.freeUsed;
-    const nextDrawCost = freeDraw ? 0 : drawCostX(encounter.paidDraws);
+    const nextDrawCost = freeDraw ? 0 : drawCostX(encounter.draws);
     els.drawButton.innerHTML = buttonMarkup(
       "text-redraw.png",
       "REDRAW",

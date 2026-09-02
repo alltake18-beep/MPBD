@@ -8,13 +8,13 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v33");
+      params.set("v", "action-tree-v35");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v33">
-  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v33">
+  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v35">
+  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v35">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
@@ -26,8 +26,8 @@
       </div>
       <div class="header-actions" aria-label="工具捷徑">
         <button id="restoreButton" class="secondary" type="button">還原範例</button>
-        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v7" target="_blank" rel="noopener">後端文件</a>
-        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v94" target="_blank" rel="noopener">開啟遊戲</a>
+        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v9" target="_blank" rel="noopener">後端文件</a>
+        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v96" target="_blank" rel="noopener">開啟遊戲</a>
       </div>
     </header>
 
@@ -357,7 +357,7 @@
 
             <section id="reportHandsPanel" class="report-panel">
               <h3>牌型</h3>
-              <p class="proxy-note">牌型、傷害與換牌全部取自 240,000 個可重播正式故事；同花順基礎傷害 30，正常吃暴擊／固傷。主模擬目前沿劇本操作，真實玩家偏離比例待後續確認。</p>
+              <p class="proxy-note">牌型、傷害與換牌全部取自 240,000 個可重播正式故事；同花順基礎傷害 30，正常吃暴擊／固傷。主模擬沿劇本操作；產品已接受隨機操作玩家 RTP 約 2.3% 的外部測試結果，此數值不是本工具主模擬的推算值。</p>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>牌型</th><th>RTP</th><th>玩家勝率</th><th>初始手牌</th><th>比牌牌型</th><th>BOSS 手牌</th><th>平均傷害</th><th>基礎傷害</th></tr></thead><tbody id="handStatsBody"></tbody></table></div>
             </section>
 
@@ -422,14 +422,14 @@
 
   </div>
 
-  <script src="src/core/boss-duel-random.js?v=action-tree-v33"></script>
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=arrange-v9"></script>
-  <script src="src/core/boss-duel-rules.js?v=action-tree-v33"></script>
-  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v10"></script>
-  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v12"></script>
-  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v5"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v33"></script>
-  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v33"></script>
-  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v33"></script>
+  <script src="src/core/boss-duel-random.js?v=action-tree-v35"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=arrange-v10"></script>
+  <script src="src/core/boss-duel-rules.js?v=action-tree-v35"></script>
+  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v11"></script>
+  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v14"></script>
+  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v7"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v35"></script>
+  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v35"></script>
+  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v35"></script>
 </body>
 </html>

@@ -59,6 +59,7 @@ const plannedAudit = NaturalCore.executeRuntimeRedraw(plannedState, {
   suppressionActive: false
 });
 assert.equal(plannedAudit.deviated, false);
+assert.equal(plannedAudit.plannedRecordMissing, false);
 assert.equal(plannedAudit.suppressionActive, false);
 assert.deepEqual(plannedAudit.acceptedCardIds, step.drawLog[0].acceptedCardIds, "following the story must preserve the original redraw");
 
@@ -84,6 +85,50 @@ assert.equal(deviatedA.audit.suppressionActivatedNow, true);
 assert.ok(deviatedA.audit.candidates.length >= 1 && deviatedA.audit.candidates.length <= 30);
 assert.deepEqual(deviatedA.audit, deviatedB.audit, "suppression audit must be deterministic");
 assert.deepEqual(deviatedA.state.playerCards.map(Rules.cardId), deviatedB.state.playerCards.map(Rules.cardId), "deviated redraw must replay exactly");
+
+const missingPlanState = createState();
+Rules.applyRecommendedKeepCards(missingPlanState, []);
+const missingPlanAudit = NaturalCore.executeRuntimeRedraw(missingPlanState, {
+  story,
+  round: step.round,
+  tieIndex: step.tieIndex,
+  drawNumber: step.drawLog.length + 1,
+  actionSequence: 5,
+  discardedIndexes: missingPlanState.discardIndexes,
+  suppressionActive: false
+});
+assert.equal(missingPlanAudit.plannedRecordMissing, true, "a legal redraw beyond the story path must be recorded as missing from the plan");
+assert.equal(missingPlanAudit.deviated, true, "a missing planned redraw must count as deviation even when the actual keep set is empty");
+assert.equal(missingPlanAudit.suppressionActive, true, "missing redraw after an un-killed story must activate suppression");
+
+const extraTieState = createState();
+Rules.applyRecommendedKeepCards(extraTieState, []);
+const extraTieAudit = NaturalCore.executeRuntimeRedraw(extraTieState, {
+  story,
+  round: step.round,
+  tieIndex: 10000,
+  drawNumber: 1,
+  actionSequence: 7,
+  discardedIndexes: extraTieState.discardIndexes,
+  suppressionActive: false
+});
+assert.equal(extraTieAudit.plannedRecordMissing, true, "redraw after an extra tie redeal must not borrow another tie segment's plan");
+assert.equal(extraTieAudit.suppressionActive, true);
+
+const killedMissingPlanState = createState();
+Rules.applyRecommendedKeepCards(killedMissingPlanState, []);
+const killedMissingPlanAudit = NaturalCore.executeRuntimeRedraw(killedMissingPlanState, {
+  story: { ...story, killed: true },
+  round: step.round,
+  tieIndex: step.tieIndex,
+  drawNumber: step.drawLog.length + 1,
+  actionSequence: 6,
+  discardedIndexes: killedMissingPlanState.discardIndexes,
+  suppressionActive: false
+});
+assert.equal(killedMissingPlanAudit.plannedRecordMissing, true);
+assert.equal(killedMissingPlanAudit.deviated, true);
+assert.equal(killedMissingPlanAudit.suppressionActive, false, "originally killed stories must not activate suppression");
 
 const magicState = createState();
 const critCard = magicState.playerEval.cards[0];
@@ -125,9 +170,10 @@ assert.equal(normalMagic.values.find((row) => row.kind === "crit").final, 5, "no
 assert.ok(normalMagic.values.every((row) => row.sourceTable === "NORMAL"));
 
 const contract = NaturalCore.replayContract(story, config);
+assert.equal(contract.version, "story-action-trace-v2");
 assert.equal(contract.storySeed, story.seed);
 assert.equal(contract.rulesVersion, Rules.VERSION);
-assert.equal(contract.plannerVersion, "boss-plan-v10");
+assert.equal(contract.plannerVersion, "boss-plan-v11");
 assert.equal(contract.suppressionPolicyVersion, NaturalCore.SUPPRESSION_POLICY_VERSION);
 assert.equal(contract.suppressionPolicy.magic.mode, "SEPARATE_TABLE");
 assert.equal(contract.suppressionPolicySignature, JSON.stringify(contract.suppressionPolicy));

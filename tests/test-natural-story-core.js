@@ -3,6 +3,7 @@
 const assert = require("node:assert/strict");
 const DiceCore = require("../src/core/boss-duel-random.js");
 const Rules = require("../src/core/boss-duel-rules.js");
+const Arrangement = require("../src/core/boss-duel-poker-arrangement-core.js");
 const StoryCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 
@@ -43,6 +44,69 @@ assert.equal(natural.playerDeck.length, 46);
 assert.equal(natural.bossCards.length, 6);
 assert.equal(new Set([...natural.playerCards, ...natural.playerDeck].map(Rules.cardId)).size, 52);
 assert.equal(new Set(natural.bossCards.map(Rules.cardId)).size, 6);
+
+const redrawStraightFlushHand = [
+  Arrangement.naturalCard(7, "C"),
+  Arrangement.naturalCard(8, "C"),
+  Arrangement.naturalCard(9, "C"),
+  Arrangement.naturalCard(10, "C"),
+  Arrangement.naturalCard(11, "H"),
+  Arrangement.naturalCard(6, "C")
+];
+const redrawStraightFlush = Arrangement.reconcileAfterRedraw(redrawStraightFlushHand, redrawStraightFlushHand.slice(0, 5));
+assert.equal(redrawStraightFlush.forcedOverride, true, "REDRAW 後形成同花順必須覆蓋舊保留");
+assert.equal(redrawStraightFlush.plan.key, "straightFlush");
+assert.deepEqual(new Set(redrawStraightFlush.keepCards.map(Arrangement.cardId)), new Set(["6C", "7C", "8C", "9C", "10C"]));
+
+const redrawFourKindHand = [
+  Arrangement.naturalCard(7, "S"),
+  Arrangement.naturalCard(7, "H"),
+  Arrangement.naturalCard(7, "D"),
+  Arrangement.naturalCard(14, "S"),
+  Arrangement.naturalCard(2, "C"),
+  Arrangement.naturalCard(7, "C")
+];
+const redrawFourKind = Arrangement.reconcileAfterRedraw(redrawFourKindHand, redrawFourKindHand.slice(0, 5));
+assert.equal(redrawFourKind.forcedOverride, true, "REDRAW 後形成四條必須覆蓋舊保留");
+assert.equal(redrawFourKind.plan.key, "fourOfAKind");
+assert.deepEqual(new Set(redrawFourKind.keepCards.map(Arrangement.cardId)), new Set(["7S", "7H", "7D", "7C"]));
+
+const protectedPlayerHolds = redrawStraightFlushHand.slice(0, 5);
+const nonOverrideFlush = Arrangement.reconcileAfterRedraw(
+  [...protectedPlayerHolds, Arrangement.naturalCard(14, "C")],
+  protectedPlayerHolds
+);
+assert.equal(nonOverrideFlush.forcedOverride, false, "皇家同花順、同花順、四條以外不得取消玩家保留");
+assert.equal(nonOverrideFlush.plan.key, "straight");
+assert(nonOverrideFlush.keepCards.some((card) => Arrangement.cardId(card) === "11H"));
+
+const fourCardCoreHand = [
+  Arrangement.naturalCard(6, "S"),
+  Arrangement.naturalCard(7, "S"),
+  Arrangement.naturalCard(8, "S"),
+  Arrangement.naturalCard(9, "S"),
+  Arrangement.naturalCard(2, "D"),
+  Arrangement.naturalCard(3, "H")
+];
+fourCardCoreHand[4].magicEffects = { crit: 2, flatDamage: 3 };
+fourCardCoreHand[5].magicEffects = { crit: 3 };
+const fourCardCore = Arrangement.planHand(fourCardCoreHand);
+assert.equal(fourCardCore.coreCards.length, 4);
+assert.deepEqual(fourCardCore.extraCards.map(Arrangement.cardId), ["2D"], "四張核心只補一張，暴擊＋固傷優先");
+
+const pairWithEffects = [
+  Arrangement.naturalCard(14, "S"),
+  Arrangement.naturalCard(14, "H"),
+  Arrangement.naturalCard(11, "D"),
+  Arrangement.naturalCard(6, "C"),
+  Arrangement.naturalCard(3, "S"),
+  Arrangement.naturalCard(9, "H")
+];
+pairWithEffects[2].magicEffects = { crit: 2 };
+pairWithEffects[3].magicEffects = { flatDamage: 4 };
+const pairPlan = Arrangement.planHand(pairWithEffects);
+assert.equal(pairPlan.key, "onePair");
+assert.deepEqual(new Set(pairPlan.extraCards.map(Arrangement.cardId)), new Set(["11D", "6C"]), "兩張核心要保留出現的暴擊與固傷牌");
 
 const fullClassification = StoryCore.simulateNaturalStory(config, 1, 12345, { includePath: false });
 const packedClassification = StoryCore.packStorySummary(fullClassification);

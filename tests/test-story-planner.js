@@ -8,7 +8,7 @@ const Planner = require("../src/core/boss-duel-story-planner.js");
 const preset = require("../data/story/boss-duel-story-preset-v1.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-assert.equal(Planner.VERSION, "boss-plan-v10");
+assert.equal(Planner.VERSION, "boss-plan-v11");
 
 const userExampleCandidates = [
   { classKey: "win", spendX: 10, payoutX: 50 },
@@ -33,6 +33,12 @@ for (const step of formerChase.path) {
   assert.equal(typeof step.decisionReason, "string");
   assert(step.totalBetAfter >= step.totalBetBefore);
 }
+
+const freeTierStory = StoryCore.simulateNaturalStory(config, 1, 2665075106, { includePath: true });
+const freeThenPaid = freeTierStory.path.find((step) => step.drawLog[0]?.free && step.drawLog[1] && !step.drawLog[1].free);
+assert(freeThenPaid, "fixture must use one free redraw followed by a paid redraw");
+assert.equal(freeThenPaid.drawLog[0].feeX, 0);
+assert.equal(freeThenPaid.drawLog[1].feeX, config.drawFeesX[1], "free redraw must advance the redraw fee tier");
 
 const star8Commit = StoryCore.drawUniformPresetStoryCommit(
   preset, config, 8, 96, DiceCore.mulberry32(20260826), { includePath: false, ticketBasis: 1000000 }
@@ -64,12 +70,13 @@ for (let star = 1; star <= 8; star += 1) {
       assert(step.freeDraws <= 1, "a round can use at most one free redraw");
       assert(step.draws <= 4, "paid redraws plus one free redraw must stay bounded");
       assert.equal(step.drawLog.length, step.draws);
-      for (const draw of step.drawLog) {
+      for (const [drawIndex, draw] of step.drawLog.entries()) {
         assert(Array.isArray(draw.keepCardIds));
         assert(Array.isArray(draw.discardedCardIds));
         assert(Array.isArray(draw.discardedCards));
         assert(Array.isArray(draw.acceptedCardIds));
         assert(Array.isArray(draw.nextKeepCardIds));
+        assert.equal(draw.feeX, draw.free ? 0 : config.drawFeesX[Math.min(drawIndex, config.drawFeesX.length - 1)], "redraw fee must follow total redraw count");
       }
       assert.equal(step.manualAdjustment, step.changedCards > 0);
       assert(step.showdownWinProbability >= 0 && step.showdownWinProbability <= 1);

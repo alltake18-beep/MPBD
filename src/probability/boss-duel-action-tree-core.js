@@ -104,7 +104,7 @@
       pokerBoostEnabled: true, chainEnabled: false, bossRerollEnabled: true,
       paidDrawEnabled: true, tieRedealEnabled: true, strictNaturalGate: true
     },
-    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v10-score-ticket" },
+    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v11-score-ticket" },
     ruleSettings: {
       refreshCostX: 1, deckStopCount: 10,
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
@@ -562,10 +562,10 @@
     return { version: "full-class-uniform-story-v1", config, pool, totals, players, records, starStats, classStats: TREE_KEYS.map((key) => classStats[key]) };
   }
 
-  function drawCost(draws, config, bet) {
+  function drawCost(draws, freeDraws, config, bet) {
     if (!config.mechanics.paidDrawEnabled || draws <= 0) return 0;
     let total = 0;
-    for (let index = 0; index < draws; index += 1) total += finite(config.drawFeesX[Math.min(index, config.drawFeesX.length - 1)], 0) * bet;
+    for (let index = freeDraws; index < draws; index += 1) total += finite(config.drawFeesX[Math.min(index, config.drawFeesX.length - 1)], 0) * bet;
     return total;
   }
 
@@ -767,7 +767,7 @@
         const hasFreeDraw = magicCards.some((item) => item.key === "freeDraw") && config.mechanics.freeDrawEnabled;
         const freeDraws = hasFreeDraw ? Math.min(draws, 1) : 0;
         const paidDraws = Math.max(0, draws - freeDraws);
-        const paidDrawCost = drawCost(paidDraws, config, bet);
+        const paidDrawCost = drawCost(draws, freeDraws, config, bet);
         const refreshProbability = config.mechanics.bossRerollEnabled ? clamp(0.015 + star.star * 0.002 + (treeKey === "lose" ? 0.015 : 0), 0, 0.12) : 0;
         const refreshed = !aborted && random() < refreshProbability;
         const refreshSpend = refreshed ? config.ruleSettings.refreshCostX * bet : 0;

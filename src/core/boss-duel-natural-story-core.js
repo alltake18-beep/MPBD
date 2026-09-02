@@ -27,9 +27,9 @@
   const DEFAULT_TICKET_PREFERENCE_PCT = Object.freeze({ win: 1, push: 1, lose: 1 });
   const DEFAULT_TICKET_BASIS = 10000;
   const STORIES_PER_CLASS = 10000;
-  const ACTION_TRACE_VERSION = "story-action-trace-v1";
-  const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v3-configurable-tables";
-  const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v3";
+  const ACTION_TRACE_VERSION = "story-action-trace-v2";
+  const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v4-configurable-tables";
+  const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v4";
   const STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
   const POOL_SETTLEMENT_VERSION = "target-rtp-personal-pool-v2-reservation";
   const DEFAULT_TARGET_RTP_PCT = 96;
@@ -410,7 +410,7 @@
       classKey,
       classLabel: STORY_LABELS[classKey],
       behavior: "SMART_PROFIT_PLANNER",
-      plannerVersion: "boss-plan-v10",
+      plannerVersion: "boss-plan-v11",
       hp: row[1],
       hpLeft: row[2],
       roundLimit: row[3],
@@ -518,13 +518,17 @@
     return (story?.path || []).find((step) => step.round === round && step.tieIndex === tieIndex) || null;
   }
 
-  function plannedKeepIdsAt(story, round, tieIndex, drawNumberInput) {
+  function plannedRedrawAt(story, round, tieIndex, drawNumberInput) {
     const drawNumber = integer(drawNumberInput, 1, 1, 1000);
     const step = storyStepAt(story, round, tieIndex);
     const draw = step?.drawLog?.[drawNumber - 1];
-    if (Array.isArray(draw?.keepCardIds)) return draw.keepCardIds.slice().sort();
-    if (drawNumber === 1 && Array.isArray(step?.initialKeepCardIds)) return step.initialKeepCardIds.slice().sort();
-    return [];
+    return Array.isArray(draw?.keepCardIds)
+      ? { missing: false, keepCardIds: draw.keepCardIds.slice().sort() }
+      : { missing: true, keepCardIds: [] };
+  }
+
+  function plannedKeepIdsAt(story, round, tieIndex, drawNumberInput) {
+    return plannedRedrawAt(story, round, tieIndex, drawNumberInput).keepCardIds;
   }
 
   function replayContract(story, configInput = {}) {
@@ -564,8 +568,10 @@
     const tieIndex = integer(context.tieIndex, 0, 0, 10000);
     const actionSequence = integer(context.actionSequence, 1, 1, 1000000000);
     const actualKeepIds = sortedCardIds(state.playerCards.filter((_card, index) => !discarded.has(index)));
-    const plannedKeepIds = plannedKeepIdsAt(story, round, tieIndex, drawNumber);
-    const deviated = !sameCardIds(actualKeepIds, plannedKeepIds);
+    const plannedRedraw = plannedRedrawAt(story, round, tieIndex, drawNumber);
+    const plannedKeepIds = plannedRedraw.keepCardIds;
+    const plannedRecordMissing = plannedRedraw.missing;
+    const deviated = plannedRecordMissing || !sameCardIds(actualKeepIds, plannedKeepIds);
     const policy = normalizeSuppressionPolicy(context.suppressionPolicy);
     const suppressionWasActive = policy.enabled && Boolean(context.suppressionActive);
     const activationEligible = policy.enabled && policy.activation.enabled
@@ -634,6 +640,7 @@
       drawNumber,
       actionSequence,
       originalKilled: Boolean(story?.killed),
+      plannedRecordMissing,
       plannedKeepIds,
       actualKeepIds,
       deviated,
@@ -1389,7 +1396,7 @@
     DEFAULT_BOSS_ROWS: clone(DEFAULT_BOSS_ROWS), DEFAULT_MAGIC_ROWS: clone(DEFAULT_MAGIC_ROWS), DEFAULT_HAND_ROWS: clone(DEFAULT_HAND_ROWS),
     normalizeConfig, normalizeTargetRtpPct, toMoneyUnits, fromMoneyUnits, roundMoney,
     storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,
-    sortedCardIds, sameCardIds, storyStepAt, plannedKeepIdsAt, replayContract, executeRuntimeRedraw, resolveRuntimeMagic,
+    sortedCardIds, sameCardIds, storyStepAt, plannedRedrawAt, plannedKeepIdsAt, replayContract, executeRuntimeRedraw, resolveRuntimeMagic,
     packStorySummary, unpackStorySummary,
     simulateNaturalStory, poolSignature, presetMatchesOutcomeRules, buildNaturalStoryPoolFromPreset,
     targetScorePoints, solveCandidateProbabilities, drawUniformPresetStoryCommit,

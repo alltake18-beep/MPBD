@@ -36,13 +36,11 @@ function replay(story) {
       const step = story.path.find((row) => row.round === round && row.tieIndex === tieIndex);
       assert(step, `missing path step for round ${round}, tie ${tieIndex}`);
       Rules.applyRecommendedKeepCards(state, step.initialKeepCardIds);
-      let paidFeeIndex = 0;
       for (let draw = 0; draw < step.draws; draw += 1) {
         const free = config.freeDrawEnabled && !state.freeUsed && state.magicCards.some((card) => card.key === "freeDraw");
         if (free) state.freeUsed = true;
         else {
-          spendX += config.drawFeesX[Math.min(paidFeeIndex, config.drawFeesX.length - 1)] || 0;
-          paidFeeIndex += 1;
+          spendX += config.drawFeesX[Math.min(draw, config.drawFeesX.length - 1)] || 0;
         }
         const discardedIds = new Set(step.drawLog[draw].discardedCardIds);
         const discarded = new Set(state.playerCards.map((card, index) => discardedIds.has(Rules.cardId(card)) ? index : -1).filter((index) => index >= 0));

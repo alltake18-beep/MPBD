@@ -23,7 +23,7 @@
     config.suppression = Core.NaturalCore.normalizeSuppressionPolicy(config.suppression);
   }
   config.modelId = "natural-story-v4-full-class-ticket";
-  config.versions.storyPool = "natural-240000-boss-plan-v10-score-ticket";
+  config.versions.storyPool = "natural-240000-boss-plan-v11-score-ticket";
   let design = null;
   let storyPoolCells = [];
   let catalogPool = null;
@@ -905,7 +905,7 @@
           storyPoolCells.push({
             star, tree, sampleSize: naturalRows.length,
             naturalCount: naturalRows.length,
-            replayVerified: naturalRows.every((story) => story.seed !== undefined && story.classKey === tree && story.plannerVersion === "boss-plan-v10")
+            replayVerified: naturalRows.every((story) => story.seed !== undefined && story.classKey === tree && story.plannerVersion === "boss-plan-v11")
           });
         }
         config.versions.storyPool = pool.version;
@@ -1019,7 +1019,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v94",
+      v: "frontend-v96",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),
@@ -1091,7 +1091,7 @@
   function restoreDefaults() {
     config = Core.sanitizeConfig(Core.DEFAULT_CONFIG);
     config.modelId = "natural-story-v4-full-class-ticket";
-    config.versions.storyPool = "natural-240000-boss-plan-v10-score-ticket";
+    config.versions.storyPool = "natural-240000-boss-plan-v11-score-ticket";
     storyPoolCells = [];
     simulationResult = null;
     catalogPool = null;

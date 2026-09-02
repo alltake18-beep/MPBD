@@ -308,7 +308,9 @@
     state.lastRedraw = reconciled;
     const beforeText = before?.priority ? `#${before.priority} ${before.label}` : before?.label || "無核心";
     const afterText = state.currentPlan.priority ? `#${state.currentPlan.priority} ${state.currentPlan.label}` : state.currentPlan.label;
-    if (beforeText !== afterText) {
+    if (reconciled.forcedOverride) {
+      state.changeText = `${beforeText} → ${afterText}；新牌形成皇家同花順／同花順／四條，依規則直接改保留最高牌型。`;
+    } else if (beforeText !== afterText) {
       state.changeText = `${beforeText} → ${afterText}；舊保留仍保留，新增或合法替換後形成新目標。`;
     } else {
       state.changeText = `${afterText} 維持；舊保留未被系統直接取消。`;

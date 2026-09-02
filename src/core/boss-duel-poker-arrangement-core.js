@@ -442,16 +442,20 @@
       return true;
     };
 
-    if (best.cards.length === 4) {
-      // 四張牌型基礎保留只剩一格：有暴擊就優先保留暴擊；全場無暴擊才補固傷。
-      if (!keepCards.some(hasCrit)) {
-        const addedCrit = addEffect(hasCrit, "四張基礎保留：暴擊優先");
-        if (!addedCrit && !hand.some(hasCrit)) addEffect(hasFlat, "四張基礎保留：無暴擊，保留固傷");
+    if (best.cards.length === 4 && !keepCards.some(hasEffect)) {
+      // 四張基礎保留只補一張：同張暴擊＋固傷 > 暴擊 > 固傷。
+      const addedBoth = addEffect((card) => hasCrit(card) && hasFlat(card), "四張基礎保留：暴擊＋固傷優先");
+      if (!addedBoth) {
+        const addedCrit = addEffect(hasCrit, "四張基礎保留：保留暴擊");
+        if (!addedCrit) addEffect(hasFlat, "四張基礎保留：保留固傷");
       }
-    } else if (best.cards.length === 3) {
-      // 三張牌型基礎保留尚有兩格：暴擊與固傷各保留；同一實體牌同時綁兩效果時只占一格。
-      addEffect(hasCrit, "三張基礎保留：保留暴擊");
-      addEffect(hasFlat, "三張基礎保留：保留固傷");
+    } else if (best.cards.length === 3 || best.cards.length === 2) {
+      // 三張或兩張基礎保留最多補兩張；同一實體牌同時綁兩效果時只占一格。
+      if (!keepCards.some(hasCrit) && !keepCards.some(hasFlat)) {
+        addEffect((card) => hasCrit(card) && hasFlat(card), `${best.cards.length}張基礎保留：保留暴擊＋固傷`);
+      }
+      addEffect(hasCrit, `${best.cards.length}張基礎保留：保留暴擊`);
+      addEffect(hasFlat, `${best.cards.length}張基礎保留：保留固傷`);
     }
 
     return { keepCards, reasonByCardId };
@@ -675,6 +679,22 @@
 
   function reconcileAfterRedraw(hand, previousKeepCards) {
     const handIds = new Set(hand.map(cardId));
+    const automatic = planHand(hand);
+
+    // REDRAW 後若六張牌已直接形成最高完成牌型，必須立刻改保留該牌型；
+    // 這是唯一可以取消既有玩家保留牌的例外。
+    if (["royalFlush", "straightFlush", "fourOfAKind"].includes(automatic.key)) {
+      return {
+        plan: automatic,
+        keepCards: automatic.keepCards,
+        legalReplacements: [],
+        appliedReplacements: [],
+        forcedOverride: true,
+        oldKeepCards: previousKeepCards.slice(),
+        missingConfirmedCards: previousKeepCards.filter((card) => !handIds.has(cardId(card)))
+      };
+    }
+
     const kept = previousKeepCards.filter((card) => handIds.has(cardId(card)));
     const lockedPlan = analyzeSelection(kept);
     const replacementOptions = sameRankReplacementOptions(hand, kept, lockedPlan);

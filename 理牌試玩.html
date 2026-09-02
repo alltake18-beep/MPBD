@@ -7,12 +7,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "poker-lab-v9");
+      params.set("v", "poker-lab-v10");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("理牌試玩.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/poker-lab/boss-duel-poker-arrangement-lab.css?v=poker-lab-v9">
+  <link rel="stylesheet" href="src/poker-lab/boss-duel-poker-arrangement-lab.css?v=poker-lab-v10">
 </head>
 <body>
   <main class="lab-shell">
@@ -22,7 +22,7 @@
         <h1>理牌試玩</h1>
         <p class="header-copy">只驗收新理牌規格，不連接正式 Demo、傷害、派彩或 action-tree。</p>
       </div>
-      <div class="scope-flag">獨立驗收 · poker-lab-v9</div>
+      <div class="scope-flag">獨立驗收 · poker-lab-v10</div>
     </header>
 
     <section class="control-panel" aria-labelledby="setupTitle">
@@ -138,7 +138,7 @@
     </details>
   </main>
 
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=poker-lab-v9"></script>
-  <script src="src/poker-lab/boss-duel-poker-arrangement-lab.js?v=poker-lab-v9"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=poker-lab-v10"></script>
+  <script src="src/poker-lab/boss-duel-poker-arrangement-lab.js?v=poker-lab-v10"></script>
 </body>
 </html>
