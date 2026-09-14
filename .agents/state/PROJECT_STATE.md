@@ -6,11 +6,11 @@
 
 ## Current Status
 
-- 現行遊戲：`frontend-v96`；機率工具：`action-tree-v35`；後端文件：`backend-doc-v9`。
+- 現行遊戲：`frontend-v96`；機率工具：`action-tree-v36`；後端文件：`backend-doc-v9`。
 - 現行規劃器：`boss-plan-v11`；理牌核心：`arrange-v10`；操作軌跡：`story-action-trace-v2`；抑制：`deviation-suppression-v4-configurable-tables`。
 - 現行正式劇本：`natural-story-preset-v13`，共 240,000 筆，不分 Bet；24 格各 10,000 筆，已完成全量重播。
 - Repository 專案工作規則在根目錄 `AGENTS.md`；完整產品規格維持於 `docs/Boss Duel 交接.md`。
-- 本次版本已完成免費換牌費率階梯、缺少規劃換牌紀錄的偏離稽核、新理牌規則及跨頁版本同步。
+- 本次版本已完成機率工具舊版操作／報表順序回復、新版數學欄位收斂、固定個人劇本水池與遊戲機制，以及跨頁版本同步。
 
 ## Active Decisions
 
@@ -23,6 +23,8 @@
 - 免費換牌不扣款、不入池，但增加換牌次數、操作序號並推進費率階梯；第一換免費後，下一次付費收第二階 2x。
 - 劇本無對應 REDRAW 時，合法換牌照常完成並保存 `plannedRecordMissing=true`；原劇本未擊殺才啟動抑制，已擊殺只記偏離。
 - 產品接受隨機操作玩家 RTP 約 2.3%，也接受每日 240,000 筆發布目錄在營運時放回抽樣重用。
+- 機率工具參數固定依玩家行為、模擬規格、退幣條件排列，故事產生置底；報表只保留新版數學模型可成立的欄位。
+- 個人劇本水池與遊戲機制固定啟用；REROLL BOSS 固定收取當前 Bet × 1，並按目標 RTP 計入當下 Bet 桶。
 - 詳細且具權威性的決策只維護在 `docs/Boss Duel 交接.md`，不在本文件重複。
 
 ## In Progress
@@ -55,9 +57,9 @@
 
 ## Validation Status
 
-- `frontend-v96` 已執行 `node tests/run-tests.js`，全部 10 組通過，包含 `natural-story-preset-v13` 的 240,000 筆正式劇本全量重播；24 格各 10,000 筆。
+- `frontend-v96`／`action-tree-v36` 已執行 `node tests/run-tests.js`，全部 10 組通過，包含 `natural-story-preset-v13` 的 240,000 筆正式劇本全量重播；24 格各 10,000 筆。
 - v13 發布簽章為 `4e1d19b9a655cb8f26c819d11ec949967e2d20e89226670beca85cd6bcc81e72`；preset SHA-256 為 `ae7fde63c0b6a4ddb2d176f4a3515ae2c180da8e3595adbf731e6a046c4c7ece`，summary SHA-256 為 `d15846f9029034abf20a24dbcabc4aab3b2d37a12b093f71d990f590603180cd`。
 - 本機瀏覽器已驗證一般／Turbo 十選二魔法卡表演、公開／QA 資訊隔離、傷害與 HP 同步、360×640 無溢位，以及 1 星／8 星擊殺開獎流程；四個測試頁面主控台錯誤與警告皆為 0。
-- 本機瀏覽器已驗證 `frontend-v96`、`action-tree-v35`、`backend-doc-v9` 載入成功，且三頁主控台錯誤皆為 0。
+- 本機瀏覽器已驗證 `action-tree-v36` 的參數順序、8 個報表分頁、逐利玩家 1 人 × 1 隻 BOSS 三桶水池，以及非逐利玩家水池不適用提示；兩條路徑主控台錯誤與警告皆為 0。
 - `arrange-v10` 的同花順／四條強制覆蓋、四張核心雙效果優先及兩張核心補暴擊／固傷定向測試已通過；`boss-plan-v11` 免費換牌階梯與 `suppression-v4` 缺少劇本操作定向測試已通過。
 - Android 與 iOS 實體裝置驗證尚未完成。

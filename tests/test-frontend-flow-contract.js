@@ -11,6 +11,11 @@ const js = fs.readFileSync(path.join(root, "src", "game", "boss-duel-demo.js"), 
 const toolHtml = fs.readFileSync(path.join(root, "機率工具.html"), "utf8");
 const DiceCore = require(path.join(root, "src", "core", "boss-duel-random.js"));
 const Rules = require(path.join(root, "src", "core", "boss-duel-rules.js"));
+const sourceBetween = (source, startMarker, endMarker) => {
+  const start = source.indexOf(startMarker);
+  const end = source.indexOf(endMarker, start);
+  return start >= 0 && end > start ? source.slice(start, end) : "";
+};
 const cssForBalance = css.replace(/\/\*[\s\S]*?\*\//g, "");
 let cssBraceDepth = 0;
 let cssMinimumDepth = 0;
@@ -85,13 +90,13 @@ for (const animation of ["13_showdown", "17_damage", "31_lose_begin", "32_lose_l
   assert(js.includes(`"${animation}"`), `missing Boss animation ${animation}`);
 }
 
-const finishRoundBody = js.match(/function finishRound\([^]*?\n  }\n\n  function beginBossVictoryDialogue/)?.[0] || "";
+const finishRoundBody = sourceBetween(js, "function finishRound(", "function hideBossSpeech(");
 assert(finishRoundBody, "cannot locate finishRound body");
 assert(!finishRoundBody.includes("presentation = null"), "result page must retain the resolved hand");
 assert(!finishRoundBody.includes("bossRevealed = false"), "result page must retain revealed Boss cards");
 assert(!finishRoundBody.includes("totalBetX = 0"), "round completion must preserve the encounter Total Bet");
-const dealRoundBody = js.match(/function dealRound\(\)[^]*?\n  }\n\n  function beginEntryStarReveal/)?.[0] || "";
-const continueRoundBody = js.match(/function continueRound\(\)[^]*?\n  }\n\n  function beginBossDefeat/)?.[0] || "";
+const dealRoundBody = sourceBetween(js, "function dealRound(", "function beginEntryStarReveal(");
+const continueRoundBody = sourceBetween(js, "function continueRound(", "function beginBossDefeat(");
 assert(dealRoundBody.includes("totalBetX += runtimeConfig.entryCostX"), "first round entry fee must enter the Boss encounter Total Bet");
 assert(continueRoundBody.includes("totalBetX += runtimeConfig.entryCostX") && !continueRoundBody.includes("totalBetX = runtimeConfig.entryCostX"), "CONTINUE must accumulate the next round entry fee on the same Boss encounter");
 assert(!js.includes('const displayedTotalBet = encounter.phase === "round-result" ? 0 : totalBet') && js.includes("els.betValue.textContent = totalBet"), "every phase must display the same-Boss accumulated TOTAL BET without a round-result reset");
@@ -172,7 +177,7 @@ assert(js.includes("bossSpineFailedSignature === signature") && js.includes("els
 assert(js.includes("bossSpineLoadingSignature === signature") && js.includes('bossSpineLoadingSignature = ""'), "repeated renders must share one in-flight Boss Spine request");
 assert((js.match(/fallback: "assets\/mobile\/boss-fallback\//g) || []).length === 8, "all eight Bosses require a first-frame fallback while Spine loads");
 assert(js.includes('loadSpineResource(key, "spine-front")') && js.includes("activeBossHandSpine") && js.includes("mergeBossSafeBounds(bodySafeBounds, frontSafeBounds)") && css.includes(".boss-hand-spine-stage"), "all Bosses require their exact synchronized, uncropped foreground hand/arm Spine layer");
-const attackSpineBody = js.match(/async function playAttackSpine\([^]*?\n  }\n\n  function measureBossSafeBounds/)?.[0] || "";
+const attackSpineBody = sourceBetween(js, "async function playAttackSpine(", "function measureBossSafeBounds(");
 assert(js.includes("ATTACK_SOURCE_BOUNDS") && js.includes("x: -541, y: -960.64, width: 1082, height: 1920.65") && attackSpineBody.includes("const bounds = ATTACK_SOURCE_BOUNDS") && !attackSpineBody.includes("spine.getLocalBounds()"), "attack Spine must use its full 1080x1920 source stage instead of a transient first-frame bound that sends later effects offscreen");
 assert(js.includes("function auditBossAnimationCoverage(key)") && js.includes('get("qa") !== "1"') && js.includes("[0, .25, .5, .75, 1]") && js.includes("maximumCriticalVisible") && js.includes("window.__bossPhaseAudit"), "QA mode must sample both Boss layers and critical hand/arm/card visibility at five points per phase without adding production-state work");
 assert(js.includes('els.gameShell.style.top = `${viewportTop + safeArea.top}px`') && /body\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*display:\s*block;/.test(css), "390×695 game canvas must stay top-aligned inside the mobile safe area");
@@ -219,12 +224,12 @@ assert(js.includes('class="combat-magic-chip') && js.includes('data-combat-roll=
 assert(js.includes('const hasHiddenDamageEffect = breakdown.activeEffects.some((effect) => effect.key !== "joker")') && js.includes("if (!hasHiddenDamageEffect)"), "crit, fixed damage, and every hand-type damage multiplier must all reveal their final value during compare");
 assert(html.includes('id="combatLiveDamage"') && css.includes(".combat-live-damage") && js.includes("function combatPreviewDamage(base, effects)") && js.includes('rollingValue === "X1"') && js.includes("setCombatLiveDamage(breakdown.base, true)"), "magic reward rolling must show live damage above the card, with X1 equal to the original hand damage");
 assert(/async function showCombatResolution\(state, result, breakdownInput = null\)[\s\S]*?await runCombatRandomNumbers\(breakdown\.activeEffects, breakdown, token\)[\s\S]*?classList\.add\("formula-ready"\)[\s\S]*?beginAttackPlayback\(state, result, breakdown, attackTier, token\)/.test(js), "all magic values and live damage must stop before formula and attack playback");
-const attackBody = js.match(/async function beginAttackPlayback\([^]*?\n  }\n\n  async function showCombatResolution/)?.[0] || "";
+const attackBody = sourceBetween(js, "async function beginAttackPlayback(", "async function showCombatResolution(");
 for (const marker of ['phase = "attack"', "await playAttackSpine", 'phase = "damage"', 'playBossSequence("17_damage", null)', "encounter.hpLeft =", 'phase = "post-hit"', 'playBossSequence("14_idle_nocard"', "finishRound("]) assert(attackBody.includes(marker), `nonlethal attack sequence missing ${marker}`);
 assert(attackBody.indexOf('phase = "attack"') < attackBody.indexOf('phase = "damage"') && attackBody.indexOf('phase = "damage"') < attackBody.indexOf("encounter.hpLeft =") && attackBody.indexOf("encounter.hpLeft =") < attackBody.indexOf("setMessage(`-${result.damage} HP`") && attackBody.indexOf("encounter.hpLeft =") < attackBody.indexOf('phase = "post-hit"') && attackBody.indexOf('phase = "post-hit"') < attackBody.indexOf("finishRound("), "attack, damage, visible HP, idle, and CONTINUE must remain strictly ordered; the HUD must reflect damage before the damage beat renders");
 assert(js.includes("ATTACK_ANIMATION_SECONDS") && js.includes("findAnimation?.(animation)?.duration") && !js.includes("animationWindowMs(1.6, 80)"), "attack completion must use the selected Spine animation's true runtime instead of a fixed 1.6-second wait");
 assert(js.includes("opened: new Set(), finished: new Set(), settling: false, encounter") && !js.includes('stage: "normal", encounter') && !js.includes("normalRunningSum") && !js.includes("multiplierRunningSum") && !js.includes("schedulePrizeAutoReveal"), "kill reward must let every die animate independently and settle only after all clicked dice finish");
-const rewardRevealBody = js.match(/function revealPrizeDie\(index\)[\s\S]*?\n  }\n\n  function finishPrizeTotal/)?.[0] || "";
+const rewardRevealBody = sourceBetween(js, "function revealPrizeDie(index)", "function finishPrizeTotal(");
 assert(rewardRevealBody.includes("state.opened.add(index)") && rewardRevealBody.includes("setTimeout(() =>") && rewardRevealBody.indexOf("state.opened.add(index)") < rewardRevealBody.indexOf("setTimeout(() =>") && rewardRevealBody.includes("state.finished.add(index)") && rewardRevealBody.includes("state.opened.size === totalDice && state.finished.size === totalDice") && !rewardRevealBody.includes("await prizePause"), "a clicked die must commit immediately, animate independently, and only the all-finished guard may start settlement");
 assert(js.includes("void mountRewardDiceSpines()") && js.includes('setAnimation(0, spineRecord.multiplier ? "golden_flip" : "normal_flip", false)') && js.includes("REWARD_DIE_FLIP_SECONDS") && css.includes("@keyframes reward-die-roll"), "every clicked normal or multiplier die must retain its non-blocking Spine/CSS flip presentation");
 assert(js.includes("function diePipsMarkup(face)") && css.includes(".die-pips") && css.includes(".die.spine-ready.rolling .die-fallback,.die.spine-ready.revealed .die-fallback { display: grid; }"), "normal dice must retain readable DOM pips throughout each independent roll so a blank Spine canvas can never hide the result");
@@ -233,7 +238,7 @@ assert(html.includes('id="rewardIntro"') && html.includes("REVEAL YOUR LUCK!") &
 assert(js.includes("const totalRewardX = dice.total + encounter.coinBonusX") && js.indexOf("setRewardTotal(totalRewardX)") < js.indexOf("settlePrizePayout(totalRewardX)"), "the single displayed TOTAL WIN must still include both locked dice and banked coin-card rewards before payout");
 assert(!js.includes('state.normalFaces.join(" + ")') && !js.includes('state.multiplierFaces.join(" + ")'), "reward display must not expose live subtotals before every independent die has settled");
 assert(css.includes(".cards-cleared #playerCards") && css.includes(".cards-cleared .boss-cards") && css.includes(".cards-cleared .magic-row") && css.includes(".phase-attack.cards-cleared #playerCards") && css.includes(".combat-fx.attack-normal .combat-fx-cards"), "both hands and magic cards must exit before attack, never flash back on attack render, and stay cleared through CONTINUE");
-const bossVictoryBody = js.match(/function beginBossVictoryDialogue\([^]*?\n  }\n\n  function fold/)?.[0] || "";
+const bossVictoryBody = sourceBetween(js, "function beginBossVictoryDialogue(", "function fold(");
 assert(bossVictoryBody.includes('cardsCleared = true') && !bossVictoryBody.includes('boss-victory-dialogue') && bossVictoryBody.indexOf('cardsCleared = true') < bossVictoryBody.indexOf("finishRound("), "Boss victory must clear both hands and expose CONTINUE without a blocking speech phase");
 assert(css.includes(".bound-effect.bound-flatDamage { top: 49px; }") && css.includes(".bound-effect.bound-crit { top: 72px; }") && js.includes('["flatDamage", "crit"]'), "blue fixed damage must remain above yellow critical on the resized card");
 assert(!js.includes("--effect-index"), "bound-effect slots must be keyed by effect type instead of array order");
@@ -267,6 +272,9 @@ assert(js.includes('buttonMarkup("text-fold.png", "FOLD", "")') && !js.includes(
 assert(css.includes('.menu-button::after,.deck-stack::after') && css.includes('width: max(44px,100%)') && css.includes('.phase-ready.has-started #rerollButton') && css.includes('height: 44px'), "small menu, deck, and reroll controls must expose at least a 44px touch target");
 assert(js.includes("let storyExperience = loadStoryExperience(runtimeConfig)") && js.includes("if (leavingFixedStory) storyExperience = null"), "paid reroll from a fixed story must leave the selected story before spawning the next dynamic Boss");
 assert(js.includes("els.rerollButton.hidden = !(ready || roundResult)") && !js.includes('packet.storyRuntimeMode === "FIXED" || !(ready || roundResult)'), "REROLL BOSS must be visible before play and between rounds in fixed and dynamic stories");
+const rerollBody = sourceBetween(js, "function rerollBoss(", "function changeBet(");
+assert(rerollBody.includes('spend(runtimeConfig.entryCostX, { storySpend: false })') && js.includes("entryCostX: 1"), "REROLL BOSS must charge the player current Bet × 1");
+assert(/else if \(NaturalCore && options\.poolAccrual !== false\)[^]*?addPoolCredits\(playerState\.storyBucketBalances, activeBet, amount \* targetRtpPct \/ 100\)/.test(js), "REROLL BOSS spend must accrue target RTP to the active personal story Bet bucket");
 assert(js.includes('.filter((key) => hasBoundMagicEffect(card, key))') && js.includes('Object.prototype.hasOwnProperty.call(card.magicEffects, key)') && js.includes("數值於比牌結算揭露"), "a bound damage card must render without exposing its hidden value before showdown");
 assert(js.includes("publicBaseDamage") && js.includes("魔法值比牌時揭露") && !js.includes("現有傷害 ${result.damage}"), "hand phase must show only base hand damage and must not leak magic values through the total");
 assert.deepEqual(Rules.magicDisplay({ key: "crit", label: "CRITICAL", type: "DMG", value: 5 }), { type: "DMG", label: "CRITICAL" });

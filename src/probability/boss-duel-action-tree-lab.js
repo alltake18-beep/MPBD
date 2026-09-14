@@ -95,56 +95,26 @@
     field("ticketBasis", config.storyPool.ticketBasis);
     field("maxCandidateAttempts", config.storyPool.maxCandidateAttempts);
     renderClassificationRule();
-    syncStoryExperienceIndexOptions();
-    checked("storyCarryEnabled", config.carry.enabled);
-    field("correctionBothWays", String(config.carry.correctionBothWays));
-    field("baselineRecognitionMode", config.carry.baselineRecognitionMode);
-    field("deviationBandPct", config.carry.deviationBandPctOfPlannedSpend);
-    field("maxDeductionPct", config.carry.maxDeductionPctOfGross);
-    field("maxDeductionX", config.carry.maxDeductionX);
-    field("minNetPct", config.carry.minGuaranteedNetPctOfGross);
-    field("maxCreditPct", config.carry.maxCreditPctOfGross);
-    field("maxCreditX", config.carry.maxCreditX);
     field("rewardFloorPct", config.carry.rewardFloorPct);
     field("rewardCeilingMultiple", config.carry.rewardCeilingMultiple);
-    field("disconnectMode", config.carry.disconnectMode);
-    checked("termExplicitAbandon", config.carry.eligibleTermination.explicitAbandon);
-    checked("termBossReroll", config.carry.eligibleTermination.bossReroll);
-    checked("termBetSwitch", config.carry.eligibleTermination.betSwitch);
-    checked("termRoundExhausted", config.carry.eligibleTermination.roundExhausted);
-    renderNaturalMetrics();
   }
 
   function readFixedControls() {
-    config.targetCoreRtpPct = number($("targetCoreRtp").value, 96);
-    config.tolerancePp = number($("tolerancePp").value, 0.01);
-    config.storyPool.winMinReturnX = number($("winMinReturnX").value, 3);
-    config.storyPool.pushMinReturnX = number($("pushMinReturnX").value, 1);
+    config.targetCoreRtpPct = number($("targetCoreRtp")?.value, 96);
+    config.tolerancePp = number($("tolerancePp")?.value, 0.01);
+    config.storyPool.winMinReturnX = number($("winMinReturnX")?.value, 3);
+    config.storyPool.pushMinReturnX = number($("pushMinReturnX")?.value, 1);
     config.storyPool.candidateDrawMode = "FULL_CLASS_UNIFORM";
-    config.storyPool.ticketBasis = number($("ticketBasis").value, 1000000);
-    config.storyPool.maxCandidateAttempts = number($("maxCandidateAttempts").value, 10000);
+    config.storyPool.ticketBasis = number($("ticketBasis")?.value, 1000000);
+    config.storyPool.maxCandidateAttempts = number($("maxCandidateAttempts")?.value, 10000);
     config.ticketMode = "DYNAMIC";
     config.seedMode = "FIXED";
-    const seedText = $("seed").value.trim();
+    const seedText = $("seed")?.value.trim() || "";
     if (seedText !== "") config.seed = Math.round(number(seedText, config.seed));
-    config.carry.enabled = $("storyCarryEnabled").checked;
-    config.mechanics.storyCarryEnabled = config.carry.enabled;
-    config.carry.correctionBothWays = $("correctionBothWays").value === "true";
-    config.carry.baselineRecognitionMode = $("baselineRecognitionMode").value;
-    config.carry.deviationBandPctOfPlannedSpend = number($("deviationBandPct").value, 0);
-    config.carry.maxDeductionPctOfGross = number($("maxDeductionPct").value, 50);
-    config.carry.maxDeductionX = number($("maxDeductionX").value, 100);
-    config.carry.minGuaranteedNetPctOfGross = number($("minNetPct").value, 50);
-    config.carry.maxCreditPctOfGross = number($("maxCreditPct").value, 50);
-    config.carry.rewardCorrectionPct = Math.min(config.carry.maxDeductionPctOfGross, config.carry.maxCreditPctOfGross);
-    config.carry.maxCreditX = number($("maxCreditX").value, 100);
-    config.carry.rewardFloorPct = number($("rewardFloorPct").value, 10);
-    config.carry.rewardCeilingMultiple = number($("rewardCeilingMultiple").value, 10);
-    config.carry.disconnectMode = $("disconnectMode").value;
-    config.carry.eligibleTermination.explicitAbandon = $("termExplicitAbandon").checked;
-    config.carry.eligibleTermination.bossReroll = $("termBossReroll").checked;
-    config.carry.eligibleTermination.betSwitch = $("termBetSwitch").checked;
-    config.carry.eligibleTermination.roundExhausted = $("termRoundExhausted").checked;
+    config.carry.enabled = true;
+    config.mechanics.storyCarryEnabled = true;
+    config.carry.rewardFloorPct = number($("rewardFloorPct")?.value, 10);
+    config.carry.rewardCeilingMultiple = number($("rewardCeilingMultiple")?.value, 10);
     config = Core.sanitizeConfig(config);
     field("winMinReturnX", config.storyPool.winMinReturnX);
     field("pushMinReturnX", config.storyPool.pushMinReturnX);
@@ -323,15 +293,7 @@
     status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "故事池驗證完成" : "故事池驗證失敗"}</strong><span>${state.pending ? "按「開始模擬」後自動檢查 24 個結果資料格各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏少、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
   }
 
-  const switchLabels = {
-    actionTreeEnabled: "自然故事池／三候選", magicEnabled: "魔法卡", jokerEnabled: "Joker",
-    freeDrawEnabled: "免費換牌", coinEnabled: "金幣卡", critEnabled: "暴擊卡", flatEnabled: "固傷卡",
-    pokerBoostEnabled: "牌型傷害卡", bossRerollEnabled: "REROLL BOSS",
-    paidDrawEnabled: "付費 REDRAW", tieRedealEnabled: "完全平手免費重發"
-  };
-
   function buildMechanics() {
-    $("switchGrid").innerHTML = Object.entries(switchLabels).map(([key, label]) => `<div class="switch-row"><strong>${label}</strong><label class="switch" aria-label="${label}"><input data-mechanic-switch="${key}" type="checkbox" ${config.mechanics[key] ? "checked" : ""}><span></span></label></div>`).join("");
     const simulationInput = (key, label, step) => `<label>${label}<input data-simulation-field="${key}" type="number" step="${step}" value="${config.simulation[key]}"></label>`;
     const betMode = `<label>Bet 模式<select data-simulation-field="betMode"><option value="FIXED"${config.simulation.betMode === "FIXED" ? " selected" : ""}>固定 Bet</option><option value="RANDOM_B1"${config.simulation.betMode === "RANDOM_B1" ? " selected" : ""}>第一組 Bet 隨機</option><option value="RANDOM_ALL"${config.simulation.betMode === "RANDOM_ALL" ? " selected" : ""}>全部 Bet 隨機</option><option value="SCHEDULED"${config.simulation.betMode === "SCHEDULED" ? " selected" : ""}>排程 Bet</option></select></label>`;
     const playerBehaviorOptions = [
@@ -343,33 +305,32 @@
     const playerBehavior = `<label>玩家行為<select data-simulation-field="playerBehavior">${playerBehaviorOptions.map(([value, label]) => `<option value="${value}"${config.simulation.playerBehavior === value ? " selected" : ""}>${label}</option>`).join("")}</select></label>`;
     $("simulationGrid").innerHTML = `
       <section class="param-group">
-        <h3>模擬規模</h3>
+        <h3>玩家行為</h3>
         <div class="field-list">
-          ${simulationInput("playerCount", "玩家數", 1)}
-          ${simulationInput("bossesPerPlayer", "每位玩家 Boss 數", 1)}
-          ${simulationInput("roundSlice", "RTP 切片 Boss 數", 1)}
+          ${playerBehavior}
+          ${simulationInput("earlyTerminationPct", "提前離開率（%）", 0.1)}
         </div>
       </section>
       <section class="param-group">
-        <h3>玩家與 Bet</h3>
+        <h3>模擬規格</h3>
         <div class="field-list">
-          ${playerBehavior}
+          ${simulationInput("playerCount", "玩家數", 1)}
+          ${simulationInput("bossesPerPlayer", "每位玩家 BOSS 數", 1)}
+          ${simulationInput("roundSlice", "RTP 切片 BOSS 數", 1)}
           ${betMode}
           ${simulationInput("fixedBet", "固定 Bet", 0.01)}
-          ${simulationInput("earlyTerminationPct", "三玩家統計提前離開率（%）", 0.1)}
+          <label>模擬種子<input id="seed" type="number" min="0" max="4294967295" step="1" value="${config.seed}" placeholder="留白＝每次隨機"></label>
         </div>
       </section>
-      <details class="nested-param-card simulation-advanced" open>
-        <summary>退幣統計設定</summary>
-        <section class="param-group">
-          <h3>退幣條件（退幣率是跑完後的結果）</h3>
-          <div class="field-list">
-            ${simulationInput("cashoutPlayerCount", "獨立玩家數", 1)}
-            ${simulationInput("cashoutStartX", "起始資產（x）", 0.1)}
-            ${simulationInput("cashoutTargetX", "退幣目標（x）", 0.1)}
-          </div>
-        </section>
-      </details>
+      <section class="param-group">
+        <h3>退幣條件</h3>
+        <div class="field-list">
+          <label>目標長期 RTP（%）<input id="targetCoreRtp" type="number" min="80" max="99" step="0.001" value="${config.targetCoreRtpPct}"></label>
+          ${simulationInput("cashoutPlayerCount", "獨立玩家數", 1)}
+          ${simulationInput("cashoutStartX", "起始資產（x）", 0.1)}
+          ${simulationInput("cashoutTargetX", "退幣目標（x）", 0.1)}
+        </div>
+      </section>
       <details class="nested-param-card simulation-advanced" open>
         <summary>波動與報表設定</summary>
         <section class="param-group">
@@ -389,8 +350,7 @@
     $("magicTableBody").innerHTML = config.magicRows.map((row, rowIndex) => `<tr>${row.map((value, columnIndex) => `<td>${columnIndex === 7 ? `<label class="switch compact-switch" aria-label="${esc(row[1])}啟用"><input data-magic-row="${rowIndex}" data-column="${columnIndex}" type="checkbox" ${value ? "checked" : ""}><span></span></label>` : columnIndex === 0 || columnIndex === 1 || columnIndex === 6 ? `<input data-magic-row="${rowIndex}" data-column="${columnIndex}" type="text" value="${esc(value)}" ${columnIndex === 0 ? "readonly" : ""}>` : `<input data-magic-row="${rowIndex}" data-column="${columnIndex}" type="number" step="0.01" value="${value}">`}</td>`).join("")}</tr>`).join("");
     $("handTableBody").innerHTML = config.handRows.map((row, rowIndex) => `<tr>${[0, 1, 4].map((columnIndex) => `<td><input data-hand-row="${rowIndex}" data-column="${columnIndex}" type="${columnIndex < 2 ? "text" : "number"}" step="1" value="${esc(row[columnIndex])}" ${columnIndex === 0 ? "readonly" : ""}></td>`).join("")}</tr>`).join("");
     $("drawFeeGrid").innerHTML = config.drawFeesX.map((value, index) => `<label>第 ${index + 1} 次<input data-draw-fee="${index}" type="number" min="0" step="0.01" value="${value}"></label>`).join("");
-    $("naturalDealGrid").innerHTML = [
-      ["refreshCostX", "REROLL BOSS 費用（x）", 0.1],
+    $("naturalDealGrid").innerHTML = `<label>REROLL BOSS 費用（x）<input type="number" value="1" readonly><span class="field-help">固定為當前押注額 × 1。</span></label>` + [
       ["deckStopCount", "牌堆停止張數", 1],
       ["playerBadHighRerollPct", "玩家爛高牌重抽率（%）", 0.1],
       ["bossBadHighRerollPct", "Boss 爛高牌重抽率（%）", 0.1],
@@ -532,7 +492,7 @@
     return result;
   }
 
-  function renderSimulation(result) {
+  function renderSimulationLegacy(result) {
     if (!result.ticketHealth) result = preparePlayerModelReport(result);
     reportDigits = Math.max(0, Math.min(8, Math.trunc(number(result.config.simulation.decimalPlaces, 2))));
     const t = result.totals;
@@ -840,6 +800,183 @@
     if (resultsArea) resultsArea.classList.remove("is-hidden");
   }
 
+  function renderSimulation(result) {
+    if (!result.ticketHealth) result = preparePlayerModelReport(result);
+    reportDigits = Math.max(0, Math.min(8, Math.trunc(number(result.config.simulation.decimalPlaces, 2))));
+    const t = result.totals;
+    const p = result.playerDistribution;
+    const c = result.cashout;
+    const correctionHealth = result.correctionHealth;
+    const smartStoryModel = result.config.simulation.playerBehavior === "SMART";
+    const ratioPct = (part, total) => number(part) / Math.max(number(total), 1e-9) * 100;
+    const rowHtml = (cells, heading = false) => `<tr>${cells.map((cell, index) => index === 0 && heading ? `<th>${cell}</th>` : `<td>${cell}</td>`).join("")}</tr>`;
+
+    $("simSpend").textContent = x(t.spend);
+    $("simPayout").textContent = x(t.net);
+    $("simGrossRtp").textContent = pct(t.grossRtpPct, 4);
+    $("simNetRtp").textContent = pct(t.netRtpPct, 4);
+    $("simOffset").textContent = `補 ${x(t.bonus)}／扣 ${x(t.deduction)}`;
+    $("simKillAbort").textContent = `${pct(t.killRatePct, 2)}／${pct(100 - t.killRatePct, 2)}`;
+    $("simRoundsDraws").textContent = `${t.avgRoundsPerBoss.toFixed(2)}／${t.avgDrawsPerBoss.toFixed(2)}`;
+    $("simCarry").textContent = `${signedX(t.endingCarryX)}（守恆誤差 ${x(t.telescopeErrorX, 8)}）`;
+
+    $("reportOverviewCards").innerHTML = [
+      ["玩家 RTP", pct(t.netRtpPct, 4)], ["總投入", x(t.spend)], ["玩家實付獎", x(t.net)],
+      ["挑戰 BOSS", count(t.bosses)], ["擊殺率", pct(t.killRatePct, 2)],
+      ["平均回合／BOSS", t.avgRoundsPerBoss.toFixed(2)], ["平均換牌／BOSS", t.avgDrawsPerBoss.toFixed(2)]
+    ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+
+    const highStarRows = result.starStats.filter((row) => row.star >= 7);
+    const highStarCount = highStarRows.reduce((sum, row) => sum + row.count, 0);
+    const highStarRewardX = highStarRows.reduce((sum, row) => sum + row.bossRewardXSum, 0);
+    const highStarRewardCount = highStarRows.reduce((sum, row) => sum + row.bossRewardCount, 0);
+    $("bossExperienceBody").innerHTML = [
+      ["挑戰總次數", count(t.bosses), "實際建立並結算的 BOSS"],
+      ["擊殺率", pct(t.killRatePct, 2), "擊殺 BOSS ÷ 挑戰總次數"],
+      ["平均獲得 Joker", t.jokerDraws ? `${(t.rounds / t.jokerDraws).toFixed(2)} 回合／次` : "—", "只計實際抽出的 Joker"],
+      ["BOSS 獎平均賠率", t.bossRewardCount ? `${(t.bossRewardXSum / t.bossRewardCount).toFixed(2)}x` : "—", "只計成功派發的 BOSS 擊殺獎"],
+      ["7–8 星 BOSS 獎平均賠率", highStarRewardCount ? `${(highStarRewardX / highStarRewardCount).toFixed(2)}x` : "—", "只計 7–8 星成功派發的 BOSS 獎"],
+      ["平均幾隻遇到 7–8 星", highStarCount ? (t.bosses / highStarCount).toFixed(2) : "—", "全部 BOSS ÷ 7–8 星出現次數"]
+    ].map((row) => rowHtml(row, true)).join("");
+
+    $("cashoutStatsBody").innerHTML = c.available === false
+      ? rowHtml(["—", "—", "—", "—", "—", "—", "—"])
+      : rowHtml([count(c.totalPlayers), count(c.successes), count(c.deaths), pct(c.cashoutRatePct, 2), c.avgPlayedRounds.toFixed(reportDigits), c.avgDeathRounds.toFixed(reportDigits), c.avgBossKills.toFixed(reportDigits)]);
+
+    const handByKey = Object.fromEntries(result.handStats.map((row) => [row.key, row]));
+    const avgDrawsFor = (keys) => {
+      const rows = keys.map((key) => handByKey[key]).filter(Boolean);
+      const hands = rows.reduce((sum, row) => sum + row.playerFinal, 0);
+      const draws = rows.reduce((sum, row) => sum + row.compareDraws, 0);
+      return hands ? (draws / hands).toFixed(2) : "—";
+    };
+    $("drawByHandBody").innerHTML = [
+      ["順子（含以上）", ["straight", "flush", "fullHouse", "four", "straightFlush"]],
+      ["同花", ["flush"]], ["葫蘆", ["fullHouse"]], ["四條", ["four"]], ["同花順", ["straightFlush"]]
+    ].map(([label, keys]) => rowHtml([label, avgDrawsFor(keys)], true)).join("");
+
+    const behaviorLabels = {
+      SMART: "逐利玩家（真實劇情／含理牌）", OFFICIAL_FUNDED: "聰明玩家（官方策略）",
+      FREE_RIDE: "白嫖玩家", EXTREME: "極端玩家"
+    };
+    const betModeLabels = { FIXED: "固定 Bet", RANDOM_B1: "第一組 Bet 隨機", RANDOM_ALL: "全部 Bet 隨機", SCHEDULED: "排程 Bet" };
+    $("runInfoBody").innerHTML = [
+      ["統計時間", new Date(result.runInfo.reportCompletedAt).toLocaleString("zh-Hant"), "本次模擬完成時間"],
+      ["統計花費時間", `${Math.max(0, result.runInfo.reportElapsedMs)}ms`, smartStoryModel ? "正式故事逐局動態配籤" : "玩家獨立統計模型"],
+      ["玩家行為", behaviorLabels[result.config.simulation.playerBehavior] || esc(result.config.simulation.playerBehavior), "本次只跑一種策略"],
+      ["Bet 模式", betModeLabels[result.config.simulation.betMode] || esc(result.config.simulation.betMode), `固定 Bet ${result.config.simulation.fixedBet}`],
+      ["玩家數", count(result.config.simulation.playerCount), smartStoryModel ? "逐利玩家的退幣統計不適用" : `退幣另跑 ${count(result.config.simulation.cashoutPlayerCount)} 人`],
+      ["每位玩家 BOSS 數", count(result.config.simulation.bossesPerPlayer), "主模擬規格"],
+      ["RTP 切片", `${count(result.config.simulation.roundSlice)} BOSS`, "RTP 走勢區間"],
+      ["種子", String(result.config.seed), "相同參數與種子可重現"],
+      ["目標長期 RTP", pct(result.config.targetCoreRtpPct, 3), "個人劇本水池入池比例與動態配籤目標"]
+    ].map((row) => rowHtml(row, true)).join("");
+
+    $("spendSourceBody").innerHTML = [
+      ["START／CONTINUE", t.entrySpend], ["付費 REDRAW", t.drawSpend], ["REROLL BOSS（Bet × 1）", t.refreshSpend]
+    ].map(([label, value]) => rowHtml([label, x(value), pct(ratioPct(value, t.spend), 2)], true)).join("");
+    const payoutRows = [["BOSS 擊殺獎", t.bossGross], ["牌型獎", t.handGross], ["魔法卡獎", t.magicGross]];
+    if (smartStoryModel) payoutRows.push([t.bonus >= t.deduction ? "個人劇本水池補正" : "個人劇本水池扣抵", t.bonus - t.deduction]);
+    $("payoutSourceBody").innerHTML = payoutRows.map(([label, value]) => rowHtml([label, x(value), pct(ratioPct(value, t.spend), 3)], true)).join("");
+
+    let cumulativeKills = 0;
+    $("rtpTrendBody").innerHTML = result.roundSlices.map((row) => {
+      cumulativeKills += row.kills;
+      return rowHtml([`${row.startBoss}～${row.endBoss}`, pct(row.cumulativeNetRtpPct, 3), pct(row.netRtpPct, 3), count(cumulativeKills)], true);
+    }).join("");
+
+    const playerBucketRows = result.payoutBuckets.playerBoss || [];
+    const totalBucketCount = playerBucketRows.reduce((sum, row) => sum + row.count, 0);
+    const totalBucketSpend = playerBucketRows.reduce((sum, row) => sum + row.spend, 0);
+    let cumulativePlayerPayout = 0;
+    const cumulativeByBucket = new Map();
+    [...playerBucketRows].sort((left, right) => left.bucket - right.bucket).forEach((row) => {
+      cumulativePlayerPayout += row.net;
+      cumulativeByBucket.set(row.bucket, cumulativePlayerPayout);
+    });
+    $("playerBossBucketBody").innerHTML = [...playerBucketRows].sort((left, right) => right.bucket - left.bucket).map((row) => rowHtml([
+      row.bucket === 1000 ? "≥1000x" : `${row.bucket}x`, pct(ratioPct(cumulativeByBucket.get(row.bucket), totalBucketSpend), 3),
+      row.count ? (totalBucketCount / row.count).toFixed(2) : "—", count(row.count)
+    ], true)).join("");
+
+    $("starStatsBody").innerHTML = result.starStats.map((row) => {
+      const avgRewardX = row.bossRewardCount ? row.bossRewardXSum / row.bossRewardCount : 0;
+      return rowHtml([`${row.star}★`, count(row.count), row.count ? (t.bosses / row.count).toFixed(2) : "—",
+        pct(ratioPct(row.kills, row.count), 2), pct(ratioPct(row.net, row.spend), 3), pct(ratioPct(row.bossGross, t.spend), 3),
+        row.bossRewardCount ? `${x(row.minBossRewardX)}／${x(avgRewardX)}／${x(row.maxBossRewardX)}` : "—",
+        count(row.jokerDraws), count(row.straightFlushKills), (row.draws / Math.max(row.count, 1)).toFixed(2),
+        (row.drawSpendX / Math.max(row.count, 1)).toFixed(2), count(row.refreshes)], true);
+    }).join("");
+
+    const totalStartHands = result.handStats.reduce((sum, row) => sum + row.playerStart, 0);
+    const totalFinalHands = result.handStats.reduce((sum, row) => sum + row.playerFinal, 0);
+    const totalBossHands = result.handStats.reduce((sum, row) => sum + row.bossFinal, 0);
+    $("handStatsBody").innerHTML = result.handStats.map((row) => rowHtml([
+      esc(row.label), pct(ratioPct(row.payout, t.spend), 3), pct(ratioPct(row.playerWins, row.playerFinal), 2),
+      pct(ratioPct(row.playerStart, totalStartHands), 3), pct(ratioPct(row.playerFinal, totalFinalHands), 3),
+      pct(ratioPct(row.bossFinal, totalBossHands), 3), (row.damage / Math.max(row.playerFinal, 1)).toFixed(3), row.baseDamage.toFixed(2)
+    ], true)).join("");
+    $("magicStatsBody").innerHTML = result.magicStats.map((row) => rowHtml([
+      esc(row.label), count(row.draws), pct(ratioPct(row.effective, row.draws), 2), row.draws ? (t.rounds / row.draws).toFixed(2) : "—"
+    ], true)).join("");
+
+    if (!smartStoryModel) {
+      $("storySummaryCards").innerHTML = '<article><span>本次玩家模型</span><strong>不使用正式故事逐局水池</strong></article>';
+      $("carryBucketBody").innerHTML = '<tr><td colspan="10">此玩家模型只提供玩家行為、RTP 與退幣統計；個人劇本水池請使用「逐利玩家」。</td></tr>';
+      $("carryAuditBody").innerHTML = '<tr><th>本次資料</th><td>不適用</td><td>本頁只採用新版正式故事逐局帳務。</td></tr>';
+      $("correctionHealthBody").innerHTML = '<tr><th>補正統計</th><td>不適用</td><td>請切換為逐利玩家後執行。</td></tr>';
+      $("carryBucketTailBody").innerHTML = '<tr><td colspan="11">本次不產生三桶玩家尾部。</td></tr>';
+      $("copyStatisticsButton").disabled = false;
+      $("exportStatisticsButton").disabled = false;
+      $("resultsArea").classList.remove("is-hidden");
+      return;
+    }
+
+    $("storySummaryCards").innerHTML = [
+      ["玩家實際投入", x(t.spend)], ["玩家最終實付獎", x(t.net)], ["玩家 RTP", pct(t.netRtpPct, 4)],
+      ["目標 RTP 入池額", signedX(t.targetAccrualCredits)], ["補正／扣抵", `${x(t.bonus)}／${x(t.deduction)}`],
+      ["期末個人劇本水池", `${signedX(t.endingCarryX)}／誤差 ${x(t.telescopeErrorX, 8)}`]
+    ].map(([label, value]) => `<article><span>${label}</span><strong>${value}</strong></article>`).join("");
+
+    $("carryBucketBody").innerHTML = result.carryBucketStats.map((row) => rowHtml([
+      row.label, row.bets.join("／"), count(row.bosses), signedX(row.targetAccrualCredits), signedX(row.organicPayoutCredits),
+      signedX(row.currentBossGapCredits), x(row.correctionIncreaseCredits), x(row.correctionDecreaseCredits),
+      pct(row.correctionRatePct, 2), signedX(row.endingBalanceCredits)
+    ], true)).join("");
+
+    const carryTailPp = Math.abs(t.endingCarryX) / Math.max(t.spend, 1e-9) * 100;
+    $("carryAuditBody").innerHTML = [
+      ["玩家實際投入", x(t.spend), "START／CONTINUE、付費 REDRAW、REROLL BOSS 的實付合計"],
+      ["目標 RTP 入池額", signedX(t.targetAccrualCredits), `實際投入 × ${pct(config.targetCoreRtpPct, 3)}`],
+      ["自然派彩", x(t.organicPayout), "自然派彩從相同 Bet 桶扣除"],
+      ["BOSS 合法骰面補正／扣抵", `${x(t.bonus)}／${x(t.deduction)}`, `原獎 10%～1,000%；觸發率 ${pct(t.correctionRatePct, 2)}`],
+      ["期末個人劇本水池", signedX(t.endingCarryX), `占實際投入 ${pct(carryTailPp, 4)}`],
+      ["守恆誤差", x(t.telescopeErrorX, 8), Math.abs(t.telescopeErrorX) < 1e-7 ? "通過" : "需檢查"]
+    ].map((row) => rowHtml(row, true)).join("");
+
+    const correctionReasonLabels = {
+      APPLIED: "已套用合法骰面", ZERO_POOL: "差額為 0", NOT_KILLED: "未擊殺",
+      NO_ORIGINAL_REWARD: "原 BOSS 獎為 0", NO_LEGAL_OUTCOME: "合法骰面不足",
+      CORRECTION_DISABLED: "補正未執行", UNKNOWN: "未分類"
+    };
+    const correctionRows = [
+      ["補正機會／實際套用", `${count(correctionHealth.opportunities)}／${count(correctionHealth.applied)}`, "只有非零差額才算補正機會"],
+      ["需求／實際吸收", `${x(correctionHealth.requestedAbsCredits)}／${x(correctionHealth.appliedAbsCredits)}`, `吸收率 ${pct(correctionHealth.utilizationPct, 2)}`],
+      ["部分吸收／上下界卡住", `${count(correctionHealth.partial)}／${count(correctionHealth.capLimited)}`, "剩餘差額留在相同 Bet 桶"]
+    ];
+    Object.entries(correctionHealth.reasons).forEach(([key, value]) => correctionRows.push([correctionReasonLabels[key] || key, count(value), "本次 BOSS 補正結果"]));
+    $("correctionHealthBody").innerHTML = correctionRows.map((row) => rowHtml(row, true)).join("");
+    $("carryBucketTailBody").innerHTML = result.carryBucketTailStats.map((row) => rowHtml([
+      row.label, count(row.positivePlayers), count(row.negativePlayers), count(row.zeroPlayers), signedX(row.meanCredits),
+      x(row.absP50Credits), x(row.absP90Credits), x(row.absP95Credits), x(row.absP99Credits), x(row.maxAbsCredits),
+      pct(ratioPct(row.endingAbsCredits, row.spendCredits), 4)
+    ], true)).join("");
+
+    $("copyStatisticsButton").disabled = false;
+    $("exportStatisticsButton").disabled = false;
+    $("resultsArea").classList.remove("is-hidden");
+  }
+
   function clearSimulation(message = "參數已變更，請重新執行") {
     simulationResult = null;
     simulationHash = "";
@@ -862,10 +999,7 @@
     if (options.readTree) readTreeMatrix();
     readFixedControls();
     design = null;
-    renderTreeMatrix();
     updateExample();
-    renderNaturalMetrics();
-    renderSummary();
   }
 
   function markDirty(mechanic = false) {
@@ -886,7 +1020,7 @@
     readTreeMatrix();
     config = Core.sanitizeConfig(config);
     $("runSimulationButton").disabled = true;
-    $("simulationState").textContent = "正在載入 240,000 個正式故事摘要並驗證 24 個結果資料格各 10,000 局…";
+    $("simulationState").textContent = "正在載入正式故事資料…";
     requestAnimationFrame(() => {
       try {
         const summaryPreset = window.BossDuelStorySummaryPresetV1;
@@ -913,22 +1047,13 @@
         $("resultsArea").classList.add("is-hidden");
         $("copyStatisticsButton").disabled = true;
         $("exportStatisticsButton").disabled = true;
-        $("simulationState").textContent = "完成：240,000 個正式故事（每星三分類各 10,000），準備執行統計。";
-        syncStoryExperienceIndexOptions();
-        $("storyExperienceOpen").closest("details").open = true;
-        renderStoryExperience();
-        renderNaturalClassAverages();
-        renderNaturalMetrics();
-        renderTreeMatrix();
+        $("simulationState").textContent = "正式故事資料載入完成，準備執行統計。";
         if (options.runAfterLoad) runRuntimeSimulation();
       } catch (error) {
         catalogPool = null;
-        renderStoryExperience();
-        renderNaturalClassAverages();
         clearSimulation(`故事產生失敗：${error.message}`);
       }
       if (!options.runAfterLoad || !catalogPool) $("runSimulationButton").disabled = false;
-      renderSummary();
     });
   }
 
@@ -968,7 +1093,6 @@
         clearSimulation(`動態模擬失敗：${error.message}`);
       }
       $("runSimulationButton").disabled = false;
-      renderSummary();
     });
   }
 
@@ -1098,23 +1222,17 @@
     simulationHash = "";
     dirty = true;
     mechanicsDirty = false;
-    field("seed", "");
-    hydrateFixedControls();
     design = null;
     buildMechanics();
+    hydrateFixedControls();
+    field("seed", "");
     persistSuppressionPolicy();
-    renderTreeMatrix();
-    renderNaturalClassAverages();
     clearSimulation("已還原新模型範例，請執行模擬");
     updateExample();
-    renderNaturalMetrics();
-    renderSummary();
   }
 
   function bindEvents() {
-    const globalIds = new Set(["targetCoreRtp", "tolerancePp", "winMinReturnX", "pushMinReturnX", "ticketBasis", "maxCandidateAttempts", "seed",
-      "storyCarryEnabled", "correctionBothWays", "baselineRecognitionMode", "deviationBandPct", "maxDeductionPct", "maxDeductionX", "minNetPct", "maxCreditPct", "maxCreditX",
-      "disconnectMode", "termExplicitAbandon", "termBossReroll", "termBetSwitch", "termRoundExhausted"]);
+    const globalIds = new Set(["targetCoreRtp", "tolerancePp", "winMinReturnX", "pushMinReturnX", "ticketBasis", "maxCandidateAttempts", "seed", "rewardFloorPct", "rewardCeilingMultiple"]);
     document.addEventListener("change", (event) => {
       const target = event.target;
       if (target.matches("[data-tree-field]")) {
@@ -1127,7 +1245,7 @@
         recompute({ readTree: true });
         return;
       }
-      if (target.matches("[data-mechanic-switch], [data-simulation-field], [data-rule-field], [data-boss-row], [data-magic-row], [data-hand-row], [data-draw-fee], [data-suppression-path], [data-suppression-table], [data-suppression-table-enabled]")) {
+      if (target.matches("[data-simulation-field], [data-rule-field], [data-boss-row], [data-magic-row], [data-hand-row], [data-draw-fee], [data-suppression-path], [data-suppression-table], [data-suppression-table-enabled]")) {
         readMechanicTarget(target);
         markDirty(!target.matches("[data-simulation-field]"));
         config = Core.sanitizeConfig(config);
@@ -1158,13 +1276,6 @@
       $("statisticsReports").querySelectorAll(".report-panel").forEach((panel) => panel.classList.toggle("active", panel.id === button.dataset.reportPanel));
     });
     $("runSimulationButton").addEventListener("click", startSimulation);
-    ["storyExperienceStar", "storyExperienceClass"].forEach((id) =>
-      $(id).addEventListener("change", () => { syncStoryExperienceIndexOptions(); renderStoryExperience(); })
-    );
-    ["storyExperienceSource", "storyExperienceIndex"].forEach((id) =>
-      $(id).addEventListener("change", renderStoryExperience)
-    );
-    $("storyExperienceOpen").addEventListener("click", openStoryExperience);
     $("copyStatisticsButton").addEventListener("click", copyStatistics);
     $("exportStatisticsButton").addEventListener("click", () => downloadStatistics());
     $("restoreButton").addEventListener("click", restoreDefaults);
@@ -1172,14 +1283,11 @@
   }
 
   function init() {
-    hydrateFixedControls();
     design = null;
     buildMechanics();
-    renderTreeMatrix();
-    renderStoryExperience();
-    renderNaturalClassAverages();
+    hydrateFixedControls();
+    field("seed", "");
     updateExample();
-    renderSummary();
     bindEvents();
   }
 

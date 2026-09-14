@@ -168,9 +168,24 @@
         ticketsBps: source.ticketsBps ? TREE_KEYS.reduce((rows, key) => { rows[key] = integer(source.ticketsBps[key], 0, 0, TICKET_BASIS); return rows; }, {}) : null
       };
     });
+    Object.assign(config.mechanics, {
+      actionTreeEnabled: true,
+      storyCarryEnabled: true,
+      magicEnabled: true,
+      jokerEnabled: true,
+      freeDrawEnabled: true,
+      coinEnabled: true,
+      critEnabled: true,
+      flatEnabled: true,
+      pokerBoostEnabled: true,
+      chainEnabled: false,
+      bossRerollEnabled: true,
+      paidDrawEnabled: true,
+      tieRedealEnabled: true,
+      strictNaturalGate: true
+    });
     const c = config.carry;
-    c.enabled = Boolean(c.enabled && config.mechanics.storyCarryEnabled);
-    config.mechanics.storyCarryEnabled = c.enabled;
+    c.enabled = true;
     c.deviationBandPctOfPlannedSpend = clamp(finite(c.deviationBandPctOfPlannedSpend, 0), 0, 100);
     c.maxDeductionPctOfGross = clamp(finite(c.maxDeductionPctOfGross, 25), 0, 100);
     c.maxDeductionX = clamp(finite(c.maxDeductionX, 100), 0, 1000000);
@@ -216,7 +231,7 @@
     s.highStarVolatilityStep = clamp(finite(s.highStarVolatilityStep, 0.045), 0, 0.25);
     s.payoutCapX = clamp(finite(s.payoutCapX, 1000), 1, 1000000);
     s.playerBehavior = PLAYER_BEHAVIORS.includes(String(s.playerBehavior)) ? String(s.playerBehavior) : "SMART";
-    config.ruleSettings.refreshCostX = clamp(finite(config.ruleSettings.refreshCostX, 1), 0, 1000000);
+    config.ruleSettings.refreshCostX = 1;
     config.ruleSettings.deckStopCount = integer(config.ruleSettings.deckStopCount, 10, 1, 54);
     config.ruleSettings.playerBadHighRerollPct = clamp(finite(config.ruleSettings.playerBadHighRerollPct, 50), 0, 100);
     config.ruleSettings.bossBadHighRerollPct = clamp(finite(config.ruleSettings.bossBadHighRerollPct, 25), 0, 100);
@@ -771,8 +786,8 @@
         const refreshProbability = config.mechanics.bossRerollEnabled ? clamp(0.015 + star.star * 0.002 + (treeKey === "lose" ? 0.015 : 0), 0, 0.12) : 0;
         const refreshed = !aborted && random() < refreshProbability;
         const refreshSpend = refreshed ? config.ruleSettings.refreshCostX * bet : 0;
-        const actionSpend = bet + paidDrawCost + refreshSpend;
-        const actualSpend = Math.max(bet, (baselineSpend * 0.72 + actionSpend * 0.28) * (aborted ? 0.30 + 0.52 * random() : 0.88 + 0.24 * random()));
+        const actionSpendBeforeRefresh = bet + paidDrawCost;
+        const actualSpend = Math.max(bet, (baselineSpend * 0.72 + actionSpendBeforeRefresh * 0.28) * (aborted ? 0.30 + 0.52 * random() : 0.88 + 0.24 * random())) + refreshSpend;
         const plannedPayout = baselineSpend * star.conditionalRtpPct[treeKey] / 100;
         const hpMin = Math.max(1, finite(bossRule?.[1], 1));
         const hpMax = Math.max(hpMin, finite(bossRule?.[2], hpMin));

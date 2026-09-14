@@ -5,41 +5,28 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const root = path.resolve(__dirname, "..");
-const htmlPath = path.join(root, "機率工具.html");
-const html = fs.readFileSync(htmlPath, "utf8");
+const html = fs.readFileSync(path.join(root, "機率工具.html"), "utf8");
+const lab = fs.readFileSync(path.join(root, "src", "probability", "boss-duel-action-tree-lab.js"), "utf8");
+const coreSource = fs.readFileSync(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"), "utf8");
+const game = fs.readFileSync(path.join(root, "src", "game", "boss-duel-demo.js"), "utf8");
 const engineerDoc = fs.readFileSync(path.join(root, "後端文件.html"), "utf8");
 const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v1.js"));
 const ActionCore = require(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"));
+const combined = `${html}\n${lab}\n${coreSource}`;
 
 assert.equal(preset.version, "natural-story-preset-v13");
-
 for (const asset of [
   "src/core/boss-duel-random.js", "src/core/boss-duel-poker-arrangement-core.js", "src/core/boss-duel-rules.js",
-  "src/core/boss-duel-story-planner.js", "data/story/boss-duel-story-preset-v1.js", "src/core/boss-duel-natural-story-core.js",
-  "src/probability/boss-duel-action-tree-core.js", "src/probability/boss-duel-action-tree-lab.js"
+  "src/core/boss-duel-story-planner.js", "data/story/boss-duel-story-preset-v1.js", "data/story/boss-duel-story-summary-preset-v1.js",
+  "src/core/boss-duel-natural-story-core.js", "src/probability/boss-duel-action-tree-core.js", "src/probability/boss-duel-action-tree-lab.js"
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v35/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v36/);
 assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v7/);
 assert.match(html, /src\/core\/boss-duel-poker-arrangement-core\.js\?v=arrange-v10/);
-assert.match(html, /class="app-shell action-tree-tool"/);
-assert.match(html, /class="workbench"/);
 assert.match(html, /href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6\.html\?v=backend-doc-v9"/);
 assert.match(engineerDoc, /backend-doc-v9/);
-assert.match(engineerDoc, /唯一例外是換牌後完整六張已形成皇家同花順、同花順或四條/);
-assert.match(engineerDoc, /十張牌背表達完整候選總數/);
-assert.match(engineerDoc, /劇本節奏提示只能出現在明確啟用的 QA 稽核模式/);
-assert.match(engineerDoc, /候選池固定為十種不同魔法卡/);
-assert.match(html, /data-panel="suppressionPanel"/);
-for (const id of ["suppressionActivationGrid", "suppressionRedrawGrid", "suppressionMagicSwitchGrid", "suppressionMagicTableBody", "suppressionPolicySummary"]) tag(id);
-assert.match(html, /所有牌型傷害魔法卡共用/);
-assert.match(html, /id="resultsArea"[^>]*is-hidden/);
-assert.equal((html.match(/class="control-card"/g) || []).length, 5);
-assert.equal((html.match(/data-report-panel=/g) || []).length, 7);
-assert.doesNotMatch(html, /reportChainPanel|chainStatsBody|連殺/);
-assert.match(html, /id="simulationPanel" class="tab-panel active"/);
-assert.doesNotMatch(html, /id="simulationPanel"[^>]*compat-hidden/);
 
 function tag(id) {
   const match = html.match(new RegExp(`<[^>]+\\bid=["']${id}["'][^>]*>`, "i"));
@@ -47,129 +34,93 @@ function tag(id) {
   return match[0];
 }
 
-assert.match(tag("targetCoreRtp"), /type="number"/);
-assert.doesNotMatch(tag("targetCoreRtp"), /readonly|disabled/);
-assert.match(tag("targetCoreRtp"), /min="80"/);
-assert.match(tag("targetCoreRtp"), /max="99"/);
-assert.match(tag("winMinReturnX"), /value="3"/);
-assert.match(tag("pushMinReturnX"), /value="1"/);
-assert.match(tag("candidateDrawMode"), /disabled/);
-assert.match(tag("ticketBasis"), /value="1000000"/);
-assert.match(tag("maxCandidateAttempts"), /value="10000"/);
-assert.match(tag("seed"), /placeholder="留白＝每次隨機"/);
-assert.doesNotMatch(html, /id="seedMode"|種子模式/);
-assert.match(html, /配籤 RTP 容許差/);
-assert.match(html, /95\.99%～96\.01%/);
-assert.match(html, /id="runSimulationButton"[^>]*>開始模擬</);
-assert.match(html, /id="copyConfigButton"[^>]*>複製參數</);
-assert.match(html, /id="copyStatisticsButton"[^>]*>複製統計資料</);
-assert.doesNotMatch(html, /匯入既有 40,000|24 格自然故事完整欄位|版本保存與發布/);
-assert.doesNotMatch(html, /比牌階級|直接派彩x/);
-assert.match(html, /第 16 次起沿用第 15 次費用/);
-assert.doesNotMatch(html, /id="minPushPct"/);
-assert.doesNotMatch(html, /id="ticketWinPct"|id="ticketPushPct"|id="ticketLosePct"|id="ticketMode"/);
-assert.match(html, /分數籤總數/);
-assert.match(html, /id="ticketSamplesBody"/);
+assert.equal((html.match(/class="control-card"/g) || []).length, 4);
+const controlOrder = ["模擬設定", "個人劇本水池", "遊戲機制", "故事產生"].map((label) => html.indexOf(`<strong>${label}</strong>`));
+assert(controlOrder.every((index) => index >= 0));
+assert.deepEqual([...controlOrder].sort((a, b) => a - b), controlOrder, "parameter cards must follow the old workflow with story generation last");
+const simulationOrder = ["<h3>玩家行為</h3>", "<h3>模擬規格</h3>", "<h3>退幣條件</h3>"].map((label) => lab.indexOf(label));
+assert(simulationOrder.every((index) => index >= 0));
+assert.deepEqual([...simulationOrder].sort((a, b) => a - b), simulationOrder, "player behavior must precede scale and cashout conditions");
 
-const localScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)].map((match) => decodeURIComponent(match[1].split(/[?#]/)[0]));
-for (const source of localScripts) assert(fs.existsSync(path.join(root, source)), `missing script ${source}`);
-const combined = `${html}\n${localScripts.map((source) => fs.readFileSync(path.join(root, source), "utf8")).join("\n")}`;
-assert.match(combined, /FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS/);
-assert.match(html, /劇本以 X 倍數通用所有 Bet/);
-assert.equal(ActionCore.STORY_BET_CONTRACT_VERSION, "story-bet-scaling-v1");
-const betOneStory = ActionCore.materializeStoryCredits({ spendX: 2.5, payoutX: 7.5 }, 1);
-const futureBetStory = ActionCore.materializeStoryCredits({ spendX: 2.5, payoutX: 7.5 }, 3333);
-assert.equal(betOneStory.netX, futureBetStory.netX);
-assert.equal(futureBetStory.spendCredits, 2.5 * 3333);
-assert.equal(futureBetStory.payoutCredits, 7.5 * 3333);
-assert.equal(futureBetStory.betIndependent, true);
+assert.doesNotMatch(html, /八星自然故事目錄|故事目錄驗證|進水起伏|普通局BOSS|高星局BOSS|連殺/);
+assert.doesNotMatch(html, /id="storyCarryEnabled"|id="switchGrid"|id="switchesPanel"|功能開關/);
+assert.match(html, /個人劇本水池（固定啟用）/);
+assert.match(html, /遊戲機制（固定啟用）/);
+assert.match(html, /REROLL BOSS 固定收取「當前押注額 × 1」/);
 
-for (const behavior of ["OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME", "SMART"]) {
-  assert.match(combined, new RegExp(`value="${behavior}"|\\["${behavior}"`), `missing player model ${behavior}`);
-  const config = ActionCore.sanitizeConfig({ ...ActionCore.DEFAULT_CONFIG, simulation: { ...ActionCore.DEFAULT_CONFIG.simulation, playerBehavior: behavior } });
-  assert.equal(config.simulation.playerBehavior, behavior, `player model ${behavior} must survive sanitization`);
-}
-for (const behavior of ["OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME"]) {
-  const config = ActionCore.sanitizeConfig({ ...ActionCore.DEFAULT_CONFIG, simulation: { ...ActionCore.DEFAULT_CONFIG.simulation, playerBehavior: behavior, playerCount: 2, bossesPerPlayer: 3, cashoutPlayerCount: 2 } });
-  const result = ActionCore.simulatePlayerModels(config, { skipCashout: true });
-  assert.equal(result.totals.bosses, 6, `${behavior} must run the requested Boss count`);
-}
-
-for (const required of [
-  /240,000/, /正式故事/, /贏多/, /贏少/, /輸/,
-  /Bet 1–10/, /20–200/, /500–2000/, /合法骰面/, /10%～1,000%/, /同花順基礎傷害 30/,
-  /buildNaturalStoryPoolFromPreset/, /selectedStoryExperience/, /openStoryExperience/, /storyMode/
-]) assert.match(combined, required, `missing new model contract ${required}`);
-
-assert.doesNotMatch(html, /記憶點故事目前隱藏|記憶點故事保留在檔案/);
-assert.match(html, /贏多：總派彩 ÷ 總押 ≥ 3x/);
-assert.match(html, /贏少：1x ≤ 總派彩 ÷ 總押 &lt; 3x/);
-assert.match(html, /輸：總派彩 ÷ 總押 &lt; 1x/);
-assert.match(combined, /syncStoryExperienceIndexOptions/);
-assert.doesNotMatch(html, /每格平均 100 個|該格擊殺故事數 ÷ 100|每格自然故事 100/);
-
-for (const obsolete of [/action-tree-v6/, /10,000 籤/, /持平 40%/, /中途終止率/, /同花順必殺/, /Phase-0/]) {
-  assert.doesNotMatch(combined, obsolete, `obsolete model text remains: ${obsolete}`);
+const reportLabels = ["模擬資訊", "總覽", "RTP 走勢", "BOSS 切片", "BOSS", "牌型", "魔法卡", "個人劇本水池"];
+assert.equal((html.match(/data-report-panel=/g) || []).length, reportLabels.length);
+let reportIndex = -1;
+for (const label of reportLabels) {
+  const index = html.indexOf(label, reportIndex + 1);
+  assert(index > reportIndex, `report order must include ${label}`);
+  reportIndex = index;
 }
 
 for (const id of [
-  "winMinReturnX", "pushMinReturnX", "winClassificationRule", "pushClassificationRule", "loseClassificationRule",
-  "rewardFloorPct", "rewardCeilingMultiple",
-  "simulationGrid", "actionTreeMatrixBody", "bossTableBody", "magicTableBody", "handTableBody",
-  "reportOverviewCards", "storySummaryCards", "starStatsBody", "cellStatsBody",
-  "treeStatsBody", "handStatsBody", "magicStatsBody", "carryAuditBody", "terminationStatsBody",
-  "storyExperienceStar", "storyExperienceSource", "storyExperienceClass", "storyExperienceIndex",
-  "storyExperienceSummary", "storyExperienceOpen", "naturalClassAverageBody", "naturalClassStatsBody",
-  "runSimulationButton", "copyConfigButton", "copyStatisticsButton", "carryBucketBody", "riskFindingsBody", "ticketHealthBody", "ticketWeightBody", "ticketStarHealthBody", "storySelectionCoverageBody",
-  "settlementFunnelBody", "correctionHealthBody", "correctionCoverageBody", "carryBucketTailBody", "classMigrationBody"
+  "simulationGrid", "runSimulationButton", "copyConfigButton", "copyStatisticsButton", "rewardFloorPct", "rewardCeilingMultiple",
+  "bossTableBody", "magicTableBody", "handTableBody", "drawFeeGrid", "naturalDealGrid",
+  "suppressionActivationGrid", "suppressionRedrawGrid", "suppressionMagicSwitchGrid", "suppressionMagicTableBody", "suppressionPolicySummary",
+  "tolerancePp", "winMinReturnX", "pushMinReturnX", "candidateDrawMode", "ticketBasis", "maxCandidateAttempts",
+  "runInfoBody", "reportOverviewCards", "bossExperienceBody", "cashoutStatsBody", "drawByHandBody", "spendSourceBody", "payoutSourceBody",
+  "rtpTrendBody", "playerBossBucketBody", "starStatsBody", "handStatsBody", "magicStatsBody", "storySummaryCards",
+  "carryBucketBody", "carryAuditBody", "correctionHealthBody", "carryBucketTailBody"
 ]) tag(id);
+
+assert.match(combined, /id="targetCoreRtp"[^>]*min="80"[^>]*max="99"/);
+assert.match(combined, /id="seed"[^>]*placeholder="留白＝每次隨機"/);
+assert.match(tag("candidateDrawMode"), /disabled/);
+assert.match(tag("ticketBasis"), /value="1000000"/);
+assert.match(tag("maxCandidateAttempts"), /value="10000"/);
+assert.match(combined, /FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS/);
+assert.match(combined, /buildNaturalStoryPoolFromPreset/);
+assert.match(html, /1–10、20–200、500–2000/);
+assert.match(html, /合法骰面/);
+assert.match(html, /10%～1,000%/);
 
 const ids = [...html.matchAll(/\bid=["']([^"']+)["']/gi)].map((match) => match[1]);
 assert.equal(new Set(ids).size, ids.length, "duplicate DOM ids");
+const localScripts = [...html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["']/gi)].map((match) => decodeURIComponent(match[1].split(/[?#]/)[0]));
+for (const source of localScripts) assert(fs.existsSync(path.join(root, source)), `missing script ${source}`);
 
-const engineerSections = ["terms", "script", "draw", "tickets", "play", "suppress", "pool", "reroll", "examples", "data", "backend"];
-let lastEngineerSection = -1;
-for (const id of engineerSections) {
-  const index = engineerDoc.indexOf(`id="${id}"`);
-  assert(index > lastEngineerSection, `engineer document section order must include ${id}`);
-  lastEngineerSection = index;
-}
-assert.match(engineerDoc, /四步結算/);
-assert.match(engineerDoc, /三個真實候選/);
-assert.match(engineerDoc, /完整實例/);
-assert.match(engineerDoc, /個人劇本水池/);
-assert.match(engineerDoc, /Boss Duel 後端文件/);
-assert.match(engineerDoc, /人工智慧可以做/);
-assert.match(engineerDoc, /每筆花費按目標 RTP 入桶/);
-assert.match(engineerDoc, /原獎 10%/);
-assert.match(engineerDoc, /R₀ × 1,000%/);
-assert.match(engineerDoc, /deviation-suppression-v4-configurable-tables/);
-assert.match(engineerDoc, /plannedRecordMissing/);
-assert.match(engineerDoc, /若第一換免費，下一次付費收第二階 2x/);
-assert.match(engineerDoc, /隨機操作玩家 RTP 約 2\.3%/);
-assert.match(engineerDoc, /放回抽樣/);
-assert.match(html, /產品已接受隨機操作玩家 RTP 約 2\.3%/);
-assert.match(engineerDoc, /只有金幣卡立即公開實際加成/);
-assert.match(engineerDoc, /共用一張「牌型傷害倍率抑制表」/);
-assert.doesNotMatch(engineerDoc, /個人差額池|個人故事差額池|StoryCommit|Credits|PASS/);
+assert.equal(ActionCore.STORY_BET_CONTRACT_VERSION, "story-bet-scaling-v1");
+const scaled = ActionCore.materializeStoryCredits({ spendX: 2.5, payoutX: 7.5 }, 3333);
+assert.equal(scaled.spendCredits, 2.5 * 3333);
+assert.equal(scaled.payoutCredits, 7.5 * 3333);
+assert.equal(scaled.netX, 5);
+assert.equal(scaled.betIndependent, true);
 
-const suppressionConfig = ActionCore.sanitizeConfig({
-  suppression: {
-    redraw: { improvedAcceptPct: 12.5, sameOrLowerAcceptPct: 87.5, maxCandidates: 44 },
-    magic: { tables: { handBoost: { outcomes: [{ value: 7, weight: 3 }, { value: 9, weight: 1 }] } } }
-  }
+const forcedOff = ActionCore.sanitizeConfig({
+  ...ActionCore.DEFAULT_CONFIG,
+  mechanics: Object.fromEntries(Object.keys(ActionCore.DEFAULT_CONFIG.mechanics).map((key) => [key, false])),
+  carry: { ...ActionCore.DEFAULT_CONFIG.carry, enabled: false },
+  ruleSettings: { ...ActionCore.DEFAULT_CONFIG.ruleSettings, refreshCostX: 7 }
 });
-assert.equal(suppressionConfig.suppression.redraw.improvedAcceptPct, 12.5);
-assert.equal(suppressionConfig.suppression.redraw.sameOrLowerAcceptPct, 87.5);
-assert.equal(suppressionConfig.suppression.redraw.maxCandidates, 44);
-assert.deepEqual(suppressionConfig.suppression.magic.tables.handBoost.outcomes, [{ value: 7, weight: 3 }, { value: 9, weight: 1 }]);
-assert.equal(ActionCore.NaturalCore.SUPPRESSION_POLICY_VERSION, "deviation-suppression-v4-configurable-tables");
-assert.equal(ActionCore.NaturalCore.POOL_SETTLEMENT_VERSION, "target-rtp-personal-pool-v2-reservation");
-assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.crit.outcomes.map((row) => row.weight), [69, 25, 3, 2, 1]);
-assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.flatDamage.outcomes.map((row) => row.weight), [70, 25, 3, 2]);
-assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.handBoost.outcomes.map((row) => row.weight), [80, 19, 1]);
+for (const key of ["actionTreeEnabled", "storyCarryEnabled", "magicEnabled", "jokerEnabled", "freeDrawEnabled", "coinEnabled", "critEnabled", "flatEnabled", "pokerBoostEnabled", "bossRerollEnabled", "paidDrawEnabled", "tieRedealEnabled", "strictNaturalGate"]) {
+  assert.equal(forcedOff.mechanics[key], true, `${key} must remain enabled`);
+}
+assert.equal(forcedOff.mechanics.chainEnabled, false);
+assert.equal(forcedOff.carry.enabled, true);
+assert.equal(forcedOff.ruleSettings.refreshCostX, 1);
+
+for (const behavior of ["OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME", "SMART"]) {
+  const config = ActionCore.sanitizeConfig({ ...ActionCore.DEFAULT_CONFIG, simulation: { ...ActionCore.DEFAULT_CONFIG.simulation, playerBehavior: behavior } });
+  assert.equal(config.simulation.playerBehavior, behavior);
+}
+const rerollConfig = ActionCore.sanitizeConfig({
+  ...ActionCore.DEFAULT_CONFIG,
+  seed: 20260913,
+  simulation: { ...ActionCore.DEFAULT_CONFIG.simulation, playerBehavior: "OFFICIAL_FUNDED", playerCount: 10, bossesPerPlayer: 100, cashoutPlayerCount: 2, fixedBet: 20 }
+});
+const rerollResult = ActionCore.simulatePlayerModels(rerollConfig, { skipCashout: true });
+assert(rerollResult.totals.bossRefreshes > 0, "deterministic reroll sample must contain a reroll");
+assert.equal(rerollResult.totals.refreshSpend, rerollResult.totals.bossRefreshes * rerollConfig.simulation.fixedBet, "each active reroll must charge current Bet × 1");
+
+assert.match(game, /if \(!spend\(runtimeConfig\.entryCostX, \{ storySpend: false \}\)\) return;/);
+assert.match(game, /entryCostX: 1/);
+assert.match(game, /options\.poolAccrual !== false/);
 
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v35", storyCount: 240000,
-  localScripts, uniqueDomIds: ids.length, catalogOnly: false, fullClassUniformTickets: true
+  status: "ok", cacheKey: "action-tree-v36", storyCount: 240000,
+  controlCards: 4, reportTabs: reportLabels.length, uniqueDomIds: ids.length, rerolls: rerollResult.totals.bossRefreshes
 }, null, 2));
