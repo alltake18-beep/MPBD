@@ -31,9 +31,9 @@ let story = null;
 for (let attempt = 0; attempt < 5000 && !story; attempt += 1) {
   const seed = Core.hash32(config.poolSeed, attempt, 7001 + 97);
   const candidate = NaturalCore.simulateNaturalStory(config, 1, seed, { includePath: true });
-  if (!candidate.killed && candidate.path.some((step) => step.drawLog.length > 0)) story = candidate;
+  if (candidate.classKey === "lose" && candidate.path.some((step) => step.drawLog.length > 0)) story = candidate;
 }
-assert(story, "must find an un-killed story with at least one redraw");
+assert(story, "must find a lose-class story with at least one redraw");
 const step = story.path.find((row) => row.drawLog.length > 0);
 const roundSeed = Core.hash32(story.seed, step.round, 1201 + step.tieIndex * 17);
 const createState = () => Rules.createNaturalRound({
@@ -41,7 +41,6 @@ const createState = () => Rules.createNaturalRound({
   magicEnabled: config.magicEnabled,
   magicRows: config.magicRows,
   magicCardsPerRound: config.magicCardsPerRound,
-  useHighMagicTickets: story.star >= 7,
   playerBadHighRerollPct: config.playerBadHighRerollPct,
   bossBadHighRerollPct: config.bossBadHighRerollPct,
   initialRerollLimit: config.initialRerollLimit
@@ -59,6 +58,7 @@ const plannedAudit = NaturalCore.executeRuntimeRedraw(plannedState, {
   suppressionActive: false
 });
 assert.equal(plannedAudit.deviated, false);
+assert.equal(plannedAudit.loseStoryEligible, true);
 assert.equal(plannedAudit.plannedRecordMissing, false);
 assert.equal(plannedAudit.suppressionActive, false);
 assert.deepEqual(plannedAudit.acceptedCardIds, step.drawLog[0].acceptedCardIds, "following the story must preserve the original redraw");
@@ -99,7 +99,7 @@ const missingPlanAudit = NaturalCore.executeRuntimeRedraw(missingPlanState, {
 });
 assert.equal(missingPlanAudit.plannedRecordMissing, true, "a legal redraw beyond the story path must be recorded as missing from the plan");
 assert.equal(missingPlanAudit.deviated, true, "a missing planned redraw must count as deviation even when the actual keep set is empty");
-assert.equal(missingPlanAudit.suppressionActive, true, "missing redraw after an un-killed story must activate suppression");
+assert.equal(missingPlanAudit.suppressionActive, true, "a deviated redraw on a lose-class story must activate suppression");
 
 const extraTieState = createState();
 Rules.applyRecommendedKeepCards(extraTieState, []);
@@ -115,20 +115,21 @@ const extraTieAudit = NaturalCore.executeRuntimeRedraw(extraTieState, {
 assert.equal(extraTieAudit.plannedRecordMissing, true, "redraw after an extra tie redeal must not borrow another tie segment's plan");
 assert.equal(extraTieAudit.suppressionActive, true);
 
-const killedMissingPlanState = createState();
-Rules.applyRecommendedKeepCards(killedMissingPlanState, []);
-const killedMissingPlanAudit = NaturalCore.executeRuntimeRedraw(killedMissingPlanState, {
-  story: { ...story, killed: true },
+const nonLoseMissingPlanState = createState();
+Rules.applyRecommendedKeepCards(nonLoseMissingPlanState, []);
+const nonLoseMissingPlanAudit = NaturalCore.executeRuntimeRedraw(nonLoseMissingPlanState, {
+  story: { ...story, classKey: "push" },
   round: step.round,
   tieIndex: step.tieIndex,
   drawNumber: step.drawLog.length + 1,
   actionSequence: 6,
-  discardedIndexes: killedMissingPlanState.discardIndexes,
+  discardedIndexes: nonLoseMissingPlanState.discardIndexes,
   suppressionActive: false
 });
-assert.equal(killedMissingPlanAudit.plannedRecordMissing, true);
-assert.equal(killedMissingPlanAudit.deviated, true);
-assert.equal(killedMissingPlanAudit.suppressionActive, false, "originally killed stories must not activate suppression");
+assert.equal(nonLoseMissingPlanAudit.plannedRecordMissing, true);
+assert.equal(nonLoseMissingPlanAudit.deviated, true);
+assert.equal(nonLoseMissingPlanAudit.loseStoryEligible, false);
+assert.equal(nonLoseMissingPlanAudit.suppressionActive, false, "non-lose stories must never activate suppression");
 
 const magicState = createState();
 const critCard = magicState.playerEval.cards[0];
@@ -172,6 +173,7 @@ assert.ok(normalMagic.values.every((row) => row.sourceTable === "NORMAL"));
 const contract = NaturalCore.replayContract(story, config);
 assert.equal(contract.version, "story-action-trace-v2");
 assert.equal(contract.storySeed, story.seed);
+assert.equal(contract.originalStoryClass, "lose");
 assert.equal(contract.rulesVersion, Rules.VERSION);
 assert.equal(contract.plannerVersion, "boss-plan-v11");
 assert.equal(contract.suppressionPolicyVersion, NaturalCore.SUPPRESSION_POLICY_VERSION);

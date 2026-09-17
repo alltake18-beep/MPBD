@@ -279,12 +279,12 @@
     return rows[rows.length - 1];
   }
 
-  function normalizeMagicRows(rows, useHighTickets = true) {
+  function normalizeMagicRows(rows) {
     return (Array.isArray(rows) && rows.length ? rows : MAGIC_TABLE).map((row) => {
       if (!Array.isArray(row)) return { ...row };
       return {
         key: String(row[0]), label: String(row[1]),
-        tickets: Number(row[useHighTickets ? 3 : 2] || 0),
+        tickets: Number(row[3] || 0),
         min: Number(row[4] || 0), max: Number(row[5] || row[4] || 0),
         target: String(row[6] || ""), type: /^(?:joker)$/i.test(String(row[0])) ? "JOKER"
           : /^(?:coin)$/i.test(String(row[0])) ? "GOLD"
@@ -293,8 +293,8 @@
     });
   }
 
-  function drawMagicCardsFromTable(rng, rows = MAGIC_TABLE, count = 2, useHighTickets = true) {
-    const pool = normalizeMagicRows(rows, useHighTickets);
+  function drawMagicCardsFromTable(rng, rows = MAGIC_TABLE, count = 2) {
+    const pool = normalizeMagicRows(rows);
     const cards = [];
     const drawCount = Math.max(0, Math.min(pool.length, Math.trunc(Number(count) || 0)));
     for (let index = 0; index < drawCount; index += 1) {
@@ -864,8 +864,7 @@
       : drawMagicCardsFromTable(
         rng,
         options.magicRows || MAGIC_TABLE,
-        options.magicCardsPerRound === undefined ? 2 : options.magicCardsPerRound,
-        options.useHighMagicTickets !== false
+        options.magicCardsPerRound === undefined ? 2 : options.magicCardsPerRound
       );
     const playerCards = applyEntryMagic(deal.playerCards, magicCards);
     const arrangementPlan = ArrangementCore.planHand(playerCards);
@@ -1045,7 +1044,7 @@
   }
 
   return {
-    VERSION: "rules-v10",
+    VERSION: "rules-v11",
     HANDS, SUIT_GLYPHS, cardId, cardLabel, hasAttachedEffect, evaluateBest, compareEval,
     autoLockPlan: sharedAutoLockPlan,
     recommendedDiscardIndexes: sharedRecommendedDiscardIndexes,

@@ -1400,11 +1400,21 @@
   function beginStoryPoolCommit() {
     if (!encounter?.packet?.storyCommit || !NaturalCore) return null;
     if (encounter.poolCommitApplied) return encounter.poolCommit;
-    const started = {
-      bucketIndex: NaturalCore.bucketIndexForBet(activeBet),
-      incomingPoolCredits: Number(playerState.storyBucketBalances?.[NaturalCore.bucketIndexForBet(activeBet)]) || 0,
-      targetRtpPct: encounter.poolTargetRtpPct
-    };
+    const started = NaturalCore.commitStoryToBuckets(
+      encounter.packet.storyCommit,
+      playerState.storyBucketBalances,
+      activeBet,
+      {
+        actualSpendCredits: 0,
+        plannedSpendCredits: encounter.packet.storyCommit.selectedStory.spendX * activeBet,
+        storyBudgetCredits: encounter.packet.storyCommit.selectedStory.payoutX * activeBet,
+        targetRtpPct: encounter.poolTargetRtpPct
+      }
+    );
+    playerState.storyBucketBalances = started.balances;
+    encounter.storyPlannedSpendCredits = started.plannedSpendCredits;
+    encounter.storyBudgetCredits = started.storyBudgetCredits;
+    encounter.storyTargetAccrualCredits = started.targetAccrualCredits;
     encounter.poolCommitApplied = true;
     encounter.poolCommit = started;
     savePlayerState();
@@ -1434,7 +1444,8 @@
       {
         actualSpendCredits: actualSpend,
         targetRtpPct: encounter.poolTargetRtpPct,
-        targetAccrualCredits: encounter.storyTargetAccrualCredits,
+        plannedSpendCredits: encounter.storyPlannedSpendCredits,
+        storyBudgetCredits: encounter.storyBudgetCredits,
         organicPayoutCredits: organicPayout,
         actualKilled: killed,
         actualBossRewardX: originalDice.total,
@@ -1445,6 +1456,9 @@
       }
     );
     playerState.storyBucketBalances = result.balances;
+    encounter.storySpendDeltaCredits = result.spendDeltaCredits;
+    encounter.storySpendDeltaTargetAccrualCredits = result.spendDeltaTargetAccrualCredits;
+    encounter.storyTargetAccrualCredits = result.targetAccrualCredits;
     playerState.storyPoolTotals.targetAccrualCredits += result.targetAccrualCredits;
     playerState.storyPoolTotals.organicPayoutCredits += result.organicPayoutCredits;
     playerState.storyPoolTotals.organicActualNetCredits += result.organicActualNetCredits;
@@ -1507,6 +1521,10 @@
       tieRedeals: 0,
       totalBetX: 0,
       storySpendCredits: 0,
+      storyPlannedSpendCredits: 0,
+      storyBudgetCredits: 0,
+      storySpendDeltaCredits: 0,
+      storySpendDeltaTargetAccrualCredits: 0,
       storyTargetAccrualCredits: 0,
       poolTargetRtpPct: runtimeConfig.targetRtp * 100,
       coinBonusX: 0,
@@ -1583,10 +1601,6 @@
     if (encounter?.packet?.storyCommit && storySpend) {
       beginStoryPoolCommit();
       encounter.storySpendCredits += amount;
-      const targetAccrualCredits = NaturalCore.roundMoney(amount * encounter.poolTargetRtpPct / 100);
-      const posted = NaturalCore.addPoolCredits(playerState.storyBucketBalances, activeBet, targetAccrualCredits);
-      playerState.storyBucketBalances = posted.balances;
-      encounter.storyTargetAccrualCredits = NaturalCore.roundMoney(encounter.storyTargetAccrualCredits + targetAccrualCredits);
     } else if (NaturalCore && options.poolAccrual !== false) {
       const targetRtpPct = Number(options.targetRtpPct ?? runtimeConfig.targetRtp * 100);
       const posted = NaturalCore.addPoolCredits(playerState.storyBucketBalances, activeBet, amount * targetRtpPct / 100);
@@ -1602,7 +1616,7 @@
 
   function dealRound() {
     if (!encounter || encounter.phase !== "ready") return;
-    if (!spend(runtimeConfig.entryCostX)) return;
+    if (!spend(runtimeConfig.entryCostX, { entrySpend: true })) return;
     const startOperation = beginOperation("START");
     session.hasStarted = true;
     encounter.round += 1;
@@ -2256,7 +2270,7 @@
 
   function continueRound() {
     if (!encounter || encounter.phase !== "round-result") return;
-    if (!spend(runtimeConfig.entryCostX)) return;
+    if (!spend(runtimeConfig.entryCostX, { entrySpend: true })) return;
     const continueOperation = beginOperation("CONTINUE");
     encounter.round += 1;
     encounter.draws = 0;
@@ -2432,8 +2446,8 @@
     if (!encounter || !["ready", "round-result"].includes(encounter.phase) || els.rerollConfirm.hidden) return;
     const leavingFixedStory = encounter.packet.storyRuntimeMode === "FIXED";
     els.rerollConfirm.hidden = true;
-    if (encounter.round > 0 && !encounter.poolSettlement) settleStoryPool(0, false);
     if (!spend(runtimeConfig.entryCostX, { storySpend: false })) return;
+    if (encounter.round > 0 && !encounter.poolSettlement) settleStoryPool(0, false);
     const rerollOperation = beginOperation("REROLL_BOSS");
     completeOperation(rerollOperation, { costX: runtimeConfig.entryCostX, bet: activeBet });
     const previousStar = encounter.packet.star;
@@ -2529,7 +2543,6 @@
       magicEnabled: storyConfig.magicEnabled,
       magicRows: storyConfig.magicRows,
       magicCardsPerRound: storyConfig.magicCardsPerRound,
-      useHighMagicTickets: encounter.packet.star >= 7,
       playerBadHighRerollPct: storyConfig.playerBadHighRerollPct,
       bossBadHighRerollPct: storyConfig.bossBadHighRerollPct,
       initialRerollLimit: storyConfig.initialRerollLimit

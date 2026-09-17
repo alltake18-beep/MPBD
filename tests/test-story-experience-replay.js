@@ -27,7 +27,6 @@ function replay(story) {
         magicEnabled: config.magicEnabled,
         magicRows: config.magicRows,
         magicCardsPerRound: config.magicCardsPerRound,
-        useHighMagicTickets: story.star >= 7,
         playerBadHighRerollPct: config.playerBadHighRerollPct,
         bossBadHighRerollPct: config.bossBadHighRerollPct,
         initialRerollLimit: config.initialRerollLimit

@@ -8,26 +8,27 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v36");
+      params.set("v", "action-tree-v60");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v36">
-  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v36">
+  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v60">
+  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v60">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
     <header class="app-header">
       <div class="title-block">
-        <p class="eyebrow">PLAYER MODEL · SIMULATION REPORTS</p>
-        <h1>機率工具</h1>
-        <p class="header-subtitle">沿用舊版操作順序，以新版八星故事制數學模型執行玩家行為、退幣與個人劇本水池統計。</p>
+        <p class="eyebrow">RISK CONTROL</p>
+        <h1>Boss Duel</h1>
       </div>
-      <div class="header-actions" aria-label="工具捷徑">
-        <button id="restoreButton" class="secondary" type="button">還原範例</button>
-        <a class="button-link secondary" href="%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v9" target="_blank" rel="noopener">後端文件</a>
-        <a class="button-link secondary" href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v96" target="_blank" rel="noopener">開啟遊戲</a>
+      <div class="header-actions" aria-label="統計操作">
+        <button id="copyStatisticsButton" class="copy-statistics-action" type="button" disabled>複製統計資料</button>
+        <button id="runSimulationButton" class="primary" type="button"><span class="button-label">開始統計</span></button>
+        <button id="stopSimulationButton" class="stop-statistics-action" type="button" disabled>停止統計</button>
+        <button id="copyConfigButton" class="secondary" type="button">複製目前參數</button>
+        <button id="saveParamsButton" class="secondary" type="button">保存參數</button>
       </div>
     </header>
 
@@ -38,7 +39,7 @@
             <p class="eyebrow">SIMULATION CONTROL</p>
             <h2>參數設定</h2>
           </div>
-          <div class="version-state" aria-label="版本狀態"><span><i></i> 新版故事制數學模型</span></div>
+          <div class="version-state" aria-label="版本狀態"><span><i></i> 新版故事制數學模型</span><a href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v102" target="_blank" rel="noopener">開啟遊戲</a></div>
         </div>
 
         <details class="control-card" open>
@@ -46,62 +47,48 @@
           <div class="control-card-body">
             <div id="simulationGrid" class="control-grid"></div>
             <div class="run-row">
-              <button id="runSimulationButton" class="primary" type="button">開始模擬</button>
-              <button id="copyConfigButton" type="button">複製參數</button>
-              <button id="copyStatisticsButton" type="button" disabled>複製統計資料</button>
-              <button id="exportStatisticsButton" type="button" disabled>輸出 JSON</button>
               <span id="simulationState">尚未執行</span>
             </div>
             <div class="metric-list simulation-metrics compat-metrics is-hidden" aria-label="本次模擬摘要">
-              <div><span>實際投入</span><strong id="simSpend">—</strong></div>
-              <div><span>玩家實付獎</span><strong id="simPayout">—</strong></div>
+              <div><span>總押注</span><strong id="simSpend">—</strong></div>
+              <div><span>總贏分</span><strong id="simPayout">—</strong></div>
               <div><span>劇本承諾 RTP</span><strong id="simGrossRtp">—</strong></div>
               <div><span>玩家 RTP</span><strong id="simNetRtp">—</strong></div>
-              <div><span>水池補正／扣抵</span><strong id="simOffset">—</strong></div>
+              <div><span>抑制機率</span><strong id="simOffset">—</strong></div>
               <div><span>擊殺／未擊殺</span><strong id="simKillAbort">—</strong></div>
               <div><span>平均回合／換牌</span><strong id="simRoundsDraws">—</strong></div>
-              <div><span>期末個人劇本水池</span><strong id="simCarry">—</strong></div>
+              <div><span>平均剩餘水池</span><strong id="simCarry">—</strong></div>
             </div>
           </div>
         </details>
 
         <details class="control-card">
-          <summary><span>02</span><strong>個人劇本水池</strong><small>固定啟用；三個 Bet 桶分開記帳</small></summary>
+          <summary><span>02</span><strong>抑制設定</strong><small>固定啟用；換牌候選與傷害魔法</small></summary>
+          <div class="control-card-body">
+            <section class="param-group"><h3>01｜換牌候選抑制</h3><div id="suppressionRedrawGrid" class="field-list"></div></section>
+            <section class="sub-control-block">
+              <h3>02｜傷害魔法抑制專用抽取表</h3>
+              <p class="compact-copy">預設固定啟用。暴擊、固傷各自使用一張表；所有牌型傷害魔法卡共用牌型傷害倍率表。</p>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>抑制表</th><th>套用卡片</th><th>結果</th><th>權重（%）</th></tr></thead><tbody id="suppressionMagicTableBody"></tbody></table></div>
+            </section>
+          </div>
+        </details>
+
+        <details class="control-card">
+          <summary><span>03</span><strong>個人劇本水池</strong><small>固定啟用；三個 Bet 桶分開記帳</small></summary>
           <div class="control-card-body" aria-labelledby="carryTitle">
             <div class="section-intro">
-              <h3 id="carryTitle">個人劇本水池（固定啟用）</h3>
-              <p>下注額 1–10、20–200、500–2000 分三桶；抽故事不分 Bet，只有水池帳務分桶。START／CONTINUE、付費 REDRAW 與 REROLL BOSS 都按付款時的 Bet 入桶。</p>
+              <h3 id="carryTitle">個人劇本水池</h3>
             </div>
             <div class="carry-controls">
-              <label>原骰獎最低比例（%）<input id="rewardFloorPct" type="number" min="0" max="100" step="0.1" value="10"></label>
-              <label>原骰獎最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="10" step="0.1" value="10"><span class="field-help">10 倍就是原獎的 1,000%。</span></label>
-            </div>
-            <div class="formula-block">
-              <strong>poolAfter = poolBefore + 實際花費 × 目標 RTP − 自然派彩 − Boss 獎補正額</strong>
-              <span>REROLL BOSS 固定收取「當前押注額 × 1」，並依當下 Bet 桶計入個人劇本水池。</span>
-              <span>擊殺時只改該 BOSS 原骰獎，維持相同骰型與合法骰面；最終原骰獎限制為原值 10%～1,000%。</span>
-            </div>
-            <div class="example-grid">
-              <div class="example-inputs">
-                <h3>即時計算例</h3>
-                <label>本次玩家實際花費（Credits）<input id="exampleBaselineSpend" type="number" step="0.1" value="100"></label>
-                <label>本次自然派彩（Credits）<input id="exampleActualSpend" type="number" step="0.1" value="80"></label>
-                <label>故事開始前同桶餘額<input id="examplePoolBefore" type="number" step="0.1" value="20"></label>
-                <label>本次 BOSS 原骰獎（Credits）<input id="exampleGrossReward" type="number" min="0" step="0.1" value="40"></label>
-              </div>
-              <div class="example-result" aria-live="polite">
-                <div><span>目標 RTP 入池額</span><strong id="exampleSpendDelta">—</strong></div>
-                <div><span>扣自然派彩後餘額</span><strong id="exampleRawPool">—</strong></div>
-                <div><span>本次補正／扣抵</span><strong id="exampleOffset">—</strong></div>
-                <div><span>實付淨獎</span><strong id="exampleNetReward">—</strong></div>
-                <div><span>結算後池餘額</span><strong id="examplePoolAfter">—</strong></div>
-              </div>
+              <label>原骰獎補正最低倍數<input id="rewardFloorMultiple" type="number" min="0" max="1" step="0.01" value="0.1"></label>
+              <label>原骰獎補正最高倍數<input id="rewardCeilingMultiple" type="number" min="1" max="10" step="0.1" value="10"></label>
             </div>
           </div>
         </details>
 
         <details class="control-card">
-          <summary><span>03</span><strong>遊戲機制</strong><small>固定啟用；只調整實際參數</small></summary>
+          <summary><span>04</span><strong>遊戲機制</strong><small>固定啟用；只調整實際參數</small></summary>
           <div class="control-card-body" aria-labelledby="mechanicsTitle">
             <div class="section-intro">
               <h3 id="mechanicsTitle">遊戲機制（固定啟用）</h3>
@@ -110,7 +97,6 @@
             <div class="mechanic-tabbar" role="tablist" aria-label="遊戲參數分類" data-tab-scope>
               <button type="button" class="active" data-panel="bossPanel">8 星 Boss</button>
               <button type="button" data-panel="magicPanel">魔法卡</button>
-              <button type="button" data-panel="suppressionPanel">抑制參數</button>
               <button type="button" data-panel="pokerPanel">牌型／換牌費</button>
             </div>
             <p class="tab-hint">選擇一類後展開完整編輯；所有遊戲機制固定啟用。</p>
@@ -118,21 +104,7 @@
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星</th><th>HP下限</th><th>HP上限</th><th>回合下限</th><th>回合上限</th><th>出生籤</th><th>0倍數骰%</th><th>1顆%</th><th>2顆%</th><th>3顆%</th><th>理論最高獎x</th></tr></thead><tbody id="bossTableBody"></tbody></table></div>
             </div>
             <div id="magicPanel" class="tab-panel">
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>機制</th><th>顯示名稱</th><th>普通籤</th><th>高星籤</th><th>最小</th><th>最大</th><th>作用</th><th>啟用</th></tr></thead><tbody id="magicTableBody"></tbody></table></div>
-            </div>
-            <div id="suppressionPanel" class="tab-panel">
-              <div class="section-intro"><h3>偏離抑制參數</h3><p>抑制是線上執行期規則，不切分也不重建正式劇本。</p></div>
-              <div class="split-grid">
-                <section class="param-group"><h3>01｜啟動條件與生命週期</h3><div id="suppressionActivationGrid" class="field-list"></div></section>
-                <section class="param-group"><h3>02｜換牌候選抑制</h3><div id="suppressionRedrawGrid" class="field-list"></div></section>
-              </div>
-              <section class="sub-control-block">
-                <h3>03｜傷害魔法抑制專用抽取表</h3>
-                <p class="compact-copy">暴擊、固傷各自使用一張表；所有牌型傷害魔法卡共用牌型傷害倍率表。</p>
-                <div id="suppressionMagicSwitchGrid" class="switch-grid"></div>
-                <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>抑制表</th><th>套用卡片</th><th>結果</th><th>權重（%）</th><th>啟用</th></tr></thead><tbody id="suppressionMagicTableBody"></tbody></table></div>
-              </section>
-              <section class="sub-control-block"><h3>04｜前端揭露與稽核</h3><output id="suppressionPolicySummary" class="dirty-note"></output></section>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>機制</th><th>顯示名稱</th><th>籤數</th><th>最小</th><th>最大</th></tr></thead><tbody id="magicTableBody"></tbody></table></div>
             </div>
             <div id="pokerPanel" class="tab-panel">
               <div class="split-grid">
@@ -146,7 +118,7 @@
         </details>
 
         <details class="control-card">
-          <summary><span>04</span><strong>故事產生</strong><small>分類與三候選動態配籤</small></summary>
+          <summary><span>05</span><strong>故事產生</strong><small>分類與三候選動態配籤</small></summary>
           <div class="control-card-body">
             <div class="control-grid primary-controls">
               <label>配籤 RTP 容許差（百分點）<input id="tolerancePp" type="number" min="0" max="2" step="0.001" value="0.01"></label>
@@ -168,67 +140,65 @@
 
       <main class="workspace">
         <section id="resultsArea" class="results-area is-hidden" aria-labelledby="resultsTitle">
-          <div class="results-heading">
-            <div><p class="eyebrow">SIMULATION REPORTS</p><h2 id="resultsTitle">統計資料</h2><p>依舊版報表順序呈現，只保留新版數學模型仍成立的欄位。</p></div>
-            <span class="phase-badge">模擬完成</span>
-          </div>
+          <h2 id="resultsTitle" class="visually-hidden">統計資料</h2>
           <div id="statisticsReportTabs" class="report-tabs" role="tablist" aria-label="統計報表">
-            <button type="button" class="report-tab active" data-report-panel="reportRunInfoPanel">模擬資訊</button>
+            <button type="button" class="report-tab" data-report-panel="reportRunInfoPanel">模擬資訊</button>
             <button type="button" class="report-tab" data-report-panel="reportOverviewPanel">總覽</button>
-            <button type="button" class="report-tab" data-report-panel="reportTrendPanel">RTP 走勢</button>
+            <button type="button" class="report-tab active" data-report-panel="reportTrendPanel">RTP 走勢</button>
             <button type="button" class="report-tab" data-report-panel="reportBucketsPanel"><span>BOSS 切片</span><span>倍數分布</span></button>
             <button type="button" class="report-tab" data-report-panel="reportBossPanel">BOSS</button>
             <button type="button" class="report-tab" data-report-panel="reportHandsPanel">牌型</button>
             <button type="button" class="report-tab" data-report-panel="reportMagicPanel">魔法卡</button>
+            <button type="button" class="report-tab" data-report-panel="reportSuppressionPanel">抑制</button>
             <button type="button" class="report-tab" data-report-panel="reportCarryPanel">個人劇本水池</button>
           </div>
 
           <div id="statisticsReports" class="statistics-reports">
-            <section id="reportRunInfoPanel" class="report-panel active">
-              <h3>模擬資訊</h3>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>項目</th><th>數值</th><th>說明</th></tr></thead><tbody id="runInfoBody"></tbody></table></div>
+            <section id="reportRunInfoPanel" class="report-panel result-section" data-report-group="run-info">
+              <div class="section-title"><h3>模擬資訊</h3></div>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>項目</th><th>數值</th></tr></thead><tbody id="runInfoBody"></tbody></table></div>
             </section>
-            <section id="reportOverviewPanel" class="report-panel">
-              <div id="reportOverviewCards" class="summary-grid compact-summary report-summary"></div>
-              <div class="source-grid experience-summary-grid">
-                <section class="report-block"><h3>BOSS 體驗</h3><div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>項目</th><th>數值</th><th>玩家口徑</th></tr></thead><tbody id="bossExperienceBody"></tbody></table></div></section>
-                <section class="report-block"><h3>退幣獨立統計</h3><div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>玩家數</th><th>達標</th><th>死亡</th><th>退幣率</th><th>平均遊玩回合</th><th>死亡平均回合</th><th>平均擊殺 BOSS</th></tr></thead><tbody id="cashoutStatsBody"></tbody></table></div></section>
-                <section class="report-block"><h3>比牌牌型／平均換牌</h3><div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>比牌牌型</th><th>平均換牌次數</th></tr></thead><tbody id="drawByHandBody"></tbody></table></div></section>
-                <section class="report-block"><h3>投入來源</h3><div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>投入來源</th><th>金額</th><th>占總投入</th></tr></thead><tbody id="spendSourceBody"></tbody></table></div></section>
-                <section class="report-block"><h3>玩家 RTP 來源</h3><div class="table-wrap table-scroll"><table class="dense-table compact-table"><thead><tr><th>玩家派彩來源</th><th>金額</th><th>RTP 貢獻</th></tr></thead><tbody id="payoutSourceBody"></tbody></table></div></section>
-              </div>
+            <section id="reportOverviewPanel" class="report-panel result-section overview-section" data-report-group="overview">
+              <div class="section-title"><h3>總覽</h3></div>
+              <div id="reportOverviewCards" class="summary-blocks"></div>
             </section>
-            <section id="reportTrendPanel" class="report-panel">
-              <h3>RTP 走勢</h3><p class="proxy-note">依指定 BOSS 數切片，只計玩家實際投入與最後實付獎。</p>
+            <section id="reportTrendPanel" class="report-panel result-section active" data-report-group="trend">
+              <div class="section-title"><h3>RTP 走勢</h3></div>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>BOSS 區間</th><th>累積玩家 RTP</th><th>區域玩家 RTP</th><th>累積擊殺 BOSS</th></tr></thead><tbody id="rtpTrendBody"></tbody></table></div>
             </section>
-            <section id="reportBucketsPanel" class="report-panel">
-              <h3>BOSS 切片倍數分布</h3><p class="proxy-note">以一隻完整 BOSS 為單位，倍數＝玩家實付獎 ÷ 該 BOSS 實際總投入。</p>
+            <section id="reportBucketsPanel" class="report-panel result-section" data-report-group="boss-slice">
+              <div class="section-title"><h3><span>BOSS 切片</span><span>倍數分布</span></h3></div>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>總押分倍數</th><th>累加 RTP</th><th>平均幾次出現</th><th>出現次數</th></tr></thead><tbody id="playerBossBucketBody"></tbody></table></div>
             </section>
-            <section id="reportBossPanel" class="report-panel">
-              <h3>八星 BOSS</h3><p class="proxy-note">新版沒有普通池／高星池，改以實際遇到的八個星級統一呈現。</p>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>出現次數</th><th>平均幾隻遇到</th><th>擊殺率</th><th>玩家 RTP</th><th>BOSS 獎 RTP</th><th>BOSS 獎 Min／Avg／Max</th><th>Joker</th><th>同花順擊殺</th><th>平均換牌</th><th>平均換牌花費 x</th><th>REROLL</th></tr></thead><tbody id="starStatsBody"></tbody></table></div>
+            <section id="reportBossPanel" class="report-panel result-section" data-report-group="boss">
+              <div class="section-title"><h3>BOSS</h3></div>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>RTP</th><th>平均賠率 x</th><th>平均幾次出現</th><th>擊殺率</th><th>獲得 Joker 次數</th><th>必殺次數</th><th>平均換牌次數</th><th>BOSS 刷新次數</th></tr></thead><tbody id="starStatsBody"></tbody></table></div>
             </section>
-            <section id="reportHandsPanel" class="report-panel">
-              <h3>牌型</h3>
+            <section id="reportHandsPanel" class="report-panel result-section" data-report-group="hands">
+              <div class="section-title"><h3>牌型</h3></div>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>牌型</th><th>RTP</th><th>玩家勝率</th><th>初始手牌</th><th>比牌牌型</th><th>BOSS 手牌</th><th>平均傷害</th><th>基礎傷害</th></tr></thead><tbody id="handStatsBody"></tbody></table></div>
             </section>
-            <section id="reportMagicPanel" class="report-panel">
-              <h3>魔法卡</h3>
+            <section id="reportMagicPanel" class="report-panel result-section" data-report-group="magic">
+              <div class="section-title"><h3>魔法卡</h3></div>
               <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>名稱</th><th>總出現次數</th><th>使用率</th><th>平均幾次出現</th></tr></thead><tbody id="magicStatsBody"></tbody></table></div>
             </section>
-            <section id="reportCarryPanel" class="report-panel">
-              <div class="plain-language-note"><strong>個人劇本水池固定啟用</strong><span>三個 Bet 桶只做帳務分流；每筆花費按目標 RTP 入桶，自然派彩出桶，擊殺後以合法 BOSS 骰面吸收差額。</span></div>
-              <div id="storySummaryCards" class="summary-grid compact-summary report-summary"></div>
+            <section id="reportSuppressionPanel" class="report-panel result-section" data-report-group="suppression">
+              <div class="section-title"><h3>抑制</h3></div>
+              <h3>抑制總覽</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>項目</th><th>數值</th></tr></thead><tbody id="suppressionOverviewBody"></tbody></table></div>
+              <h3>按劇本結果</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>劇本結果</th><th>BOSS 數</th><th>抑制 BOSS 數</th><th>抑制機率（%）</th></tr></thead><tbody id="suppressionClassBody"></tbody></table></div>
+              <h3>按 BOSS 星級</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>BOSS 數</th><th>抑制 BOSS 數</th><th>抑制機率（%）</th></tr></thead><tbody id="suppressionStarBody"></tbody></table></div>
               <h3>三個 Bet 桶</h3>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>包含下注額</th><th>BOSS</th><th>目標 RTP 入池額</th><th>自然派彩</th><th>本隻產生差額</th><th>上修</th><th>下修</th><th>觸發率</th><th>期末餘額</th></tr></thead><tbody id="carryBucketBody"></tbody></table></div>
-              <h3>水池守恆</h3>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>項目</th><th>數值</th><th>說明</th></tr></thead><tbody id="carryAuditBody"></tbody></table></div>
-              <h3>補正使用狀態</h3>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>指標</th><th>數值</th><th>說明</th></tr></thead><tbody id="correctionHealthBody"></tbody></table></div>
-              <h3>三桶玩家尾部</h3>
-              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>正餘額玩家</th><th>負餘額玩家</th><th>歸零玩家</th><th>平均餘額</th><th>|餘額| P50</th><th>P90</th><th>P95</th><th>P99</th><th>最大 |餘額|</th><th>|餘額|／投入</th></tr></thead><tbody id="carryBucketTailBody"></tbody></table></div>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>包含下注額</th><th>BOSS 數</th><th>抑制 BOSS 數</th><th>抑制機率（%）</th></tr></thead><tbody id="suppressionBucketBody"></tbody></table></div>
+            </section>
+            <section id="reportCarryPanel" class="report-panel result-section" data-report-group="water">
+              <div class="section-title"><h3>個人劇本水池</h3></div>
+              <h3>三個 Bet 桶</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>下注區間</th><th>包含下注額</th><th>總押注</th><th>入場 Bet 入池</th><th>押注差額調整</th><th>更換 BOSS 入池</th><th>劇本實際派彩</th><th>抑制機率</th><th>平均剩餘水池</th></tr></thead><tbody id="carryBucketBody"></tbody></table></div>
+              <h3>各星 BOSS 劇本抽中分布</h3>
+              <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>星級</th><th>BOSS 數</th><th>贏多（%）</th><th>贏（%）</th><th>輸（%）</th><th>贏多數量</th><th>贏數量</th><th>輸數量</th></tr></thead><tbody id="carryStarStoryBody"></tbody></table></div>
             </section>
           </div>
         </section>
@@ -236,14 +206,14 @@
     </div>
   </div>
 
-  <script src="src/core/boss-duel-random.js?v=action-tree-v36"></script>
+  <script src="src/core/boss-duel-random.js?v=action-tree-v60"></script>
   <script src="src/core/boss-duel-poker-arrangement-core.js?v=arrange-v10"></script>
-  <script src="src/core/boss-duel-rules.js?v=action-tree-v36"></script>
+  <script src="src/core/boss-duel-rules.js?v=action-tree-v60"></script>
   <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v11"></script>
-  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v14"></script>
-  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v7"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v36"></script>
-  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v36"></script>
-  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v36"></script>
+  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v15"></script>
+  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v8"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v60"></script>
+  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v60"></script>
+  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v60"></script>
 </body>
 </html>

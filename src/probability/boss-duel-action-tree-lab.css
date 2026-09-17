@@ -29,6 +29,55 @@ body {
   white-space: nowrap;
 }
 
+.action-tree-tool .header-actions button {
+  min-width: 104px;
+}
+
+.action-tree-tool .copy-statistics-action,
+.action-tree-tool .copy-statistics-action:hover {
+  border-color: #356d55;
+  background: #174a36;
+  color: #dff7ea;
+}
+
+.action-tree-tool .stop-statistics-action,
+.action-tree-tool .stop-statistics-action:hover {
+  border-color: #98414a;
+  background: #6f2028;
+  color: #fff1f2;
+}
+
+.action-tree-tool #runSimulationButton.is-statistics-progress,
+.action-tree-tool #runSimulationButton.is-statistics-progress:hover {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-color: #62acd3;
+  background: linear-gradient(to bottom, #347da8 0 calc(100% - 4px), #173047 calc(100% - 4px) 100%);
+  color: #f6fbff;
+  cursor: wait;
+  opacity: 1;
+}
+
+.action-tree-tool #runSimulationButton .button-label {
+  position: relative;
+  z-index: 1;
+}
+
+.action-tree-tool #runSimulationButton.is-statistics-progress::after {
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--statistics-progress, 0%);
+  height: 4px;
+  border-radius: 999px;
+  background: #8cddff;
+  box-shadow: 0 0 8px rgba(140, 221, 255, 0.8);
+  content: "";
+  transition: width 160ms ease-out;
+}
+
 .action-tree-tool .header-run-state {
   flex-basis: 100%;
   color: var(--muted);
@@ -51,6 +100,10 @@ body {
 .action-tree-tool .statistics-reports,
 .action-tree-tool .report-panel {
   min-width: 0;
+}
+
+.action-tree-tool .report-panel {
+  scroll-margin-top: 16px;
 }
 
 .action-tree-tool .config-panel {
@@ -144,8 +197,7 @@ body {
 .action-tree-tool .results-heading h2,
 .action-tree-tool .report-panel h3,
 .action-tree-tool .fee-panel h3,
-.action-tree-tool .sub-control-block h3,
-.action-tree-tool .example-inputs h3 {
+.action-tree-tool .sub-control-block h3 {
   color: var(--heading);
 }
 
@@ -177,8 +229,7 @@ body {
 .action-tree-tool .control-grid > label,
 .action-tree-tool .carry-controls > label,
 .action-tree-tool .field-list > label,
-.action-tree-tool .fee-grid > label,
-.action-tree-tool .example-inputs > label {
+.action-tree-tool .fee-grid > label {
   display: grid;
   min-width: 0;
   gap: 5px;
@@ -476,130 +527,15 @@ body {
 }
 
 .action-tree-tool .formula-line,
-.action-tree-tool .formula-block {
-  margin: 10px 0 0;
-  border-left: 4px solid var(--purple);
-  border-radius: 6px;
-  background: var(--purple-soft);
-  color: #d8ccef;
-  padding: 9px 11px;
-  font-size: 11px;
-  line-height: 1.55;
-}
-
-.action-tree-tool .formula-block {
-  display: grid;
-  gap: 4px;
-}
-
-.action-tree-tool .major-switch,
-.action-tree-tool .switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.action-tree-tool .major-switch {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #101720;
-  padding: 10px;
-}
-
-.action-tree-tool .major-switch > div {
-  display: grid;
-  flex: 1;
-  gap: 2px;
-}
-
-.action-tree-tool .major-switch small {
-  color: var(--muted);
-  font-size: 10px;
-}
-
-.action-tree-tool .switch {
-  position: relative;
-  display: inline-flex;
-  flex: 0 0 auto;
-  width: 42px;
-  height: 23px;
-  cursor: pointer;
-}
-
-.action-tree-tool .switch input {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  opacity: 0;
-}
-
-.action-tree-tool .switch span {
-  width: 100%;
-  border-radius: 999px;
-  background: #334252;
-  transition: background 150ms ease;
-}
-
-.action-tree-tool .switch span::after {
-  content: "";
-  display: block;
-  width: 17px;
-  height: 17px;
-  margin: 3px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 150ms ease;
-}
-
-.action-tree-tool .switch input:checked + span {
-  background: var(--green);
-}
-
-.action-tree-tool .switch input:checked + span::after {
-  transform: translateX(19px);
-}
-
-.action-tree-tool .compact-switch {
-  margin: 0 auto;
-}
-
 .action-tree-tool .carry-controls {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.action-tree-tool .termination-grid {
-  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 12px 0 0;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px;
 }
 
-.action-tree-tool .termination-grid legend {
-  color: var(--muted);
-  padding: 0 5px;
-  font-size: 11px;
+.action-tree-tool .version-state a {
+  color: #78c4eb;
   font-weight: 800;
 }
 
-.action-tree-tool .termination-grid label {
-  display: flex;
-  align-items: flex-start;
-  gap: 7px;
-  font-size: 11px;
-  line-height: 1.4;
-}
-
-.action-tree-tool .termination-grid input {
-  width: auto;
-  height: auto;
-  margin-top: 2px;
-}
-
-.action-tree-tool .example-grid,
 .action-tree-tool .split-grid,
 .action-tree-tool .source-grid {
   display: grid;
@@ -608,40 +544,12 @@ body {
   margin-top: 11px;
 }
 
-.action-tree-tool .example-inputs,
-.action-tree-tool .example-result,
 .action-tree-tool .report-block {
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #101720;
   padding: 10px;
-}
-
-.action-tree-tool .example-inputs {
-  display: grid;
-  gap: 8px;
-}
-
-.action-tree-tool .example-result {
-  display: grid;
-  gap: 1px;
-  background: var(--line);
-  padding: 1px;
-  overflow: hidden;
-}
-
-.action-tree-tool .example-result > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  background: #101720;
-  padding: 8px;
-  font-size: 11px;
-}
-
-.action-tree-tool .example-result span {
-  color: var(--muted);
 }
 
 .action-tree-tool .positive,
@@ -660,20 +568,6 @@ body {
 
 .action-tree-tool .mechanic-tabbar {
   margin: 10px 0 6px;
-}
-
-.action-tree-tool .switch-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
-}
-
-.action-tree-tool .switch-grid .switch-row {
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: #101720;
-  padding: 8px;
-  font-size: 11px;
 }
 
 .action-tree-tool .split-grid {
@@ -729,12 +623,12 @@ body {
 }
 
 .action-tree-tool .results-area {
-  margin-top: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  padding: 14px;
+  margin-top: 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .action-tree-tool .results-heading {
@@ -754,7 +648,7 @@ body {
 }
 
 .action-tree-tool .report-tab {
-  min-height: 38px;
+  min-height: 44px;
   font-size: 12px;
 }
 
@@ -765,6 +659,36 @@ body {
 
 .action-tree-tool .report-panel.active {
   display: block;
+}
+
+.action-tree-tool .report-panel.result-section {
+  margin-bottom: 0;
+}
+
+.action-tree-tool .report-panel .table-wrap {
+  border-top: 0;
+}
+
+.action-tree-tool #reportOverviewCards {
+  padding: 12px;
+}
+
+.action-tree-tool #reportCarryPanel > h3 {
+  margin: 0;
+  border-top: 1px solid var(--line);
+  padding: 12px;
+}
+
+.action-tree-tool .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+  white-space: nowrap;
 }
 
 .action-tree-tool .report-tab-audit {
@@ -950,7 +874,6 @@ body {
 
   .action-tree-tool #simulationGrid,
   .action-tree-tool .carry-controls,
-  .action-tree-tool .switch-grid,
   .action-tree-tool .simulation-advanced .field-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -971,7 +894,6 @@ body {
   }
 
   .action-tree-tool .source-grid,
-  .action-tree-tool .example-grid,
   .action-tree-tool .split-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1018,9 +940,7 @@ body {
   .action-tree-tool .field-list,
   .action-tree-tool .fee-grid,
   .action-tree-tool #simulationGrid,
-  .action-tree-tool .switch-grid,
-  .action-tree-tool .simulation-advanced .field-list,
-  .action-tree-tool .termination-grid {
+  .action-tree-tool .simulation-advanced .field-list {
     grid-template-columns: minmax(0, 1fr);
   }
 

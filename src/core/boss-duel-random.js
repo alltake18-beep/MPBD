@@ -35,6 +35,12 @@
     return { normalDice: Math.max(1, 6 - stateIndex), multiplierDice: 2 + stateIndex };
   }
 
+  function maximumRewardForDice(dice) {
+    const normalDice = Math.max(1, Math.round(Number(dice?.normalDice) || 1));
+    const multiplierDice = Math.max(0, Math.round(Number(dice?.multiplierDice) || 0));
+    return normalDice * 6 * (multiplierDice > 0 ? multiplierDice * 6 : 1);
+  }
+
   function diceSumDistribution(count) {
     const key = String(count);
     if (sumDistributionCache.has(key)) return sumDistributionCache.get(key);
@@ -118,9 +124,9 @@
       normalSum: selected.normalSum,
       multiplierSum: selected.multiplierSum,
       total: selected.total,
-      maxTotal: dice.normalDice * 6 * (dice.multiplierDice > 0 ? dice.multiplierDice * 6 : 1)
+      maxTotal: maximumRewardForDice(dice)
     };
   }
 
-  return { mulberry32, hash32, inverseDiceOutcome };
+  return { mulberry32, hash32, bossDiceConfig, maximumRewardForDice, inverseDiceOutcome };
 });

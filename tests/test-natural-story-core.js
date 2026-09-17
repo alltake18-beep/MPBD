@@ -8,6 +8,7 @@ const StoryCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
+assert.equal(Rules.VERSION, "rules-v11");
 assert.equal(config.storiesPerClass, 10000);
 assert.equal(config.storiesPerStar, 30000);
 assert.equal(8 * config.storiesPerStar, 240000);
@@ -15,6 +16,8 @@ assert.equal(config.rewardFloorPct, 10);
 assert.equal(config.rewardCeilingMultiple, 10);
 assert.equal(config.playerBadHighRerollPct, 50);
 assert.equal(config.bossBadHighRerollPct, 25);
+assert(config.magicRows.every((row) => row[2] === row[3]), "magic ticket weights must use one shared value");
+assert.equal(config.magicRows.find((row) => row[0] === "crit")[4], 1);
 assert.equal(StoryCore.normalizeTargetRtpPct(undefined), 96);
 assert.equal(StoryCore.normalizeTargetRtpPct(79), 80);
 assert.equal(StoryCore.normalizeTargetRtpPct(100), 99);
@@ -145,7 +148,7 @@ const diceStory = {
   originalDice: { normalDice: 2, multiplierDice: 1, normalFaces: [2, 3], multiplierFaces: [4], normalSum: 5, multiplierSum: 4, total: 20 }
 };
 const rewardBounds = { rewardFloorPct: 10, rewardCeilingMultiple: 10 };
-const increase = StoryCore.correctBossDiceReward(diceStory, 10, 1, rewardBounds, DiceCore.mulberry32(3));
+const increase = StoryCore.correctBossDiceReward(diceStory, 30, 1, rewardBounds, DiceCore.mulberry32(3));
 assert.equal(increase.correctedRewardX, 30);
 assert.equal(increase.deltaCredits, 10);
 assert(increase.correctedRewardX <= 30);
@@ -153,10 +156,14 @@ assert.equal(increase.dice.normalFaces.length, 2);
 assert.equal(increase.dice.multiplierFaces.length, 1);
 assert(increase.dice.normalFaces.every((face) => face >= 1 && face <= 6));
 
-const decrease = StoryCore.correctBossDiceReward(diceStory, -10, 1, rewardBounds, DiceCore.mulberry32(4));
+const decrease = StoryCore.correctBossDiceReward(diceStory, 10, 1, rewardBounds, DiceCore.mulberry32(4));
 assert.equal(decrease.correctedRewardX, 10);
 assert.equal(decrease.deltaCredits, -10);
 assert(decrease.correctedRewardX >= 10);
+
+const minimumWhenUnaffordable = StoryCore.correctBossDiceReward(diceStory, -10, 1, rewardBounds, DiceCore.mulberry32(4));
+assert.equal(minimumWhenUnaffordable.correctedRewardX, 2, "when no legal reward is affordable, use the minimum legal bounded dice result");
+assert.equal(minimumWhenUnaffordable.deltaCredits, -18);
 
 const cashflowStory = { ...diceStory, spendX: 100, payoutX: 80, netX: -20 };
 const settlement = StoryCore.settleCommittedStory(
@@ -166,10 +173,14 @@ const settlement = StoryCore.settleCommittedStory(
     rewardFloorPct: 10, rewardCeilingMultiple: 10, rng: DiceCore.mulberry32(5)
   }
 );
-assert.equal(settlement.targetAccrualCredits, 96);
-assert.equal(settlement.preCorrectionPoolCredits, 16);
-assert.equal(settlement.correction.deltaCredits, 16);
-assert.equal(settlement.actualPayoutCredits, 96);
+assert.equal(settlement.storyBudgetCredits, 80);
+assert.equal(settlement.plannedSpendCredits, 100);
+assert.equal(settlement.spendDeltaCredits, 0);
+assert.equal(settlement.spendDeltaTargetAccrualCredits, 0);
+assert.equal(settlement.targetAccrualCredits, 80);
+assert.equal(settlement.availableBossPoolCredits, 20);
+assert.equal(settlement.correction.deltaCredits, 0);
+assert.equal(settlement.actualPayoutCredits, 80);
 assert.equal(settlement.endingPoolCredits, 0);
 
 const noKill = { ...cashflowStory, killed: false, payoutX: 0, originalBossRewardX: 0 };
@@ -178,25 +189,78 @@ const noKillSettlement = StoryCore.settleCommittedStory(
   { actualSpendCredits: 100, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
 );
 assert.equal(noKillSettlement.correction.applied, false);
-assert.equal(noKillSettlement.endingPoolCredits, 96);
+assert.equal(noKillSettlement.endingPoolCredits, 0);
+
+const fourStarEightXStory = StoryCore.simulateNaturalStory(config, 4, 3946032733, { includePath: true });
+assert.deepEqual(
+  [fourStarEightXStory.classKey, fourStarEightXStory.spendX, fourStarEightXStory.payoutX, fourStarEightXStory.originalBossRewardX],
+  ["win", 1, 8, 8],
+  "the regression must use the actual 4-star win story discussed in the settlement example"
+);
+const fourStarEightXSettlement = StoryCore.settleCommittedStory(
+  { selectedStory: fourStarEightXStory }, [0, 0, 0], 1,
+  { actualSpendCredits: 1, organicPayoutCredits: 8, targetRtpPct: 96, rng: DiceCore.mulberry32(8) }
+);
+assert.equal(fourStarEightXSettlement.storyBudgetCredits, 8, "the selected story payout becomes positive pending payout budget");
+assert.equal(fourStarEightXSettlement.plannedSpendCredits, 1);
+assert.equal(fourStarEightXSettlement.spendDeltaTargetAccrualCredits, 0, "a story that spends exactly its planned total wager needs no RTP adjustment");
+assert.equal(fourStarEightXSettlement.correction.correctedRewardX, 8);
+assert.equal(fourStarEightXSettlement.actualPayoutCredits, 8);
+assert.equal(fourStarEightXSettlement.endingPoolCredits, 0, "Bet 1 / payout 8 must consume the exact story budget");
+
+const paidRedrawSettlement = StoryCore.settleCommittedStory(
+  { selectedStory: fourStarEightXStory }, [0, 0, 0], 1,
+  { actualSpendCredits: 3, organicPayoutCredits: 8, targetRtpPct: 96, rng: DiceCore.mulberry32(9) }
+);
+assert.equal(paidRedrawSettlement.storyBudgetCredits, 8);
+assert.equal(paidRedrawSettlement.spendDeltaCredits, 2);
+assert.equal(paidRedrawSettlement.spendDeltaTargetAccrualCredits, 1.92, "actual spend above the selected story plan adds the signed RTP difference");
+assert.equal(paidRedrawSettlement.correction.correctedRewardX, 9, "the dice reward consumes the largest legal amount that fits the available budget");
+assert.equal(paidRedrawSettlement.endingPoolCredits, 0.92);
+
+const shortSpendSettlement = StoryCore.settleCommittedStory(
+  { selectedStory: { ...fourStarEightXStory, spendX: 3 } }, [0, 0, 0], 1,
+  { actualSpendCredits: 1, organicPayoutCredits: 8, targetRtpPct: 96, rng: DiceCore.mulberry32(10) }
+);
+assert.equal(shortSpendSettlement.plannedSpendCredits, 3);
+assert.equal(shortSpendSettlement.spendDeltaCredits, -2);
+assert.equal(shortSpendSettlement.spendDeltaTargetAccrualCredits, -1.92, "actual spend below the selected story plan deducts the signed RTP difference");
+assert.equal(shortSpendSettlement.targetAccrualCredits, 6.08);
+assert(shortSpendSettlement.correction.correctedRewardX <= 6.08, "a killed Boss may only use a legal dice reward within the adjusted pool");
+
+const longSpendNoKillSettlement = StoryCore.settleCommittedStory(
+  { selectedStory: fourStarEightXStory }, [0, 0, 0], 1,
+  { actualSpendCredits: 3, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
+);
+assert.equal(longSpendNoKillSettlement.spendDeltaTargetAccrualCredits, 1.92);
+assert.equal(longSpendNoKillSettlement.correction.applied, false, "a surviving Boss has no dice reward to correct");
+assert.equal(longSpendNoKillSettlement.endingPoolCredits, 9.92, "unused adjusted budget carries to the next Boss");
+
+const shortSpendNoKillSettlement = StoryCore.settleCommittedStory(
+  { selectedStory: { ...fourStarEightXStory, spendX: 3 } }, [0, 0, 0], 1,
+  { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
+);
+assert.equal(shortSpendNoKillSettlement.spendDeltaTargetAccrualCredits, -1.92);
+assert.equal(shortSpendNoKillSettlement.endingPoolCredits, 6.08);
 
 const posted = StoryCore.addPoolCredits([0, 0, 9], 20, 96);
 assert.deepEqual(posted.balances, [0, 96, 9], "target RTP spend must enter only the matching Bet bucket");
 const debtStarted = {
   bucketIndex: 1, incomingPoolCredits: 0, targetRtpPct: 96,
-  targetAccrualCredits: 96, actualSpendCredits: 100
+  plannedSpendCredits: 100, storyBudgetCredits: 0,
+  targetAccrualCredits: 0, actualSpendCredits: 100
 };
 const debtSettlement = StoryCore.settleStartedStory(
   { selectedStory: cashflowStory }, debtStarted, posted.balances, 20,
   {
-    actualSpendCredits: 100, targetAccrualCredits: 96, targetRtpPct: 96,
+    actualSpendCredits: 100, plannedSpendCredits: 100, storyBudgetCredits: 0, targetRtpPct: 96,
     organicPayoutCredits: 4000, actualKilled: true, actualBossRewardX: 20,
     actualDice: diceStory.originalDice, rewardFloorPct: 10, rewardCeilingMultiple: 10,
     rng: DiceCore.mulberry32(13)
   }
 );
 assert.equal(debtSettlement.bucketIndex, 1);
-assert(debtSettlement.correction.deltaCredits < 0, "negative pool must reduce the current killed BOSS reward");
+assert(debtSettlement.correction.deltaCredits < 0, "an unaffordable reward must reduce the current killed BOSS reward");
 assert.equal(debtSettlement.correction.correctedRewardX >= 2, true, "reward may not fall below 10% of the original");
 assert.equal(debtSettlement.balances[2], 9, "other Bet buckets must stay isolated");
 
@@ -212,7 +276,7 @@ assert.deepEqual(StoryCore.availablePoolCredits([300, 0, 0], reservedB.reservati
 const reservedSettlement = StoryCore.settleStartedStory(
   { selectedStory: diceStory }, { bucketIndex: 0, targetRtpPct: 96 }, [300, 0, 0], 10,
   {
-    encounterId: "B", reservations: reservedB.reservations, actualSpendCredits: 0, targetAccrualCredits: 0,
+    encounterId: "B", reservations: reservedB.reservations, actualSpendCredits: 0, plannedSpendCredits: 0,
     organicPayoutCredits: 200, actualKilled: true, actualBossRewardX: 20, actualDice: diceStory.originalDice,
     rewardFloorPct: 10, rewardCeilingMultiple: 10, rng: DiceCore.mulberry32(17)
   }

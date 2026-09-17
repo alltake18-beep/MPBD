@@ -1,16 +1,31 @@
 "use strict";
 
 (function attachActionTreeCore(root) {
+  const DiceCore = root.BossDuelRandom || (
+    typeof module === "object" && module.exports && typeof require === "function"
+      ? require("../core/boss-duel-random.js")
+      : null
+  );
+  const Rules = root.BossDuelRules || (
+    typeof module === "object" && module.exports && typeof require === "function"
+      ? require("../core/boss-duel-rules.js")
+      : null
+  );
+  const StoryPlanner = root.BossDuelStoryPlanner || (
+    typeof module === "object" && module.exports && typeof require === "function"
+      ? require("../core/boss-duel-story-planner.js")
+      : null
+  );
   const NaturalCore = root.BossDuelNaturalStoryCore || (
     typeof module === "object" && module.exports && typeof require === "function"
       ? require("../core/boss-duel-natural-story-core.js")
       : null
   );
-  if (!NaturalCore) throw new Error("機率工具缺少自然劇本核心");
+  if (!DiceCore || !Rules || !StoryPlanner || !NaturalCore) throw new Error("機率工具缺少共用遊戲核心");
   const TREE_KEYS = ["win", "push", "lose"];
   const TREE_LABELS = { win: "贏多", push: "贏少", lose: "輸" };
   const SPEND_FACTORS = { win: 0.90, push: 1.00, lose: 1.18 };
-  const STORAGE_KEY = "boss-duel:action-tree-carry:config:v1";
+  const STORAGE_KEY = "boss-duel:action-tree-carry:config:v2";
   const CHANNEL_NAME = "boss-duel:action-tree-carry:hot-update:v1";
   // 三個統計玩家使用 10,000 基點；故事配籤另讀 storyPool.ticketBasis。
   const TICKET_BASIS = 10000;
@@ -39,11 +54,11 @@
   ];
 
   const DEFAULT_MAGIC_ROWS = [
-    ["threeBoost", "三條傷害", 75, 50, 1, 3, "three", 1], ["fourBoost", "四條傷害", 75, 75, 1, 3, "four", 1],
-    ["straightBoost", "順子傷害", 100, 125, 1, 3, "straight", 1], ["flushBoost", "同花傷害", 150, 175, 1, 3, "flush", 1],
-    ["fullHouseBoost", "葫蘆傷害", 150, 175, 1, 3, "fullHouse", 1], ["joker", "Joker", 75, 50, 1, 1, "joker", 1],
-    ["crit", "暴擊", 100, 100, 0, 5, "crit", 1], ["flatDamage", "固傷", 150, 175, 3, 6, "flat", 1],
-    ["coin", "金幣", 100, 25, 3, 6, "coin", 1], ["freeDraw", "免費換牌", 50, 50, 1, 1, "freeDraw", 1]
+    ["threeBoost", "三條傷害", 50, 50, 1, 3, "three", 1], ["fourBoost", "四條傷害", 75, 75, 1, 3, "four", 1],
+    ["straightBoost", "順子傷害", 125, 125, 1, 3, "straight", 1], ["flushBoost", "同花傷害", 175, 175, 1, 3, "flush", 1],
+    ["fullHouseBoost", "葫蘆傷害", 175, 175, 1, 3, "fullHouse", 1], ["joker", "Joker", 50, 50, 1, 1, "joker", 1],
+    ["crit", "暴擊", 100, 100, 1, 5, "crit", 1], ["flatDamage", "固傷", 175, 175, 3, 6, "flat", 1],
+    ["coin", "金幣", 25, 25, 3, 6, "coin", 1], ["freeDraw", "免費換牌", 50, 50, 1, 1, "freeDraw", 1]
   ];
 
   const DEFAULT_HAND_ROWS = [
@@ -51,6 +66,47 @@
     ["straight", "順子", 4, 0, 4], ["flush", "同花", 5, 0, 5], ["fullHouse", "葫蘆", 6, 0, 8],
     ["four", "四條", 7, 0, 15], ["straightFlush", "同花順", 8, 0, 30]
   ];
+
+  const DEFAULT_TOOL_SUPPRESSION_POLICY = {
+    enabled: true,
+    activation: { enabled: true, requireLoseStory: true, requireKeepDeviation: true, latchForBoss: true },
+    redraw: {
+      enabled: true,
+      maxCandidates: 1,
+      improvedAcceptPct: 33,
+      sameOrLowerAcceptPct: 100,
+      forceFinalCandidate: true
+    },
+    magic: {
+      enabled: true,
+      mode: "SEPARATE_TABLE",
+      tables: {
+        crit: {
+          enabled: true,
+          label: "暴擊倍率",
+          outcomes: [
+            { value: 1, weight: 50 }, { value: 2, weight: 25 }, { value: 3, weight: 15 },
+            { value: 4, weight: 8 }, { value: 5, weight: 2 }
+          ]
+        },
+        flatDamage: {
+          enabled: true,
+          label: "固定傷害",
+          outcomes: [
+            { value: 3, weight: 60 }, { value: 4, weight: 30 },
+            { value: 5, weight: 8 }, { value: 6, weight: 2 }
+          ]
+        },
+        handBoost: {
+          enabled: true,
+          label: "共用牌型傷害倍率",
+          outcomes: [
+            { value: 1, weight: 50 }, { value: 2, weight: 30 }, { value: 3, weight: 20 }
+          ]
+        }
+      }
+    }
+  };
 
   const DEFAULT_CONFIG = {
     revision: 1,
@@ -79,7 +135,7 @@
       maxCreditX: 1000000,
       debtExpiryBosses: 0,
       rewardCorrectionPct: 50,
-      rewardFloorPct: 10,
+      rewardFloorMultiple: 0.1,
       rewardCeilingMultiple: 10
     },
     storyPool: {
@@ -92,10 +148,9 @@
     },
     naturality: { floorPct: 70, massCoveragePct: null, strataCoveragePct: null, essRatioPct: null },
     simulation: {
-      playerCount: 100, bossesPerPlayer: 500, playerRoundLimit: 500, earlyTerminationPct: 0, fixedBet: 1, roundSlice: 10,
-      betMode: "FIXED", playerBehavior: "SMART", cashoutPlayerCount: 1000,
-      cashoutStartX: 200, cashoutTargetX: 300, decimalPlaces: 2,
-      rtpTolerancePp: 0.50, poolTailTolerancePp: 0.05,
+      playerCount: 1, bossesPerPlayer: 100, playerRoundLimit: 500, fixedBet: 1, roundSlice: 1,
+      betMode: "FIXED", playerBehavior: "EXTREME", cashoutPlayerCount: 1,
+      cashoutStartCredits: 100, cashoutTargetCredits: 200, decimalPlaces: 2,
       volatilityScale: 1.15, highStarVolatilityStep: 0.045, payoutCapX: 1000
     },
     mechanics: {
@@ -110,7 +165,7 @@
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
       magicCardsPerRound: 2
     },
-    suppression: NaturalCore.DEFAULT_SUPPRESSION_POLICY,
+    suppression: DEFAULT_TOOL_SUPPRESSION_POLICY,
     bossRows: DEFAULT_BOSS_ROWS,
     magicRows: DEFAULT_MAGIC_ROWS,
     handRows: DEFAULT_HAND_ROWS,
@@ -194,7 +249,11 @@
     c.maxCreditX = clamp(finite(c.maxCreditX, 100), 0, 1000000);
     c.debtExpiryBosses = integer(c.debtExpiryBosses, 0, 0, 1000000);
     c.rewardCorrectionPct = clamp(finite(c.rewardCorrectionPct, 50), 0, 100);
-    c.rewardFloorPct = clamp(finite(c.rewardFloorPct, 10), 0, 100);
+    const legacyRewardFloorPct = Number(input?.carry?.rewardFloorPct);
+    c.rewardFloorMultiple = clamp(finite(
+      input?.carry?.rewardFloorMultiple,
+      Number.isFinite(legacyRewardFloorPct) ? legacyRewardFloorPct / 100 : c.rewardFloorMultiple
+    ), 0, 1);
     c.rewardCeilingMultiple = clamp(finite(c.rewardCeilingMultiple, 10), 1, 10);
     const story = config.storyPool;
     story.seed = integer(story.seed, 20260824, 0, 4294967295) >>> 0;
@@ -218,15 +277,22 @@
     s.playerCount = integer(s.playerCount, 100, 1, 5000);
     s.bossesPerPlayer = integer(s.bossesPerPlayer, s.playerRoundLimit || 500, 1, 8192);
     s.playerRoundLimit = integer(s.playerRoundLimit, s.bossesPerPlayer, 1, 1000000);
-    s.earlyTerminationPct = clamp(finite(s.earlyTerminationPct, 0), 0, 100);
-    s.fixedBet = clamp(finite(s.fixedBet, 1), 0.01, 1000000);
+    const requestedFixedBet = finite(s.fixedBet, 1);
+    s.fixedBet = BET_VALUES.includes(requestedFixedBet) ? requestedFixedBet : 1;
     s.roundSlice = integer(s.roundSlice, 10, 1, 8192);
     s.cashoutPlayerCount = integer(s.cashoutPlayerCount, 1000, 1, 5000);
-    s.cashoutStartX = clamp(finite(s.cashoutStartX, 200), 0.01, 1000000000);
-    s.cashoutTargetX = clamp(finite(s.cashoutTargetX, 300), 0.01, 1000000000);
+    const inputSimulation = input?.simulation || {};
+    const inputStartCredits = Object.prototype.hasOwnProperty.call(inputSimulation, "cashoutStartCredits")
+      ? inputSimulation.cashoutStartCredits
+      : inputSimulation.cashoutStartX;
+    const inputTargetCredits = Object.prototype.hasOwnProperty.call(inputSimulation, "cashoutTargetCredits")
+      ? inputSimulation.cashoutTargetCredits
+      : inputSimulation.cashoutTargetX;
+    s.cashoutStartCredits = clamp(finite(inputStartCredits, 100), 0.01, 1000000000);
+    s.cashoutTargetCredits = clamp(finite(inputTargetCredits, 200), 0.01, 1000000000);
+    delete s.cashoutStartX;
+    delete s.cashoutTargetX;
     s.decimalPlaces = integer(s.decimalPlaces, 2, 0, 8);
-    s.rtpTolerancePp = clamp(finite(s.rtpTolerancePp, 0.50), 0.001, 20);
-    s.poolTailTolerancePp = clamp(finite(s.poolTailTolerancePp, 0.05), 0.001, 20);
     s.volatilityScale = clamp(finite(s.volatilityScale, 1.15), 0.25, 3);
     s.highStarVolatilityStep = clamp(finite(s.highStarVolatilityStep, 0.045), 0, 0.25);
     s.payoutCapX = clamp(finite(s.payoutCapX, 1000), 1, 1000000);
@@ -238,15 +304,27 @@
     config.ruleSettings.initialRerollLimit = integer(config.ruleSettings.initialRerollLimit, 50, 0, 1000000);
     config.ruleSettings.magicCardsPerRound = integer(config.ruleSettings.magicCardsPerRound, 2, 0, 10);
     config.suppression = NaturalCore.normalizeSuppressionPolicy(config.suppression);
+    config.suppression.enabled = true;
+    config.suppression.activation.enabled = true;
+    config.suppression.activation.requireLoseStory = true;
+    config.suppression.activation.requireKeepDeviation = true;
+    config.suppression.activation.latchForBoss = true;
+    config.suppression.redraw.enabled = true;
+    config.suppression.redraw.forceFinalCandidate = true;
+    config.suppression.magic.enabled = true;
+    Object.values(config.suppression.magic.tables).forEach((table) => { table.enabled = true; });
     config.magicRows = config.magicRows.map((row, index) => {
       const fallback = DEFAULT_MAGIC_ROWS[index] || row;
       const normalized = Array.isArray(row) ? row.slice(0, 8) : fallback.slice();
       while (normalized.length < 8) normalized.push(fallback?.[normalized.length] ?? (normalized.length === 7 ? 1 : 0));
       normalized[2] = Math.max(0, finite(normalized[2], fallback?.[2] || 0));
       normalized[3] = Math.max(0, finite(normalized[3], fallback?.[3] || 0));
+      normalized[2] = normalized[3];
       normalized[4] = finite(normalized[4], fallback?.[4] || 0);
       normalized[5] = finite(normalized[5], fallback?.[5] || 0);
-      normalized[7] = normalized[7] === false || Number(normalized[7]) === 0 ? 0 : 1;
+      if (normalized[0] === "crit") normalized[4] = Math.max(1, normalized[4]);
+      normalized[5] = Math.max(normalized[4], normalized[5]);
+      normalized[7] = 1;
       return normalized;
     });
     config.handRows = config.handRows.map((row, index) => {
@@ -512,39 +590,429 @@
     throw new Error(`${star} 星在 ${maxAttempts} 次完整分類等機率抽取內找不到可配籤的三候選`);
   }
 
+  function behaviorOptionScore(option, behavior) {
+    const showdown = finite(option.showdownWinProbability, 0);
+    const damage = finite(option.expectedDamage, 0);
+    const synergy = finite(option.magicSynergyScore, 0);
+    const draws = Math.max(0, finite(option.draws, 0));
+    const paidDraws = Math.max(0, finite(option.paidDraws, 0));
+    const drawSpend = Math.max(0, finite(option.drawSpendX, 0));
+    if (behavior === "FREE_RIDE") {
+      return (paidDraws === 0 ? 100000 : 0) + finite(option.freeDraws, 0) * 1000 + showdown * 100 + damage * 2 + synergy;
+    }
+    if (behavior === "EXTREME") {
+      return draws * 10000 + paidDraws * 1000 + damage * 20 + showdown * 100 + synergy - finite(option.routePriority, 99) * 0.01;
+    }
+    return (option.manualAdjustment ? 0 : 100000) + showdown * 1000 + damage * 20 + synergy * 5 - drawSpend * 8 - draws;
+  }
+
+  function chooseBehaviorOption(options, behavior) {
+    if (!options.length) return null;
+    let candidates = options;
+    if (behavior === "FREE_RIDE") {
+      const freeOnly = options.filter((option) => finite(option.paidDraws, 0) === 0);
+      if (freeOnly.length) candidates = freeOnly;
+    } else if (behavior === "OFFICIAL_FUNDED") {
+      const automatic = options.filter((option) => !option.manualAdjustment);
+      if (automatic.length) candidates = automatic;
+    }
+    return candidates.slice().sort((left, right) =>
+      behaviorOptionScore(right, behavior) - behaviorOptionScore(left, behavior)
+      || finite(left.drawSpendX, 0) - finite(right.drawSpendX, 0)
+      || finite(left.routePriority, 99) - finite(right.routePriority, 99)
+    )[0];
+  }
+
+  const COMPLETE_BEHAVIOR_HAND_KEYS = new Set(["straightFlush", "four", "fullHouse", "flush", "straight"]);
+  const COMPLETE_ARRANGEMENT_KEYS = new Set(["royalFlush", "straightFlush", "fourOfAKind", "fullHouse", "flush", "straight"]);
+  const NO_EXTRA_EFFECT_KEYS = new Set([
+    "openStraightFlush", "singleStraightFlush", "threeOfAKind", "fourFlush",
+    "twoPair", "openStraight", "singleStraight"
+  ]);
+  const ONE_EXTRA_EFFECT_KEYS = new Set(["onePair", "threeFlush", "threeRun", "twoFlush", "twoStraight"]);
+
+  function attachedEffectTier(card) {
+    const effects = card?.magicEffects || {};
+    const hasCrit = Object.prototype.hasOwnProperty.call(effects, "crit");
+    const hasFlat = Object.prototype.hasOwnProperty.call(effects, "flatDamage");
+    return hasCrit && hasFlat ? 3 : hasCrit ? 2 : hasFlat ? 1 : 0;
+  }
+
+  function officialExtraEffectLimit(planKey) {
+    if (planKey === "fourOfAKind") return 1;
+    if (COMPLETE_ARRANGEMENT_KEYS.has(planKey) || NO_EXTRA_EFFECT_KEYS.has(planKey)) return 0;
+    if (ONE_EXTRA_EFFECT_KEYS.has(planKey)) return 1;
+    return 2;
+  }
+
+  function chooseBehaviorKeepDecision(state, behavior) {
+    const planView = Rules.autoLockPlan(state.playerCards);
+    const plan = planView.arrangementPlan || {};
+    const coreCards = Array.isArray(plan.coreCards) ? plan.coreCards : [];
+    const coreIds = new Set(coreCards.map(Rules.cardId));
+    const systemKeepCards = (planView.cards || []).slice(0, 5);
+    const extraCards = systemKeepCards
+      .filter((card) => !coreIds.has(Rules.cardId(card)) && !card.joker)
+      .map((card, index) => ({ card, index, tier: attachedEffectTier(card) }))
+      .filter((row) => row.tier > 0)
+      .sort((left, right) => right.tier - left.tier || left.index - right.index);
+
+    let keptExtras;
+    if (behavior === "EXTREME") {
+      // 極端玩家追求傷害上限：完成牌照系統保留；未完成時保留暴擊，
+      // 單獨固傷若會占用換牌位置便取消。
+      keptExtras = COMPLETE_ARRANGEMENT_KEYS.has(plan.key)
+        ? extraCards
+        : extraCards.filter((row) => row.tier >= 2);
+    } else {
+      // 聰明玩家只做容易理解的拆牌：越接近高牌型，越優先騰出換牌位置。
+      keptExtras = extraCards.slice(0, officialExtraEffectLimit(plan.key));
+    }
+
+    const selectedCards = [];
+    const selectedIds = new Set();
+    const addCard = (card) => {
+      const id = Rules.cardId(card);
+      if (!id || selectedIds.has(id) || selectedCards.length >= 5) return;
+      selectedIds.add(id);
+      selectedCards.push(card);
+    };
+    for (const card of coreCards) addCard(card);
+    for (const card of state.playerCards.filter((card) => card.joker)) addCard(card);
+    for (const row of keptExtras) addCard(row.card);
+
+    const automaticIds = systemKeepCards.map(Rules.cardId).sort();
+    const keepCardIds = selectedCards.map(Rules.cardId).sort();
+    const changedCards = automaticIds.filter((id) => !selectedIds.has(id)).length
+      + keepCardIds.filter((id) => !automaticIds.includes(id)).length;
+    return {
+      initialKeepCardIds: keepCardIds,
+      automaticKeepCardIds: automaticIds,
+      coreCardIds: coreCards.map(Rules.cardId).sort(),
+      extraKeepCardIds: keptExtras.map((row) => Rules.cardId(row.card)).sort(),
+      arrangementKey: plan.key || "none",
+      manualAdjustment: changedCards > 0,
+      changedCards
+    };
+  }
+
+  function behaviorDrawLimit(behavior, naturalConfig) {
+    const configuredLimit = Math.max(0, Math.trunc(finite(naturalConfig.smartMaxDraws, 0)));
+    return behavior === "OFFICIAL_FUNDED" ? Math.min(5, configuredLimit) : configuredLimit;
+  }
+
+  function runtimeRoundForStory(story, naturalConfig, round, tieIndex) {
+    const roundSeed = DiceCore.hash32(Number(story.seed) >>> 0, round, 1201 + tieIndex * 17);
+    return Rules.createNaturalRound({
+      rng: DiceCore.mulberry32(roundSeed),
+      magicEnabled: naturalConfig.magicEnabled,
+      magicRows: naturalConfig.magicRows,
+      magicCardsPerRound: naturalConfig.magicCardsPerRound,
+      playerBadHighRerollPct: naturalConfig.playerBadHighRerollPct,
+      bossBadHighRerollPct: naturalConfig.bossBadHighRerollPct,
+      initialRerollLimit: naturalConfig.initialRerollLimit
+    });
+  }
+
+  function handPayoutFor(config, key) {
+    const row = config.handRows.find((item) => String(item?.[0]) === String(key));
+    return Math.max(0, finite(row?.[3], 0));
+  }
+
+  function simulateBehaviorStory(lockedStory, naturalConfig, behavior, options = {}) {
+    if (behavior === "SMART") return { ...lockedStory, suppressionActive: false, deviationCount: 0, redrawAudits: [] };
+    const maxSpendX = Number.isFinite(Number(options.maxSpendX))
+      ? Math.max(0, finite(options.maxSpendX, 0))
+      : Infinity;
+    let hpLeft = Math.max(1, finite(lockedStory.hp, 1));
+    let round = 1;
+    let tieIndex = 0;
+    let actionSequence = 0;
+    let spendX = 0;
+    let handPayoutX = 0;
+    let bossPayoutX = 0;
+    let coinPayoutX = 0;
+    let bankedCoinX = 0;
+    let totalDamage = 0;
+    let suppressionActive = false;
+    let deviationCount = 0;
+    let paidDraws = 0;
+    let freeDraws = 0;
+    let totalDraws = 0;
+    let fights = 0;
+    let folds = 0;
+    let ties = 0;
+    let playerRoundWins = 0;
+    let playerRoundLosses = 0;
+    let manualAdjustments = 0;
+    let changedCards = 0;
+    let playerBadHighRerolls = 0;
+    let bossBadHighRerolls = 0;
+    let killed = false;
+    let terminationReason = "ROUND_EXHAUSTED";
+    const path = [];
+    const redrawAudits = [];
+    const playerStartHandCounts = {};
+    const playerFinalHandCounts = {};
+    const bossHandCounts = {};
+    const handCounts = {};
+    const magicCounts = {};
+    const magicMoments = [];
+    let bestHandKey = "high";
+    let bestHandRank = 0;
+
+    while (round <= lockedStory.roundLimit && tieIndex < 100 && !killed) {
+      const state = runtimeRoundForStory(lockedStory, naturalConfig, round, tieIndex);
+      const startHand = state.playerEval.key;
+      const usesSimpleHumanDecision = behavior === "OFFICIAL_FUNDED" || behavior === "EXTREME";
+      const options = usesSimpleHumanDecision ? [] : StoryPlanner.enumerateRoundActions(state, naturalConfig, { includeDetails: true });
+      const selected = usesSimpleHumanDecision
+        ? chooseBehaviorKeepDecision(state, behavior)
+        : chooseBehaviorOption(options, behavior);
+      if (!selected) break;
+      const entrySpendX = tieIndex === 0 ? 1 : 0;
+      if (spendX + entrySpendX > maxSpendX + 1e-9) {
+        terminationReason = "INSUFFICIENT_FUNDS";
+        break;
+      }
+      const totalBetBefore = spendX;
+      spendX += entrySpendX;
+      Rules.applyRecommendedKeepCards(state, selected.initialKeepCardIds || []);
+      const drawLog = [];
+      let roundPaidDraws = 0;
+      let roundFreeDraws = 0;
+      let roundDrawSpendX = 0;
+      const selectedDrawCount = Math.max(0, Math.trunc(finite(selected.draws, 0)));
+      const drawLimit = behaviorDrawLimit(behavior, naturalConfig);
+      while (true) {
+        if (!usesSimpleHumanDecision && drawLog.length >= selectedDrawCount) break;
+        if (usesSimpleHumanDecision && drawLog.length >= drawLimit) break;
+        if (behavior === "OFFICIAL_FUNDED" && COMPLETE_BEHAVIOR_HAND_KEYS.has(state.playerEval.key)) break;
+        const discarded = new Set(state.discardIndexes || []);
+        if (!discarded.size || state.playerDeck.length - discarded.size < naturalConfig.deckStopCount) break;
+        const freeAvailable = naturalConfig.freeDrawEnabled && !state.freeUsed && state.magicCards.some((card) => card.key === "freeDraw");
+        let feeX = 0;
+        if (freeAvailable) {
+          state.freeUsed = true;
+          roundFreeDraws += 1;
+          freeDraws += 1;
+        } else {
+          if (!naturalConfig.paidDrawEnabled || behavior === "FREE_RIDE") break;
+          feeX = Math.max(0, finite(naturalConfig.drawFeesX[Math.min(drawLog.length, naturalConfig.drawFeesX.length - 1)], 0));
+          if (spendX + feeX > maxSpendX + 1e-9) break;
+          roundPaidDraws += 1;
+          paidDraws += 1;
+          roundDrawSpendX += feeX;
+          spendX += feeX;
+        }
+        actionSequence += 1;
+        const audit = NaturalCore.executeRuntimeRedraw(state, {
+          story: lockedStory,
+          round,
+          tieIndex,
+          drawNumber: drawLog.length + 1,
+          actionSequence,
+          discardedIndexes: discarded,
+          suppressionActive,
+          suppressionPolicy: naturalConfig.suppressionPolicy
+        });
+        suppressionActive = audit.suppressionActive;
+        deviationCount += audit.deviated ? 1 : 0;
+        redrawAudits.push(audit);
+        totalDraws += 1;
+        drawLog.push({
+          draw: drawLog.length + 1,
+          free: freeAvailable,
+          feeX,
+          keepCardIds: audit.actualKeepIds.slice(),
+          plannedKeepCardIds: audit.plannedKeepIds.slice(),
+          acceptedCardIds: audit.acceptedCardIds.slice(),
+          deviated: audit.deviated,
+          suppressionActive: audit.suppressionActive
+        });
+        if (usesSimpleHumanDecision && !(behavior === "OFFICIAL_FUNDED" && COMPLETE_BEHAVIOR_HAND_KEYS.has(state.playerEval.key))) {
+          const nextDecision = chooseBehaviorKeepDecision(state, behavior);
+          Rules.applyRecommendedKeepCards(state, nextDecision.initialKeepCardIds);
+        }
+      }
+
+      bankedCoinX += Math.max(0, finite(state.coinX, 0));
+      const action = behavior === "EXTREME" || state.playerEval.key !== "high" ? "FIGHT" : "FOLD";
+      actionSequence += 1;
+      let result = "FOLD";
+      let damage = 0;
+      let magicAudit = null;
+      if (action === "FOLD") {
+        folds += 1;
+      } else {
+        fights += 1;
+        const comparison = Rules.compare(state);
+        if (comparison.tie) {
+          ties += 1;
+          result = "TIE";
+        } else if (comparison.playerWins) {
+          playerRoundWins += 1;
+          magicAudit = NaturalCore.resolveRuntimeMagic(state, {
+            story: lockedStory,
+            actionSequence,
+            suppressionActive,
+            suppressionPolicy: naturalConfig.suppressionPolicy
+          });
+          damage = Math.max(0, finite(magicAudit.breakdown.total, 0));
+          totalDamage += damage;
+          hpLeft = Math.max(0, hpLeft - damage);
+          handPayoutX += handPayoutFor(naturalConfig, state.playerEval.key);
+          if (hpLeft <= 0) {
+            killed = true;
+            result = "KILLED";
+            bossPayoutX = Math.max(0, finite(lockedStory.originalDice?.total, 0));
+            coinPayoutX = bankedCoinX;
+            terminationReason = "KILLED";
+          } else result = "WIN";
+        } else {
+          playerRoundLosses += 1;
+          result = "LOSE";
+        }
+      }
+
+      playerStartHandCounts[startHand] = (playerStartHandCounts[startHand] || 0) + 1;
+      playerFinalHandCounts[state.playerEval.key] = (playerFinalHandCounts[state.playerEval.key] || 0) + 1;
+      bossHandCounts[state.bossEval.key] = (bossHandCounts[state.bossEval.key] || 0) + 1;
+      handCounts[startHand] = (handCounts[startHand] || 0) + 1;
+      handCounts[state.playerEval.key] = (handCounts[state.playerEval.key] || 0) + 1;
+      for (const card of state.magicCards || []) {
+        magicCounts[card.key] = (magicCounts[card.key] || 0) + 1;
+        magicMoments.push({ round, tieIndex, key: card.key, value: card.value, target: card.target });
+      }
+      if (finite(state.playerEval.rank, 0) > bestHandRank) {
+        bestHandRank = finite(state.playerEval.rank, 0);
+        bestHandKey = state.playerEval.key;
+      }
+      playerBadHighRerolls += Math.max(0, finite(state.playerBadHighRerolls, 0));
+      bossBadHighRerolls += Math.max(0, finite(state.bossBadHighRerolls, 0));
+      manualAdjustments += selected.manualAdjustment ? 1 : 0;
+      changedCards += Math.max(0, finite(selected.changedCards, 0));
+      const breakdown = magicAudit?.breakdown || Rules.damageBreakdown(state.playerEval, state.magicCards);
+      path.push({
+        round, tieIndex, startHand, finalHand: state.playerEval.key, finalRank: state.playerEval.rank,
+        bossHand: state.bossEval.key, draws: drawLog.length, paidDraws: roundPaidDraws, freeDraws: roundFreeDraws,
+        damage, action, result, drawLog, magicCards: (state.magicCards || []).map((card) => ({ ...card })),
+        activeCrit: finite(breakdown.crit, 0), activeBoost: finite(breakdown.boost, 0), activeFlat: finite(breakdown.flat, 0),
+        manualAdjustment: Boolean(selected.manualAdjustment), changedCards: Math.max(0, finite(selected.changedCards, 0)),
+        playerBadHighRerolls: Math.max(0, finite(state.playerBadHighRerolls, 0)),
+        bossBadHighRerolls: Math.max(0, finite(state.bossBadHighRerolls, 0)),
+        totalBetBefore, totalBetAfter: spendX, suppressionActive
+      });
+
+      if (result === "TIE") tieIndex += 1;
+      else { round += 1; tieIndex = 0; }
+    }
+
+    const payoutX = handPayoutX + bossPayoutX + coinPayoutX;
+    const rounds = path.reduce((maximum, step) => Math.max(maximum, step.round), 0);
+    return {
+      ...lockedStory,
+      behavior,
+      hpLeft,
+      rounds,
+      killed,
+      spendX,
+      payoutX,
+      netX: payoutX - spendX,
+      returnX: payoutX / Math.max(spendX, 1e-12),
+      rtpPct: payoutX / Math.max(spendX, 1e-12) * 100,
+      payoutParts: { boss: bossPayoutX, hand: handPayoutX, coin: coinPayoutX, chain: 0 },
+      originalBossRewardX: bossPayoutX,
+      actions: { fights, folds, ties, playerRoundWins, playerRoundLosses, totalDraws, paidDraws, freeDraws, manualAdjustments, changedCards },
+      terminationReason,
+      totalDamage,
+      playerBadHighRerolls,
+      bossBadHighRerolls,
+      handCounts,
+      playerStartHandCounts,
+      playerFinalHandCounts,
+      bossHandCounts,
+      magicCounts,
+      magicMoments,
+      storyMoments: { ...(lockedStory.storyMoments || {}), bestHandRank, bestHandKey },
+      path,
+      suppressionActive,
+      deviationCount,
+      redrawAudits
+    };
+  }
+
   function simulateFullClassNaturalPopulation(config, options = {}) {
     const pool = options.pool;
     if (!pool?.naturalCells && !pool?.cells) throw new Error("缺少已實跑的三分類故事池");
+    const naturalConfig = NaturalCore.normalizeConfig(config);
+    const runtimeStoryCache = options.runtimeStoryCache instanceof Map ? options.runtimeStoryCache : new Map();
+    const cashoutMode = options.cashoutMode === true;
+    const recordStories = options.recordStories !== false;
+    const playerCount = cashoutMode ? config.simulation.cashoutPlayerCount : config.simulation.playerCount;
+    const cashoutStartCredits = config.simulation.cashoutStartCredits;
+    const cashoutTargetCredits = config.simulation.cashoutTargetCredits;
     const players = [];
     const records = [];
     const starStats = Array.from({ length: 8 }, (_, index) => ({ star: index + 1, count: 0, spend: 0, payout: 0, kills: 0, corrections: 0 }));
     const classStats = Object.fromEntries(TREE_KEYS.map((key) => [key, { key, label: TREE_LABELS[key], count: 0, spend: 0, payout: 0, kills: 0, corrections: 0 }]));
     const totals = { bosses: 0, spend: 0, payout: 0, kills: 0, corrections: 0, correctionCredits: 0, ticketErrorPpMax: 0 };
-    for (let playerIndex = 0; playerIndex < config.simulation.playerCount; playerIndex += 1) {
+    let populationRounds = 0;
+    for (let playerIndex = 0; playerIndex < playerCount; playerIndex += 1) {
       const random = mulberry32((config.seed ^ Math.imul(playerIndex + 1, 0x9E3779B1)) >>> 0);
       let previousStar = 0;
       let bucketBalances = [0, 0, 0];
       let spend = 0, payout = 0, kills = 0, rounds = 0, bosses = 0;
-      for (let bossIndex = 0; bossIndex < config.simulation.bossesPerPlayer && rounds < config.simulation.playerRoundLimit; bossIndex += 1) {
+      let bankroll = cashoutStartCredits;
+      let cashoutSuccess = false;
+      let bankrupt = false;
+      for (let bossIndex = 0; cashoutMode || (bossIndex < config.simulation.bossesPerPlayer && rounds < config.simulation.playerRoundLimit); bossIndex += 1) {
+        if (cashoutMode) {
+          cashoutSuccess = bankroll >= cashoutTargetCredits;
+          if (cashoutSuccess) break;
+        }
         const enabledRows = config.bossRows.filter((row) => finite(row[5], 0) > 0);
         const starRows = enabledRows.length > 1 ? enabledRows.filter((row) => Number(row[0]) !== previousStar) : enabledRows;
         const bossRow = weightedPick(starRows.length ? starRows : enabledRows, (row) => finite(row[5], 0), random);
         const star = integer(bossRow?.[0], 1, 1, 8);
         previousStar = star;
         const bet = simulationBet(config, playerIndex, bossIndex, random);
+        if (cashoutMode && bankroll + 1e-9 < bet) {
+          bankrupt = true;
+          break;
+        }
         const commit = drawFullClassStoryCommit(pool, config, star, random);
-        const story = commit.selectedStory;
+        const lockedSummary = commit.selectedStory;
+        let story = lockedSummary;
+        const maxSpendX = cashoutMode ? bankroll / Math.max(bet, 1e-12) : Infinity;
+        if (config.simulation.playerBehavior === "SMART" && cashoutMode && lockedSummary.spendX > maxSpendX + 1e-9) {
+          story = NaturalCore.simulateNaturalStory(naturalConfig, lockedSummary.star, lockedSummary.seed, {
+            includePath: true,
+            maxSpendX
+          });
+          story = { ...story, suppressionActive: false, deviationCount: 0, redrawAudits: [] };
+        } else if (config.simulation.playerBehavior !== "SMART") {
+          const cacheKey = `${lockedSummary.star}:${lockedSummary.seed}`;
+          if (!runtimeStoryCache.has(cacheKey)) {
+            runtimeStoryCache.set(cacheKey, NaturalCore.simulateNaturalStory(naturalConfig, lockedSummary.star, lockedSummary.seed, { includePath: true }));
+          }
+          story = simulateBehaviorStory(runtimeStoryCache.get(cacheKey), naturalConfig, config.simulation.playerBehavior, { maxSpendX });
+        } else story = { ...lockedSummary, suppressionActive: false, deviationCount: 0, redrawAudits: [] };
         const storyCredits = materializeStoryCredits(story, bet);
         const actualSpendCredits = storyCredits.spendCredits;
         const organicPayoutCredits = storyCredits.payoutCredits;
+        const entrySpendCredits = Math.min(actualSpendCredits, story.rounds * bet);
+        const redrawSpendCredits = Math.max(0, actualSpendCredits - entrySpendCredits);
         const settlement = NaturalCore.settleCommittedStory(commit, bucketBalances, bet, {
           actualSpendCredits,
+          plannedSpendCredits: commit.selectedStory.spendX * bet,
+          storyBudgetCredits: commit.selectedStory.payoutX * bet,
           organicPayoutCredits,
           targetRtpPct: config.targetCoreRtpPct,
           actualKilled: story.killed,
           actualBossRewardX: finite(story.originalBossRewardX, 0),
           actualDice: story.originalDice,
-          rewardFloorPct: config.carry.rewardFloorPct,
+          rewardFloorPct: config.carry.rewardFloorMultiple * 100,
           rewardCeilingMultiple: config.carry.rewardCeilingMultiple,
           rng: random
         });
@@ -552,6 +1020,8 @@
         const actualPayoutCredits = settlement.actualPayoutCredits;
         spend += actualSpendCredits;
         payout += actualPayoutCredits;
+        bankroll = NaturalCore.roundMoney(bankroll + actualPayoutCredits - actualSpendCredits);
+        if (cashoutMode && bankroll < -1e-9) throw new Error("退幣玩家資產不得因不可支付操作變成負數");
         kills += story.killed ? 1 : 0;
         rounds += story.rounds;
         bosses += 1;
@@ -566,9 +1036,41 @@
         starRow.count += 1; starRow.spend += actualSpendCredits; starRow.payout += actualPayoutCredits; starRow.kills += story.killed ? 1 : 0; starRow.corrections += settlement.correction.applied ? 1 : 0;
         const classRow = classStats[commit.selectedClass];
         classRow.count += 1; classRow.spend += actualSpendCredits; classRow.payout += actualPayoutCredits; classRow.kills += story.killed ? 1 : 0; classRow.corrections += settlement.correction.applied ? 1 : 0;
-        records.push({ player: playerIndex + 1, bossIndex: bossIndex + 1, star, bet, classKey: commit.selectedClass, commit, settlement, story });
+        if (recordStories) records.push({
+          player: playerIndex + 1, bossIndex: bossIndex + 1, star, bet, classKey: commit.selectedClass,
+          commit, settlement, story,
+          spendSources: {
+            entryCredits: entrySpendCredits,
+            redrawCredits: redrawSpendCredits,
+            bossRerollCredits: 0
+          },
+          // 逐利玩家忠實重播；其餘模式依行為操作並保存偏離與抑制稽核。
+          suppressionActive: Boolean(story.suppressionActive),
+          deviationCount: Math.max(0, finite(story.deviationCount, 0)),
+          redrawAudits: story.redrawAudits || []
+        });
+        if (cashoutMode && bankroll >= cashoutTargetCredits) {
+          cashoutSuccess = true;
+          break;
+        }
       }
-      players.push({ player: playerIndex + 1, bosses, rounds, spend, payout, net: payout - spend, rtpPct: payout / Math.max(spend, 1e-12) * 100, kills, bucketBalances });
+      if (cashoutMode) {
+        cashoutSuccess = cashoutSuccess || bankroll >= cashoutTargetCredits;
+        if (!cashoutSuccess && !bankrupt) throw new Error("獨立退幣玩家未產生成功或死亡結果");
+      }
+      players.push({
+        player: playerIndex + 1, bosses, rounds, spend, payout,
+        net: payout - spend, rtpPct: payout / Math.max(spend, 1e-12) * 100,
+        kills, bucketBalances, bankroll, cashoutSuccess, bankrupt
+      });
+      populationRounds += rounds;
+      if (typeof options.onProgress === "function") options.onProgress({
+        phase: options.progressPhase || (cashoutMode ? "cashout" : "main"),
+        completedPlayers: playerIndex + 1,
+        totalPlayers: playerCount,
+        bosses: totals.bosses,
+        rounds: populationRounds
+      });
     }
     totals.rtpPct = totals.payout / Math.max(totals.spend, 1e-12) * 100;
     totals.killRatePct = totals.kills / Math.max(totals.bosses, 1) * 100;
@@ -630,13 +1132,13 @@
       if (/Boost$/.test(key)) return config.mechanics.pokerBoostEnabled;
       return true;
     };
-    const pool = config.magicRows.filter((row) => row[7] !== 0 && enabledByMechanic(String(row[0]))).map((row) => ({ row, key: String(row[0]) }));
+    const pool = config.magicRows.filter((row) => enabledByMechanic(String(row[0]))).map((row) => ({ row, key: String(row[0]) }));
     const selected = [];
     const count = Math.min(config.ruleSettings.magicCardsPerRound, pool.length);
     for (let index = 0; index < count; index += 1) {
       const remaining = pool.filter((item) => !selected.some((picked) => picked.key === item.key));
       if (!remaining.length) break;
-      selected.push(weightedPick(remaining, (item) => finite(item.row[star >= 7 ? 3 : 2], 0), random));
+      selected.push(weightedPick(remaining, (item) => finite(item.row[3], 0), random));
     }
     return selected;
   }
@@ -650,14 +1152,24 @@
     row.count += 1; row.spend += spend; row.gross += gross; row.net += net;
   }
 
+  function maximumBossRewardX(row) {
+    const star = integer(row?.[0], 1, 1, 8);
+    let maximum = 0;
+    for (let stateIndex = 0; stateIndex < 4; stateIndex += 1) {
+      if (finite(row?.[6 + stateIndex], 0) <= 0) continue;
+      maximum = Math.max(maximum, DiceCore.maximumRewardForDice(DiceCore.bossDiceConfig(star, stateIndex)));
+    }
+    return maximum;
+  }
+
   function behaviorProfile(key) {
     const profiles = {
-      OFFICIAL_FUNDED: { abort: 1, draws: 1, kill: 0, volatility: 1 },
-      FREE_RIDE: { abort: 1.18, draws: 0.62, kill: -0.05, volatility: 0.92 },
-      EXTREME: { abort: 0.92, draws: 1.55, kill: 0.02, volatility: 1.18 },
-      KILL_FOCUS: { abort: 0.66, draws: 1.28, kill: 0.08, volatility: 1.08 },
-      SAVE_DRAWS: { abort: 1.08, draws: 0.68, kill: -0.03, volatility: 0.95 },
-      HEAVY_DRAWS: { abort: 0.84, draws: 1.48, kill: 0.04, volatility: 1.12 }
+      OFFICIAL_FUNDED: { draws: 1, kill: 0, volatility: 1 },
+      FREE_RIDE: { draws: 0.62, kill: -0.05, volatility: 0.92 },
+      EXTREME: { draws: 1.55, kill: 0.02, volatility: 1.18 },
+      KILL_FOCUS: { draws: 1.28, kill: 0.08, volatility: 1.08 },
+      SAVE_DRAWS: { draws: 0.68, kill: -0.03, volatility: 0.95 },
+      HEAVY_DRAWS: { draws: 1.48, kill: 0.04, volatility: 1.12 }
     };
     return profiles[key] || profiles.OFFICIAL_FUNDED;
   }
@@ -717,7 +1229,6 @@
     const roundBuckets = makeBucketStats();
     const playerBossBuckets = makeBucketStats();
     const terminationStats = { KILLED: 0, BOSS_ESCAPED: 0, USER_EXIT: 0, REROLL: 0, DISCONNECT_EXPIRED: 0, INSUFFICIENT_FUNDS: 0 };
-    const earlyBase = config.simulation.earlyTerminationPct / 100;
     const behavior = behaviorProfile(config.simulation.playerBehavior);
     for (let playerIndex = 0; playerIndex < config.simulation.playerCount; playerIndex += 1) {
       let carryBalance = 0;
@@ -736,16 +1247,19 @@
       let firstKillBoss = 0;
       let maxNoKillStreak = 0;
       let currentNoKillStreak = 0;
-      for (let bossIndex = 0; bossIndex < config.simulation.bossesPerPlayer; bossIndex += 1) {
+      for (let bossIndex = 0; options.enforceCashout || bossIndex < config.simulation.bossesPerPlayer; bossIndex += 1) {
+        if (options.enforceCashout) {
+          const liveBankroll = config.simulation.cashoutStartCredits + netTotal - spendTotal;
+          if (liveBankroll >= config.simulation.cashoutTargetCredits || liveBankroll < config.simulation.fixedBet) break;
+        }
         const bet = simulationBet(config, playerIndex, bossIndex, random);
         const star = weightedPick(solvedRows, (row) => row.bossTickets, random);
         const bossRule = config.bossRows[star.star - 1];
         const treeKey = config.mechanics.actionTreeEnabled ? weightedPick(TREE_KEYS, (key) => star.ticketsBps[key], random) : "push";
         const spendFactor = config.treeSpendFactors[treeKey];
         const baselineSpend = star.baseSpendX * spendFactor * bet * (0.94 + 0.12 * random());
-        const abortScale = treeKey === "lose" ? 1.35 : treeKey === "win" ? 0.72 : 1;
-        const abortProbability = Math.min(0.9, earlyBase * abortScale * behavior.abort);
-        const aborted = random() < abortProbability;
+        const abortProbability = 0;
+        const aborted = false;
         const roundMin = Math.max(1, Math.trunc(finite(bossRule?.[3], 1)));
         const roundMax = Math.max(roundMin, Math.trunc(finite(bossRule?.[4], roundMin)));
         const roundBase = roundMin + Math.floor(random() * (roundMax - roundMin + 1));
@@ -815,8 +1329,7 @@
         const expectedChainPayoutX = chainLevel * 3.5 * bet;
         const reservedSideExpectation = playerWinHitProbability * directHandPayoutX + payoutHitProbability * (coinPayoutX + expectedChainPayoutX);
         const plannedBossPayout = Math.max(0, plannedPayout - reservedSideExpectation);
-        const maxMultiplierDice = finite(bossRule?.[9], 0) > 0 ? 3 : finite(bossRule?.[8], 0) > 0 ? 2 : finite(bossRule?.[7], 0) > 0 ? 1 : 0;
-        const bossFormulaCapX = 18 * Math.pow(6, maxMultiplierDice);
+        const bossFormulaCapX = maximumBossRewardX(bossRule);
         const storyCap = Math.min(config.simulation.payoutCapX * bet, bossFormulaCapX * bet);
         const grossParts = {
           boss: 0,
@@ -893,7 +1406,9 @@
         const cell = cellStats.get(`${star.star}:${treeKey}`);
         cell.count += 1; cell.baselineSpend += baselineSpend; cell.spend += actualSpend; cell.gross += settlement.grossRewardX; cell.net += settlement.netRewardX; cell.kills += killed ? 1 : 0; cell.aborts += terminatedEarly ? 1 : 0; cell.rounds += rounds; cell.draws += draws;
         const slice = roundSlices[Math.floor(bossIndex / config.simulation.roundSlice)];
-        slice.count += 1; slice.baselineSpend += baselineSpend; slice.spend += actualSpend; slice.gross += settlement.grossRewardX; slice.net += settlement.netRewardX; slice.kills += killed ? 1 : 0; slice.aborts += terminatedEarly ? 1 : 0; slice.bonus += settlement.bonusX; slice.deduction += settlement.deductionX; slice.endingCarryTotal += carryBalance;
+        if (slice) {
+          slice.count += 1; slice.baselineSpend += baselineSpend; slice.spend += actualSpend; slice.gross += settlement.grossRewardX; slice.net += settlement.netRewardX; slice.kills += killed ? 1 : 0; slice.aborts += terminatedEarly ? 1 : 0; slice.bonus += settlement.bonusX; slice.deduction += settlement.deductionX; slice.endingCarryTotal += carryBalance;
+        }
         addBucket(storyBuckets, settlement.grossRewardX / Math.max(bet, 1e-9), actualSpend, settlement.grossRewardX, settlement.netRewardX);
         addBucket(roundBuckets, settlement.grossRewardX / Math.max(actualSpend, 1e-9), actualSpend, settlement.grossRewardX, settlement.netRewardX);
         addBucket(playerBossBuckets, settlement.netRewardX / Math.max(actualSpend, 1e-9), actualSpend, settlement.grossRewardX, settlement.netRewardX);
@@ -916,12 +1431,12 @@
           currentKillStreak = 0; currentNoKillStreak += 1; maxNoKillStreak = Math.max(maxNoKillStreak, currentNoKillStreak);
         }
         if (options.enforceCashout) {
-          const liveBankroll = config.simulation.cashoutStartX * config.simulation.fixedBet + netTotal - spendTotal;
-          if (liveBankroll >= config.simulation.cashoutTargetX * config.simulation.fixedBet || liveBankroll < config.simulation.fixedBet) break;
+          const liveBankroll = config.simulation.cashoutStartCredits + netTotal - spendTotal;
+          if (liveBankroll >= config.simulation.cashoutTargetCredits || liveBankroll < config.simulation.fixedBet) break;
         }
       }
-      const bankroll = config.simulation.cashoutStartX * config.simulation.fixedBet + netTotal - spendTotal;
-      const cashoutSuccess = bankroll >= config.simulation.cashoutTargetX * config.simulation.fixedBet;
+      const bankroll = config.simulation.cashoutStartCredits + netTotal - spendTotal;
+      const cashoutSuccess = bankroll >= config.simulation.cashoutTargetCredits;
       const bankrupt = bankroll < config.simulation.fixedBet;
       players.push({ baselineSpend: baselineTotal, spend: spendTotal, gross: grossTotal, net: netTotal, grossRtpPct: grossTotal / Math.max(baselineTotal, 1e-9) * 100, actualGrossRtpPct: grossTotal / Math.max(spendTotal, 1e-9) * 100, netRtpPct: netTotal / Math.max(spendTotal, 1e-9) * 100, profit: netTotal - spendTotal, carryBalanceX: carryBalance, maxWinStreak, maxLossStreak, maxKillStreak, kills: killsForPlayer, rounds: roundsForPlayer, firstKillBoss, maxNoKillStreak, bankroll, cashoutSuccess, bankrupt });
     }
@@ -953,7 +1468,7 @@
     if (!options.skipCashout) {
       const cashoutConfig = clone(config);
       cashoutConfig.seedMode = "FIXED";
-      cashoutConfig.seed = (config.seed + 104729) >>> 0;
+      cashoutConfig.seed = config.seed;
       cashoutConfig.simulation.playerCount = config.simulation.cashoutPlayerCount;
       cashoutConfig.simulation.cashoutPlayerCount = config.simulation.cashoutPlayerCount;
       cashoutPlayers = simulatePlayerModels(cashoutConfig, { skipCashout: true, enforceCashout: true }).players;
@@ -1012,7 +1527,7 @@
         avgPlayedRounds: average(cashoutPlayers.map((row) => row.rounds)),
         avgDeathRounds: average(cashoutPlayers.filter((row) => row.bankrupt).map((row) => row.rounds)),
         avgBossKills: average(cashoutPlayers.map((row) => row.kills)),
-        firstKillMedianBoss: percentile(cashoutPlayers.map((row) => row.firstKillBoss || config.simulation.bossesPerPlayer), 0.50),
+        firstKillMedianBoss: percentile(cashoutPlayers.map((row) => row.firstKillBoss).filter((bossIndex) => bossIndex > 0), 0.50),
         maxNoKillStreak: maxOf(cashoutPlayers.map((row) => row.maxNoKillStreak))
       },
       volatility: {
@@ -1030,10 +1545,60 @@
     };
   }
 
+  function summarizeIndependentCashout(cashoutRaw, config) {
+    const cashoutRows = cashoutRaw?.players || [];
+    return {
+      available: cashoutRaw !== null,
+      projection: false,
+      targetRtpPct: config.targetCoreRtpPct,
+      sourcePlayers: cashoutRows.length,
+      totalPlayers: cashoutRows.length,
+      successes: cashoutRows.filter((row) => row.cashoutSuccess).length,
+      deaths: cashoutRows.filter((row) => row.bankrupt).length,
+      cashoutRatePct: cashoutRows.filter((row) => row.cashoutSuccess).length / Math.max(cashoutRows.length, 1) * 100,
+      bankruptcyRatePct: cashoutRows.filter((row) => row.bankrupt).length / Math.max(cashoutRows.length, 1) * 100,
+      avgPlayedRounds: average(cashoutRows.map((row) => row.rounds)),
+      avgDeathRounds: average(cashoutRows.filter((row) => row.bankrupt).map((row) => row.rounds)),
+      avgBossKills: average(cashoutRows.map((row) => row.kills)),
+      firstKillMedianBoss: 0,
+      maxNoKillStreak: 0
+    };
+  }
+
+  function simulateIndependentCashout(configInput, options = {}) {
+    const config = sanitizeConfig(configInput);
+    const cashoutConfig = clone(config);
+    cashoutConfig.seed = config.seed;
+    const cashoutRaw = simulateFullClassNaturalPopulation(cashoutConfig, {
+      pool: options.pool,
+      cashoutMode: true,
+      recordStories: false,
+      runtimeStoryCache: options.runtimeStoryCache,
+      onProgress: options.onProgress,
+      progressPhase: "cashout"
+    });
+    return summarizeIndependentCashout(cashoutRaw, config);
+  }
+
   function simulateNaturalModel(configInput, options = {}) {
     const config = sanitizeConfig(configInput);
     const startedAt = Date.now();
-    const raw = simulateFullClassNaturalPopulation(config, options);
+    const runtimeStoryCache = options.runtimeStoryCache instanceof Map ? options.runtimeStoryCache : new Map();
+    const raw = simulateFullClassNaturalPopulation(config, {
+      ...options,
+      runtimeStoryCache,
+      progressPhase: "main"
+    });
+    const cashoutConfig = clone(config);
+    cashoutConfig.seed = config.seed;
+    const cashoutRaw = options.skipCashout === true ? null : simulateFullClassNaturalPopulation(cashoutConfig, {
+      pool: options.pool,
+      cashoutMode: true,
+      recordStories: false,
+      runtimeStoryCache,
+      onProgress: options.onProgress,
+      progressPhase: "cashout"
+    });
     const records = raw.records;
     const totals = {
       baselineSpend: 0, spend: 0, entrySpend: 0, drawSpend: 0, refreshSpend: 0,
@@ -1075,6 +1640,8 @@
     const carryBucketStats = NaturalCore.BET_BUCKETS.map((bucket, index) => ({
       index, key: bucket.key, label: bucket.label, bets: bucket.bets.slice(), bosses: 0,
       spendCredits: 0,
+      totalWagerCredits: 0, entryBetPoolCredits: 0, entryTargetAccrualCredits: 0, spendDeltaPoolCredits: 0, bossRerollPoolCredits: 0,
+      storyPayoutCredits: 0, suppressedBosses: 0, suppressionRatePct: 0, averageEndingBalanceCredits: 0,
       targetAccrualCredits: 0, committedNetCredits: 0, organicPayoutCredits: 0, organicActualNetCredits: 0,
       correctionIncreaseCredits: 0, correctionDecreaseCredits: 0,
       corrections: 0, currentBossGapCredits: 0, endingBalanceCredits: 0
@@ -1086,25 +1653,33 @@
       const story = record.story;
       const bet = record.bet;
       const spend = record.settlement.actualSpendCredits;
-      const storyCredits = materializeStoryCredits(story, bet);
-      const committedSpend = storyCredits.spendCredits;
-      const committedPayout = storyCredits.payoutCredits;
+      const committedStoryCredits = materializeStoryCredits(record.commit.selectedStory, bet);
+      const committedSpend = committedStoryCredits.spendCredits;
+      const committedPayout = committedStoryCredits.payoutCredits;
       const organicPayout = record.settlement.organicPayoutCredits;
       const actualPayout = record.settlement.actualPayoutCredits;
       const correction = record.settlement.correction.deltaCredits;
       const carryBucket = carryBucketStats[record.settlement.bucketIndex];
+      const entrySpend = Math.min(spend, finite(record.spendSources?.entryCredits, story.rounds * bet));
+      const drawSpend = Math.max(0, finite(record.spendSources?.redrawCredits, spend - entrySpend));
+      const bossRerollSpend = Math.max(0, finite(record.spendSources?.bossRerollCredits, 0));
       carryBucket.bosses += 1;
       carryBucket.spendCredits += spend;
+      carryBucket.totalWagerCredits += spend + bossRerollSpend;
+      carryBucket.entryBetPoolCredits += 0;
+      carryBucket.entryTargetAccrualCredits += 0;
+      carryBucket.spendDeltaPoolCredits += record.settlement.spendDeltaTargetAccrualCredits;
+      carryBucket.bossRerollPoolCredits += NaturalCore.roundMoney(bossRerollSpend * config.targetCoreRtpPct / 100);
+      carryBucket.storyPayoutCredits += record.settlement.storyBudgetCredits;
+      carryBucket.suppressedBosses += record.suppressionActive ? 1 : 0;
       carryBucket.targetAccrualCredits += record.settlement.targetAccrualCredits;
       carryBucket.committedNetCredits += record.settlement.targetAccrualCredits;
       carryBucket.organicPayoutCredits += record.settlement.organicPayoutCredits;
       carryBucket.organicActualNetCredits += record.settlement.organicActualNetCredits;
-      carryBucket.currentBossGapCredits += record.settlement.targetAccrualCredits - record.settlement.organicPayoutCredits;
+      carryBucket.currentBossGapCredits += record.settlement.targetAccrualCredits - record.settlement.actualPayoutCredits;
       carryBucket.correctionIncreaseCredits += Math.max(0, correction);
       carryBucket.correctionDecreaseCredits += Math.max(0, -correction);
       carryBucket.corrections += record.settlement.correction.applied ? 1 : 0;
-      const entrySpend = story.rounds * bet;
-      const drawSpend = Math.max(0, spend - entrySpend);
       const actualBossRewardX = story.originalBossRewardX + record.settlement.correction.deltaX;
       totals.baselineSpend += committedSpend; totals.spend += spend; totals.entrySpend += entrySpend; totals.drawSpend += drawSpend;
       totals.gross += committedPayout; totals.organicPayout += organicPayout; totals.net += actualPayout;
@@ -1163,6 +1738,29 @@
       slice.endingCarryTotal += record.settlement.balances.reduce((sum, value) => sum + value, 0);
     });
 
+    const playerPoolBalanceSnapshots = [];
+    const poolBalanceByBossIndex = new Map();
+    for (const record of records) {
+      const reportableBalance = record.settlement.balances.reduce((sum, value) => sum + finite(value, 0), 0);
+      playerPoolBalanceSnapshots.push(reportableBalance);
+      const bossIndexBalance = poolBalanceByBossIndex.get(record.bossIndex) || { sum: 0, count: 0 };
+      bossIndexBalance.sum += reportableBalance;
+      bossIndexBalance.count += 1;
+      poolBalanceByBossIndex.set(record.bossIndex, bossIndexBalance);
+    }
+    const averagePoolBalanceSnapshots = [...poolBalanceByBossIndex.values()]
+      .map((snapshot) => snapshot.sum / Math.max(snapshot.count, 1));
+    const poolBalanceRange = {
+      observations: playerPoolBalanceSnapshots.length,
+      bossIndexObservations: averagePoolBalanceSnapshots.length,
+      playerCount: raw.players.length,
+      minimumCredits: minOf(playerPoolBalanceSnapshots, 0),
+      maximumCredits: maxOf(playerPoolBalanceSnapshots),
+      averageMinimumCredits: minOf(averagePoolBalanceSnapshots, 0),
+      averageMaximumCredits: maxOf(averagePoolBalanceSnapshots),
+      entryBetPoolCredits: 0
+    };
+
     let cumulativeBaselineSpend = 0, cumulativeSpend = 0, cumulativeGross = 0, cumulativeNet = 0;
     roundSlices.forEach((slice) => {
       cumulativeBaselineSpend += slice.baselineSpend; cumulativeSpend += slice.spend; cumulativeGross += slice.gross; cumulativeNet += slice.net;
@@ -1176,6 +1774,8 @@
     carryBucketStats.forEach((row, index) => {
       row.endingBalanceCredits = raw.players.reduce((sum, player) => sum + finite(player.bucketBalances[index], 0), 0);
       row.correctionRatePct = row.corrections / Math.max(row.bosses, 1) * 100;
+      row.suppressionRatePct = row.suppressedBosses / Math.max(row.bosses, 1) * 100;
+      row.averageEndingBalanceCredits = row.endingBalanceCredits / Math.max(raw.players.length, 1);
     });
     totals.grossRtpPct = totals.gross / Math.max(totals.baselineSpend, 1e-12) * 100;
     totals.actualGrossRtpPct = totals.gross / Math.max(totals.spend, 1e-12) * 100;
@@ -1188,7 +1788,7 @@
     totals.avgDamagePerBoss = totals.damage / Math.max(totals.bosses, 1);
     totals.endingCarryX = endingCarryX;
     totals.endingBucketBalances = carryBucketStats.map((row) => row.endingBalanceCredits);
-    totals.targetAccrualCredits = totals.spend * config.targetCoreRtpPct / 100;
+    totals.targetAccrualCredits = carryBucketStats.reduce((sum, row) => sum + row.targetAccrualCredits, 0);
     totals.committedNetCredits = totals.targetAccrualCredits;
     totals.organicActualNetCredits = totals.organicPayout - totals.spend;
     totals.actualNetCredits = totals.net - totals.spend;
@@ -1208,8 +1808,8 @@
     const carries = raw.players.map((row) => row.bucketBalances.reduce((sum, value) => sum + value, 0));
     const committedPlayerRtps = raw.players.map((player) => {
       const rows = records.filter((record) => record.player === player.player);
-      const spend = rows.reduce((sum, record) => sum + record.story.spendX * record.bet, 0);
-      const payout = rows.reduce((sum, record) => sum + record.story.payoutX * record.bet, 0);
+      const spend = rows.reduce((sum, record) => sum + record.commit.selectedStory.spendX * record.bet, 0);
+      const payout = rows.reduce((sum, record) => sum + record.commit.selectedStory.payoutX * record.bet, 0);
       return payout / Math.max(spend, 1e-12) * 100;
     });
     let maxKillStreak = 0;
@@ -1222,10 +1822,6 @@
       carryP10: percentile(carries, 0.10), carryP50: percentile(carries, 0.50), carryP90: percentile(carries, 0.90), carryP95: percentile(carries, 0.95), carryP99: percentile(carries, 0.99), carryMax: Math.max(0, maxOf(carries)), carryMin: Math.min(0, minOf(carries)),
       maxWinStreak: 0, maxLossStreak: 0, maxKillStreak
     };
-    const cashoutRows = raw.players.map((player) => {
-      const bankroll = config.simulation.cashoutStartX * config.simulation.fixedBet + player.net;
-      return { ...player, bankroll, cashoutSuccess: bankroll >= config.simulation.cashoutTargetX * config.simulation.fixedBet, bankrupt: bankroll < config.simulation.fixedBet };
-    });
     const storyProfits = records.map((record) => record.settlement.actualPayoutCredits - record.settlement.actualSpendCredits);
     const ticketAttempts = records.map((record) => record.commit.candidateSetsEvaluated || record.commit.attempt || 1);
     const ticketBestPositions = records.map((record) => record.commit.attempt || 1);
@@ -1261,6 +1857,45 @@
       avgMixDeviationPp: average(records.map((record) => finite(record.commit.mixDeviationPpMax, 0))),
       maxMixDeviationPp: Math.max(0, maxOf(records.map((record) => finite(record.commit.mixDeviationPpMax, 0))))
     };
+    const storyTicketStats = TREE_KEYS.map((key) => {
+      const classRow = raw.classStats.find((row) => row.key === key) || { count: 0, spend: 0, payout: 0, kills: 0 };
+      const weightRow = ticketWeightStats.find((row) => row.key === key) || { avgPct: 0, minPct: 0, maxPct: 0 };
+      return {
+        key,
+        label: TREE_LABELS[key],
+        selectedCount: classRow.count,
+        selectedRatePct: classRow.count / Math.max(records.length, 1) * 100,
+        avgCandidateWeightPct: weightRow.avgPct,
+        minCandidateWeightPct: weightRow.minPct,
+        maxCandidateWeightPct: weightRow.maxPct,
+        totalWager: classRow.spend,
+        totalPayout: classRow.payout,
+        actualRtpPct: classRow.payout / Math.max(classRow.spend, 1e-12) * 100,
+        averageWager: classRow.spend / Math.max(classRow.count, 1),
+        averagePayout: classRow.payout / Math.max(classRow.count, 1),
+        kills: classRow.kills,
+        killRatePct: classRow.kills / Math.max(classRow.count, 1) * 100
+      };
+    });
+    const suppressionStats = {
+      totalBosses: records.length,
+      loseStoryBosses: records.filter((record) => record.classKey === "lose").length,
+      suppressedBosses: records.filter((record) => record.suppressionActive).length,
+      byClass: TREE_KEYS.map((key) => {
+        const rows = records.filter((record) => record.classKey === key);
+        const suppressed = rows.filter((record) => record.suppressionActive).length;
+        return { key, label: TREE_LABELS[key], bosses: rows.length, suppressedBosses: suppressed, suppressionRatePct: suppressed / Math.max(rows.length, 1) * 100 };
+      }),
+      byStar: Array.from({ length: 8 }, (_unused, index) => {
+        const star = index + 1;
+        const rows = records.filter((record) => record.star === star);
+        const suppressed = rows.filter((record) => record.suppressionActive).length;
+        return { star, bosses: rows.length, suppressedBosses: suppressed, suppressionRatePct: suppressed / Math.max(rows.length, 1) * 100 };
+      })
+    };
+    suppressionStats.unsuppressedBosses = suppressionStats.totalBosses - suppressionStats.suppressedBosses;
+    suppressionStats.suppressionRatePct = suppressionStats.suppressedBosses / Math.max(suppressionStats.totalBosses, 1) * 100;
+    suppressionStats.loseStorySuppressionRatePct = suppressionStats.suppressedBosses / Math.max(suppressionStats.loseStoryBosses, 1) * 100;
     const ticketStarStats = Array.from({ length: 8 }, (_unused, index) => {
       const star = index + 1;
       const rows = records.filter((record) => record.star === star);
@@ -1357,7 +1992,7 @@
         if (!story.killed || original <= 0) { noReward += 1; return; }
         killed += 1;
         const outcomes = NaturalCore.legalDiceOutcomes(integer(story.originalDice?.normalDice, 1, 1, 8), integer(story.originalDice?.multiplierDice, 0, 0, 8));
-        const minimum = original * config.carry.rewardFloorPct / 100;
+        const minimum = original * config.carry.rewardFloorMultiple;
         const maximum = original * config.carry.rewardCeilingMultiple;
         const upCap = maximum - original;
         const downCap = original - minimum;
@@ -1463,8 +2098,8 @@
     return {
       config, solved: { valid: true, mode: "DYNAMIC_THREE_CANDIDATES", targetRtpPct: config.targetCoreRtpPct },
       totals, runInfo: { reportStartedAt: startedAt, reportCompletedAt: Date.now(), reportElapsedMs: Date.now() - startedAt },
-      playerDistribution, starStats, treeStats: TREE_KEYS.map((key) => treeStatsMap[key]), cellStats: [...cellStatsMap.values()], roundSlices, carryBucketStats,
-      ticketHealth, ticketStarStats, ticketSamples, storySelectionCoverage, correctionHealth, correctionCoverageStats, carryBucketTailStats, classMigration, settlementFunnel, riskFindings,
+      playerDistribution, starStats, treeStats: TREE_KEYS.map((key) => treeStatsMap[key]), cellStats: [...cellStatsMap.values()], roundSlices, carryBucketStats, poolBalanceRange,
+      ticketHealth, storyTicketStats, ticketStarStats, ticketSamples, storySelectionCoverage, suppressionStats, correctionHealth, correctionCoverageStats, carryBucketTailStats, classMigration, settlementFunnel, riskFindings,
       payoutBuckets: { story: Object.values(storyBuckets), round: Object.values(roundBuckets), playerBoss: Object.values(playerBossBuckets) },
       actionStats: {
         compareActions: totals.compares, foldActions: totals.folds, tieRounds: totals.ties,
@@ -1476,12 +2111,7 @@
       handStats, magicStats,
       chainStats: Array.from({ length: 4 }, (_, level) => ({ level, count: 0, kills: 0, payoutAttributed: 0 })),
       killStreakStats: Array.from({ length: 10 }, (_, index) => ({ level: index + 1, count: 0, payoutAttributed: 0, payoutXSum: 0 })),
-      cashout: {
-        available: false, projection: false, sourcePlayers: 0, totalPlayers: 0,
-        successes: 0, deaths: 0, cashoutRatePct: 0, bankruptcyRatePct: 0,
-        avgPlayedRounds: 0, avgDeathRounds: 0, avgBossKills: 0, firstKillMedianBoss: 0, maxNoKillStreak: 0,
-        note: "故事模型尚未建立獨立退幣玩家跑法；三個統計玩家依目前輸入執行"
-      },
+      cashout: summarizeIndependentCashout(cashoutRaw, config),
       volatility: {
         storyProfitStdDevX: standardDeviation(storyProfits), storyProfitP95X: percentile(storyProfits, 0.95), storyProfitP99X: percentile(storyProfits, 0.99), storyProfitCvar99X: upperTailMean(storyProfits, 0.99),
         maxStoryGrossX: totals.maxStoryGrossX, maxStoryNetX: totals.maxStoryNetX,
@@ -1497,7 +2127,7 @@
     TREE_KEYS, TREE_LABELS, SPEND_FACTORS, STORAGE_KEY, CHANNEL_NAME, TICKET_BASIS, PAYOUT_BUCKETS, BET_VALUES, STORY_BET_CONTRACT_VERSION, PLAYER_BEHAVIORS,
     DEFAULT_CONFIG: clone(DEFAULT_CONFIG), clone, sanitizeConfig, mixedRtpPct, solveStarTickets,
     solveAllStars, naturalityStatus, storyDeviation, settleCarry, materializeStoryCredits,
-    drawFullClassStoryCommit, simulate: simulateNaturalModel, simulateNaturalModel, simulatePlayerModels,
+    drawFullClassStoryCommit, chooseBehaviorKeepDecision, behaviorDrawLimit, maximumBossRewardX, simulate: simulateNaturalModel, simulateNaturalModel, simulateIndependentCashout, simulatePlayerModels,
     NaturalCore
   };
   root.BossDuelActionTreeCore = publicApi;

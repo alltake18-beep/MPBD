@@ -34,7 +34,7 @@ for (const step of formerChase.path) {
   assert(step.totalBetAfter >= step.totalBetBefore);
 }
 
-const freeTierStory = StoryCore.simulateNaturalStory(config, 1, 2665075106, { includePath: true });
+const freeTierStory = StoryCore.simulateNaturalStory(config, 1, 2844991469, { includePath: true });
 const freeThenPaid = freeTierStory.path.find((step) => step.drawLog[0]?.free && step.drawLog[1] && !step.drawLog[1].free);
 assert(freeThenPaid, "fixture must use one free redraw followed by a paid redraw");
 assert.equal(freeThenPaid.drawLog[0].feeX, 0);

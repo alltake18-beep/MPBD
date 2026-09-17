@@ -691,6 +691,9 @@
     const initialHp = Math.max(1, Math.trunc(finite(input.initialHp, 1)));
     const roundLimit = Math.max(1, Math.trunc(finite(input.roundLimit, 1)));
     const bossRewardX = Math.max(0, finite(input.bossRewardX, 0));
+    const maxSpendX = Number.isFinite(Number(input.maxSpendX))
+      ? Math.max(0, finite(input.maxSpendX, 0))
+      : Infinity;
     const createRound = input.createRound;
     const handPayoutX = typeof input.handPayoutX === "function" ? input.handPayoutX : () => 0;
     const roundCache = new Map();
@@ -728,6 +731,7 @@
       for (const option of options) {
         const nextCoinX = bankedCoinX + option.coinX;
         const optionSpendX = (tieIndex === 0 ? 1 : 0) + option.drawSpendX;
+        if (spentSoFar + optionSpendX > maxSpendX + 1e-9) continue;
         const currentHandPayoutX = option.playerWins && !option.tie ? handPayoutX(option.finalHand) : 0;
         let tail;
         let hpAfter = hpLeft;

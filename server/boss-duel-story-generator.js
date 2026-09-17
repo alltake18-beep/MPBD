@@ -5,7 +5,7 @@
  *
  * 這個檔案只負責協調現行遊戲核心，不重寫理牌或玩家策略：
  * - src/core/boss-duel-random.js：固定亂數與 seed 衍生
- * - src/core/boss-duel-rules.js：rules-v10
+ * - src/core/boss-duel-rules.js：rules-v11
  * - src/core/boss-duel-story-planner.js：boss-plan-v11
  * - src/core/boss-duel-natural-story-core.js：模擬、分類、摘要與重播
  *
@@ -33,8 +33,8 @@ const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionTreeCore = require("../src/probability/boss-duel-action-tree-core.js");
 
 const SERVICE_VERSION = "boss-duel-story-generator-v1";
-const GENERATOR_REVISION = "boss-plan-v11-arrange-v10-action-trace-v2-suppression-v4-runtime-quota10000-production-v3";
-const PRESET_VERSION = "natural-story-preset-v13";
+const GENERATOR_REVISION = "boss-plan-v11-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-production-v4";
+const PRESET_VERSION = "natural-story-preset-v14";
 const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v8";
 const ARRANGEMENT_VERSION = "arrange-v10";
 const FORMAL_STORIES_PER_CLASS = 10000;
@@ -42,10 +42,10 @@ const FORMAL_STORIES_PER_STAR = 30000;
 const FORMAL_TOTAL_STORIES = 240000;
 const CLASS_KEYS = Object.freeze(["win", "push", "lose"]);
 const SUPPORTED_BETS = Object.freeze((NaturalCore.BET_VALUES || []).slice());
-const EXPECTED_RULES_VERSION = "rules-v10";
+const EXPECTED_RULES_VERSION = "rules-v11";
 const EXPECTED_PLANNER_VERSION = "boss-plan-v11";
 const EXPECTED_ACTION_TRACE_VERSION = "story-action-trace-v2";
-const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v4-configurable-tables";
+const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v5-lose-story-only";
 const EXPECTED_STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
 const UINT32_MAX = 0xffffffff;
 
