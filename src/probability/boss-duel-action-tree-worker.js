@@ -1,12 +1,12 @@
 "use strict";
 
 importScripts(
-  "../core/boss-duel-random.js?v=action-tree-v61",
+  "../core/boss-duel-random.js?v=action-tree-v62",
   "../core/boss-duel-poker-arrangement-core.js?v=arrange-v10",
-  "../core/boss-duel-rules.js?v=action-tree-v61",
+  "../core/boss-duel-rules.js?v=action-tree-v62",
   "../core/boss-duel-story-planner.js?v=boss-plan-v11",
-  "../core/boss-duel-natural-story-core.js?v=action-tree-v61",
-  "boss-duel-action-tree-core.js?v=action-tree-v61"
+  "../core/boss-duel-natural-story-core.js?v=action-tree-v62",
+  "boss-duel-action-tree-core.js?v=action-tree-v62"
 );
 
 self.BossDuelProbabilityWorkerState = { pool: null };
@@ -29,8 +29,8 @@ self.addEventListener("message", (event) => {
     const config = Core.sanitizeConfig(message.config);
     reportProgress(message.runId, "pool", 2);
     if (!self.BossDuelStoryPresetV1 || !self.BossDuelStorySummaryPresetV1) importScripts(
-      "../../data/story/boss-duel-story-preset-v1.js?v=story-catalog-v15",
-      "../../data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v8"
+      "../../data/story/boss-duel-story-preset-v1.js?v=story-catalog-v16",
+      "../../data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v9"
     );
     const preset = self.BossDuelStoryPresetV1;
     const summary = self.BossDuelStorySummaryPresetV1;

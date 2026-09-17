@@ -17,7 +17,7 @@ const summaryPreset = require(path.join(root, "data", "story", "boss-duel-story-
 const ActionCore = require(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"));
 const combined = `${html}\n${lab}\n${coreSource}`;
 
-assert.equal(preset.version, "natural-story-preset-v14");
+assert.equal(preset.version, "natural-story-preset-v15");
 for (const asset of [
   "src/core/boss-duel-random.js", "src/core/boss-duel-poker-arrangement-core.js", "src/core/boss-duel-rules.js",
   "src/core/boss-duel-story-planner.js", "data/story/boss-duel-story-preset-v1.js", "data/story/boss-duel-story-summary-preset-v1.js",
@@ -25,10 +25,10 @@ for (const asset of [
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v61/);
-assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v8/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v62/);
+assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v9/);
 assert.match(html, /src\/core\/boss-duel-poker-arrangement-core\.js\?v=arrange-v10/);
-assert.match(engineerDoc, /backend-doc-v15/);
+assert.match(engineerDoc, /backend-doc-v16/);
 
 function tag(id) {
   const match = html.match(new RegExp(`<[^>]+\\bid=["']${id}["'][^>]*>`, "i"));
@@ -111,7 +111,7 @@ assert.match(html, /<h3>各星 BOSS 劇本抽中分布<\/h3>/);
 assert.match(html, /<th>星級<\/th><th>BOSS 數<\/th><th>贏多（%）<\/th><th>贏（%）<\/th><th>輸（%）<\/th><th>贏多數量<\/th><th>贏數量<\/th><th>輸數量<\/th>/);
 assert.match(lab, /pct\(ratioPct\(byClass\.win, bosses\), 2\),\s*pct\(ratioPct\(byClass\.push, bosses\), 2\),\s*pct\(ratioPct\(byClass\.lose, bosses\), 2\),\s*count\(byClass\.win\), count\(byClass\.push\), count\(byClass\.lose\)/);
 assert(fs.existsSync(path.join(root, "src", "probability", "boss-duel-action-tree-worker.js")), "missing cancellable statistics worker");
-assert.match(lab, /new Worker\("src\/probability\/boss-duel-action-tree-worker\.js\?v=action-tree-v61"\)/);
+assert.match(lab, /new Worker\("src\/probability\/boss-duel-action-tree-worker\.js\?v=action-tree-v62"\)/);
 assert.match(lab, /activeSimulationWorker \|\| new Worker/, "completed worker must remain available for later simulations");
 assert.match(worker, /type: "main-done"/, "main report must be published before independent cashout finishes");
 assert.match(worker, /BossDuelProbabilityWorkerState = \{ pool: null \}/, "worker must retain its hydrated story pool");
@@ -162,6 +162,16 @@ assert.equal(ActionCore.DEFAULT_CONFIG.simulation.playerBehavior, "EXTREME");
 assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.redraw, {
   enabled: true, maxCandidates: 1, improvedAcceptPct: 33, sameOrLowerAcceptPct: 100, forceFinalCandidate: true
 });
+assert.equal(ActionCore.DEFAULT_CONFIG.storyPool.winMinReturnX, 5);
+assert.equal(ActionCore.DEFAULT_CONFIG.storyPool.pushMinReturnX, 1);
+assert.match(lab, /"redraw\.maxCandidates", "重抽次數"/);
+assert.doesNotMatch(lab, /同級／下降候選接受率（％）|單次最多候選數|每回合魔法卡張數/);
+const fixedMechanicConfig = ActionCore.sanitizeConfig({
+  ruleSettings: { magicCardsPerRound: 9 },
+  suppression: { redraw: { sameOrLowerAcceptPct: 12 } }
+});
+assert.equal(fixedMechanicConfig.ruleSettings.magicCardsPerRound, 2);
+assert.equal(fixedMechanicConfig.suppression.redraw.sameOrLowerAcceptPct, 100);
 assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.crit.outcomes.map((row) => row.weight), [50, 25, 15, 8, 2]);
 assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.flatDamage.outcomes.map((row) => row.weight), [60, 30, 8, 2]);
 assert.deepEqual(ActionCore.DEFAULT_CONFIG.suppression.magic.tables.handBoost.outcomes.map((row) => row.weight), [50, 30, 20]);
@@ -416,6 +426,6 @@ assert.match(game, /entryCostX: 1/);
 assert.match(game, /options\.poolAccrual !== false/);
 
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v61", storyCount: 240000,
+  status: "ok", cacheKey: "action-tree-v62", storyCount: 240000,
   controlCards: 5, reportTabs: reportLabels.length, uniqueDomIds: ids.length, rerolls: rerollResult.totals.bossRefreshes
 }, null, 2));

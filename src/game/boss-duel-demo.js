@@ -1244,7 +1244,7 @@
       storyPool: {
         seed: 20260824,
         storiesPerClass: 10000,
-        winMinReturnX: 3,
+        winMinReturnX: 5,
         pushMinReturnX: 1,
         smartMaxDraws: 9
       }
@@ -1274,7 +1274,7 @@
       suppression: loadSuppressionPolicy(),
       storyPool: {
         seed: 20260824, storiesPerClass: 10000,
-        winMinReturnX: 3, pushMinReturnX: 1,
+        winMinReturnX: 5, pushMinReturnX: 1,
         ticketBasis: 1000000,
         smartMaxDraws: 9, maxCandidateAttempts: 10000
       }
@@ -2942,16 +2942,16 @@
       ? `三分類全池各抽 1 個 → 配籤 ${packet.lockedTargetRtpPct}%`
       : "指定 Natural 故事";
     const weightCopy = packet.storyCommit?.weights
-      ? `贏多 ${(packet.storyCommit.weights.win * 100).toFixed(2)}%／贏少 ${(packet.storyCommit.weights.push * 100).toFixed(2)}%／輸 ${(packet.storyCommit.weights.lose * 100).toFixed(2)}%`
+      ? `贏多 ${(packet.storyCommit.weights.win * 100).toFixed(2)}%／贏 ${(packet.storyCommit.weights.push * 100).toFixed(2)}%／輸 ${(packet.storyCommit.weights.lose * 100).toFixed(2)}%`
       : "指定故事不重新抽籤";
     const ticketCopy = Array.isArray(packet.storyCommit?.ticketCounts)
-      ? `${Number(packet.storyCommit.ticketBasis || 0).toLocaleString("zh-TW")} 分數籤：贏多 ${packet.storyCommit.ticketCounts[0].toLocaleString("zh-TW")}／贏少 ${packet.storyCommit.ticketCounts[1].toLocaleString("zh-TW")}／輸 ${packet.storyCommit.ticketCounts[2].toLocaleString("zh-TW")}`
+      ? `${Number(packet.storyCommit.ticketBasis || 0).toLocaleString("zh-TW")} 分數籤：贏多 ${packet.storyCommit.ticketCounts[0].toLocaleString("zh-TW")}／贏 ${packet.storyCommit.ticketCounts[1].toLocaleString("zh-TW")}／輸 ${packet.storyCommit.ticketCounts[2].toLocaleString("zh-TW")}`
       : "";
     const storyBetCredits = packet.storyRecord ? storyCreditsForBet(packet.storyRecord, activeBet) : null;
     const actualResultCopy = storyBetCredits
       ? `劇本總押 ${storyBetCredits.spendX.toFixed(2)}x、總派彩 ${storyBetCredits.payoutX.toFixed(2)}x；BET ${storyBetCredits.bet} 實際點數為押 ${storyBetCredits.totalSpendCredits.toFixed(2)}、派 ${storyBetCredits.totalPayoutCredits.toFixed(2)}`
       : "";
-    els.settingsNote.textContent = `贏多、贏少、輸各從完整結果分類等機率抽 1 個；同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`;
+    els.settingsNote.textContent = `贏多、贏、輸各從完整結果分類等機率抽 1 個；同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`;
     els.combatLockState.textContent = `seed ${packet.naturalStorySeed}｜${packet.storyRecord.rounds} 回合`;
     els.diceLockState.textContent = encounter.phase === "resolved-win"
       ? `${packet.dice.total}x 已揭露`
@@ -3101,7 +3101,7 @@
     encounter = null;
     els.settingsSheet.hidden = true;
     spawnBoss();
-    setMessage("試玩紀錄已重置；下一隻會從贏多、贏少、輸完整故事池各抽一個，再動態配籤。", "");
+    setMessage("試玩紀錄已重置；下一隻會從贏多、贏、輸完整故事池各抽一個，再動態配籤。", "");
   }
 
   function primaryAction() {

@@ -11,8 +11,8 @@ const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
 assert.equal(summaryPreset.signature, preset.signature, "summary and seed preset signatures must match");
 const pool = StoryCore.buildNaturalStoryPoolFromPreset(config, { ...preset, naturalSummaries: summaryPreset.naturalSummaries }, { useCache: false, includePath: false });
 assert(pool?.fromPreset, "natural preset did not hydrate");
-assert.equal(preset.version, "natural-story-preset-v14");
-assert.equal(summaryPreset.version, "natural-story-summary-preset-v8");
+assert.equal(preset.version, "natural-story-preset-v15");
+assert.equal(summaryPreset.version, "natural-story-summary-preset-v9");
 assert.equal(summaryPreset.format, "compact-summary-v1");
 assert.equal("ticketGroups" in preset, false, "obsolete prebuilt ticket groups must not remain in the formal catalog");
 assert.equal(pool.totalStories, 240000);
@@ -56,14 +56,14 @@ for (let star = 1; star <= 8; star += 1) {
 }
 
 assert.equal(checked, 240000);
-assert.equal(StoryCore.storyClass(3, config), "win");
-assert.equal(StoryCore.storyClass(2.999999, config), "push");
+assert.equal(StoryCore.storyClass(5, config), "win");
+assert.equal(StoryCore.storyClass(4.999999, config), "push");
 assert.equal(StoryCore.storyClass(1, config), "push");
 assert.equal(StoryCore.storyClass(0.999999, config), "lose");
-assert.equal(StoryCore.storyClass(2000 / 1000, config), "push", "2000 payout / 1000 wager must be 2x win-small");
-assert.equal(StoryCore.storyClass(3000 / 1000, config), "win", "3000 payout / 1000 wager must be 3x win-big");
+assert.equal(StoryCore.storyClass(4999 / 1000, config), "push", "4999 payout / 1000 wager must remain below the 5x win-big boundary");
+assert.equal(StoryCore.storyClass(5000 / 1000, config), "win", "5000 payout / 1000 wager must be 5x win-big");
 assert.equal(exactTargetResiduals, 0, "target-edge assumption changed; revisit solver policy and documentation");
-assert([...pushReturnValues].every((value) => value >= 1 && value < 3), "all win-small stories must be inside the configured return-ratio interval");
+assert([...pushReturnValues].every((value) => value >= 1 && value < 5), "all win-small stories must be inside the configured return-ratio interval");
 for (let star = 1; star <= 8; star += 1) {
   const commit = StoryCore.drawUniformPresetStoryCommit(preset, config, star, 96, DiceCore.mulberry32(20260827 + star));
   assert.deepEqual(commit.candidates.map((story) => story.classKey), ["win", "push", "lose"], `${star} star candidates must contain win-big, win-small, and lose in order`);

@@ -32,8 +32,8 @@ assert.deepEqual(DiceCore.inverseDiceOutcome(7, 2, 0.3141592653, DiceCore.hash32
   normalSum: 13, multiplierSum: 9, total: 117, maxTotal: 432
 });
 
-assert.equal(StoryCore.storyClass(3, config), "win");
-assert.equal(StoryCore.storyClass(2.999999, config), "push");
+assert.equal(StoryCore.storyClass(5, config), "win");
+assert.equal(StoryCore.storyClass(4.999999, config), "push");
 assert.equal(StoryCore.storyClass(1, config), "push");
 assert.equal(StoryCore.storyClass(0.999999, config), "lose");
 assert.equal(StoryCore.bucketIndexForBet(1), 0);

@@ -12,7 +12,7 @@ const packageDir = path.join(outputDir, "workbook-package-v10");
 const previewDir = path.join(outputDir, "Boss Duel 逐利型玩家劇情 240000 預覽");
 const outputPath = path.join(outputDir, "Boss Duel 逐利型玩家劇情 240000.xlsx");
 const classKeys = ["win", "push", "lose"];
-const classLabel = { win: "贏多", push: "贏少", lose: "輸" };
+const classLabel = { win: "贏多", push: "贏", lose: "輸" };
 const handLabel = {
   high: "高牌", pair: "一對", twoPair: "兩對", three: "三條", straight: "順子",
   flush: "同花", fullHouse: "葫蘆", four: "四條", straightFlush: "同花順"
@@ -124,7 +124,7 @@ async function buildStarSheet(star) {
   const stream = fs.createWriteStream(file, { encoding: "utf8" });
   const stats = blankStats(star);
   await write(stream, sheetPrefix);
-  await write(stream, `<row r="1" ht="34" customHeight="1">${stringCell("A1", `${star} 星 BOSS｜逐利型聰明玩家 30,000 局（贏多→贏少→輸、同類淨結果由高到低）`, 1)}</row>`);
+  await write(stream, `<row r="1" ht="34" customHeight="1">${stringCell("A1", `${star} 星 BOSS｜逐利型聰明玩家 30,000 局（贏多→贏→輸、同類淨結果由高到低）`, 1)}</row>`);
   await write(stream, `<row r="2">${stringCell("A2", "每筆為固定種子的實際合法重播；完整稽核 JSON 保存逐回合雙方手牌、保留、棄牌、補牌、魔法值、決策與結果。", 2)}</row>`);
   await write(stream, `<row r="4" ht="40" customHeight="1">${headers.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   let outputIndex = 0;
@@ -135,7 +135,7 @@ async function buildStarSheet(star) {
     stories.sort((left, right) => Number(right.netX) - Number(left.netX) || Number(left.seed) - Number(right.seed));
     for (const story of stories) {
       const returnX = Number(story.payoutX) / Math.max(Number(story.spendX), Number.EPSILON);
-      const replayClass = returnX >= 3 ? "win" : returnX >= 1 ? "push" : "lose";
+      const replayClass = returnX >= 5 ? "win" : returnX >= 1 ? "push" : "lose";
       if (story.classKey !== classKey || replayClass !== classKey) throw new Error(`${story.id} 分類重播不一致`);
       const values = rowValues(story, outputIndex);
       const row = outputIndex + 5;
@@ -166,7 +166,7 @@ function summaryRowXml(stats, row) {
   const avgPayout = stats.payout / stats.count;
   const avgReturn = stats.returnX / stats.count;
   const avgNet = stats.net / stats.count;
-  return `<row r="${row}">${stringCell(`A${row}`, `${stats.star}星`)}${formulaCell(`B${row}`, `COUNTA(${s}!$B$5:$B$30004)`, stats.count)}${formulaCell(`C${row}`, `COUNTIF(${s}!$E$5:$E$30004,"是")`, stats.kills)}${formulaCell(`D${row}`, `C${row}/B${row}`, stats.kills / stats.count, 8)}${formulaCell(`E${row}`, `COUNTIF(${s}!$D$5:$D$30004,"贏多")`, 10000)}${formulaCell(`F${row}`, `COUNTIF(${s}!$D$5:$D$30004,"贏少")`, 10000)}${formulaCell(`G${row}`, `COUNTIF(${s}!$D$5:$D$30004,"輸")`, 10000)}${formulaCell(`H${row}`, `AVERAGE(${s}!$F$5:$F$30004)`, avgSpend, 7)}${formulaCell(`I${row}`, `AVERAGE(${s}!$G$5:$G$30004)`, avgPayout, 7)}${formulaCell(`J${row}`, `AVERAGE(${s}!$I$5:$I$30004)`, avgReturn, 7)}${formulaCell(`K${row}`, `AVERAGE(${s}!$H$5:$H$30004)`, avgNet, 7)}${numberCell(`L${row}`, stats.redrawStories)}${formulaCell(`M${row}`, `COUNTA(${s}!$Q$5:$Q$30004)`, stats.count)}${formulaCell(`N${row}`, `COUNTA(${s}!$R$5:$R$30004)`, stats.count)}</row>`;
+  return `<row r="${row}">${stringCell(`A${row}`, `${stats.star}星`)}${formulaCell(`B${row}`, `COUNTA(${s}!$B$5:$B$30004)`, stats.count)}${formulaCell(`C${row}`, `COUNTIF(${s}!$E$5:$E$30004,"是")`, stats.kills)}${formulaCell(`D${row}`, `C${row}/B${row}`, stats.kills / stats.count, 8)}${formulaCell(`E${row}`, `COUNTIF(${s}!$D$5:$D$30004,"贏多")`, 10000)}${formulaCell(`F${row}`, `COUNTIF(${s}!$D$5:$D$30004,"贏")`, 10000)}${formulaCell(`G${row}`, `COUNTIF(${s}!$D$5:$D$30004,"輸")`, 10000)}${formulaCell(`H${row}`, `AVERAGE(${s}!$F$5:$F$30004)`, avgSpend, 7)}${formulaCell(`I${row}`, `AVERAGE(${s}!$G$5:$G$30004)`, avgPayout, 7)}${formulaCell(`J${row}`, `AVERAGE(${s}!$I$5:$I$30004)`, avgReturn, 7)}${formulaCell(`K${row}`, `AVERAGE(${s}!$H$5:$H$30004)`, avgNet, 7)}${numberCell(`L${row}`, stats.redrawStories)}${formulaCell(`M${row}`, `COUNTA(${s}!$Q$5:$Q$30004)`, stats.count)}${formulaCell(`N${row}`, `COUNTA(${s}!$R$5:$R$30004)`, stats.count)}</row>`;
 }
 
 async function buildSummarySheet(statsRows) {
@@ -177,14 +177,14 @@ async function buildSummarySheet(statsRows) {
   }, { count: 0, kills: 0, classCounts: { win: 0, push: 0, lose: 0 }, spend: 0, payout: 0, returnX: 0, net: 0, redrawStories: 0 });
   const rows = [];
   rows.push(`<row r="1" ht="34" customHeight="1">${stringCell("A1", "Boss Duel｜逐利型聰明玩家劇情總覽（8 星 × 30,000 局）", 1)}</row>`);
-  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v103／action-tree-v61／boss-plan-v11／arrange-v10／natural-story-preset-v14；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
-  const summaryHeaders = ["星級", "故事數", "擊殺", "擊殺率", "贏多", "贏少", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌故事", "完整稽核", "重播契約"];
+  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v104／action-tree-v62／boss-plan-v11／arrange-v10／natural-story-preset-v15；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
+  const summaryHeaders = ["星級", "故事數", "擊殺", "擊殺率", "贏多", "贏", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌故事", "完整稽核", "重播契約"];
   rows.push(`<row r="4" ht="40" customHeight="1">${summaryHeaders.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   statsRows.forEach((stats, index) => rows.push(summaryRowXml(stats, index + 5)));
   rows.push(`<row r="13">${stringCell("A13", "合計／加權", 2)}${formulaCell("B13", "SUM(B5:B12)", total.count)}${formulaCell("C13", "SUM(C5:C12)", total.kills)}${formulaCell("D13", "C13/B13", total.kills / total.count, 8)}${formulaCell("E13", "SUM(E5:E12)", total.classCounts.win)}${formulaCell("F13", "SUM(F5:F12)", total.classCounts.push)}${formulaCell("G13", "SUM(G5:G12)", total.classCounts.lose)}${formulaCell("H13", "SUMPRODUCT(H5:H12,B5:B12)/B13", total.spend / total.count, 7)}${formulaCell("I13", "SUMPRODUCT(I5:I12,B5:B12)/B13", total.payout / total.count, 7)}${formulaCell("J13", "SUMPRODUCT(J5:J12,B5:B12)/B13", total.returnX / total.count, 7)}${formulaCell("K13", "SUMPRODUCT(K5:K12,B5:B12)/B13", total.net / total.count, 7)}${formulaCell("L13", "SUM(L5:L12)", total.redrawStories)}${formulaCell("M13", "SUM(M5:M12)", total.count)}${formulaCell("N13", "SUM(N5:N12)", total.count)}</row>`);
   rows.push(`<row r="16">${stringCell("A16", "分類", 3)}${stringCell("B16", "正式界線", 3)}${stringCell("C16", "說明", 3)}</row>`);
-  rows.push(`<row r="17">${stringCell("A17", "贏多", 4)}${stringCell("B17", "總派彩 ÷ 總押 ≥ 3x")}${stringCell("C17", "每星固定 10,000 個自然結果")}</row>`);
-  rows.push(`<row r="18">${stringCell("A18", "贏少", 5)}${stringCell("B18", "1x ≤ 總派彩 ÷ 總押 < 3x")}${stringCell("C18", "每星固定 10,000 個自然結果")}</row>`);
+  rows.push(`<row r="17">${stringCell("A17", "贏多", 4)}${stringCell("B17", "總派彩 ÷ 總押 ≥ 5x")}${stringCell("C17", "每星固定 10,000 個自然結果")}</row>`);
+  rows.push(`<row r="18">${stringCell("A18", "贏", 5)}${stringCell("B18", "1x ≤ 總派彩 ÷ 總押 < 5x")}${stringCell("C18", "每星固定 10,000 個自然結果")}</row>`);
   rows.push(`<row r="19">${stringCell("A19", "輸", 6)}${stringCell("B19", "總派彩 ÷ 總押 < 1x")}${stringCell("C19", "每星固定 10,000 個自然結果")}</row>`);
   rows.push(`<row r="21">${stringCell("A21", "重播內容", 3)}${stringCell("B21", "初始手牌、每次保留／棄牌／補牌、雙方最終手牌、魔法卡值、玩家／劇本操作、結果與重播契約")}</row>`);
   const source = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:N21"/><sheetViews><sheetView workbookViewId="0"><pane ySplit="4" topLeftCell="A5" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="14" customWidth="1"/><col min="2" max="14" width="16" customWidth="1"/></cols><sheetData>${rows.join("")}</sheetData><mergeCells count="3"><mergeCell ref="A1:N1"/><mergeCell ref="A2:N2"/><mergeCell ref="B21:N21"/></mergeCells><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/></worksheet>`;

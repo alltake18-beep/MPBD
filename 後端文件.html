@@ -19,10 +19,10 @@
     <header>
       <p class="eyebrow">工程唯一現行規格 · 2026-09-17</p>
       <h1>Boss Duel 後端文件</h1>
-      <div class="badges"><span class="badge">backend-doc-v15</span><span class="badge">suppression-v5 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
+      <div class="badges"><span class="badge">backend-doc-v16</span><span class="badge">suppression-v5 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
       <div class="grid four" style="margin-top:16px">
         <div class="card"><strong>劇本來源</strong>預知完整固定種子的固定規則規劃器，依法規劃並跑完整隻 Boss；同一劇本以 X 倍數通用所有 Bet。</div>
-        <div class="card"><strong>新 Boss 抽取</strong>贏多、贏少、輸三個完整分類各抽 1 個，再做分數配籤。</div>
+        <div class="card"><strong>新 Boss 抽取</strong>贏多、贏、輸三個完整分類各抽 1 個，再做分數配籤。</div>
         <div class="card"><strong>遊玩控制</strong>劇本鎖定；只有抽中輸劇本且玩家成功換牌偏離，才啟動過程抑制。</div>
         <div class="card"><strong>最終結算</strong>第一次 START 加入劇本首次調整；每筆實付按鎖定 RTP 即時入桶，擊殺時只用合法 Boss 骰獎盡量派完。</div>
       </div>
@@ -33,14 +33,14 @@
     <section id="terms" class="blue">
       <h2>一、先分清四個名詞</h2>
       <div class="table-wrap"><table><thead><tr><th>名詞</th><th>用途</th><th>不能混淆的地方</th></tr></thead><tbody>
-        <tr><td><strong>三個劇本結果分類</strong><br>贏多／贏少／輸</td><td>依劇本承諾總派彩 ÷ 劇本原定總押分類，供每次建立新 Boss 時抽三候選。</td><td>它不是固定抽中比例，也不是 Bet 桶；同一劇本通用所有 Bet。</td></tr>
-        <tr><td><strong>三個真實候選</strong></td><td>每次建立新 Boss 時，在贏多、贏少、輸三個完整分類各等機率抽 1 個，再依三者經濟值配籤。</td><td>不能先挑接近 96% 的劇本，也不能只換掉其中一類。</td></tr>
+        <tr><td><strong>三個劇本結果分類</strong><br>贏多／贏／輸</td><td>依劇本承諾總派彩 ÷ 劇本原定總押分類，供每次建立新 Boss 時抽三候選。</td><td>它不是固定抽中比例，也不是 Bet 桶；同一劇本通用所有 Bet。</td></tr>
+        <tr><td><strong>三個真實候選</strong></td><td>每次建立新 Boss 時，在贏多、贏、輸三個完整分類各等機率抽 1 個，再依三者經濟值配籤。</td><td>不能先挑接近 96% 的劇本，也不能只換掉其中一類。</td></tr>
         <tr><td><strong>劇本承諾淨結果</strong></td><td>抽中後鎖定整隻 Boss 的劇本原定總押、劇本承諾總派彩與兩者差額。</td><td>Boss 的「劇本結果」是整隻劇本淨結果，不是原骰獎本身。</td></tr>
         <tr><td><strong>個人劇本水池</strong><br>1–10／20–200／500–2000 三桶</td><td>第一次 START 加入「劇本預定派彩－劇本預定總押 × 鎖定 RTP」；每筆實際扣款再乘鎖定 RTP 即時入桶，實際派彩全額出桶。</td><td>劇本首次調整每隻只做一次；入場、CONTINUE、付費換牌與更換 Boss 都依成功實付記帳；三桶互不流用。</td></tr>
       </tbody></table></div>
       <div class="terms"><span>劇本原定總押</span><span>劇本承諾總派彩</span><span>劇本承諾退幣率</span><span>玩家實際總押</span><span>玩家最終派彩</span><span>玩家實際退幣率</span></div>
       <p class="small">以上六個名稱是報表固定口徑。玩法內容一律稱劇本；唯一正式差額帳本稱個人劇本水池；其餘只稱正式劇本資料、三個完整結果分類與三個真實候選。劇本端以 Bet 倍數 X 記鎖定時承諾，玩家端再依實際 Bet 換算點數並記錄補正後結果。</p>
-      <div class="formula bluebox"><strong>劇本分類</strong><code>分類倍率 = 劇本承諾總派彩 ÷ 劇本原定總押</code><code>贏多：≥ 3x　｜　贏少：≥ 1x 且 &lt; 3x　｜　輸：&lt; 1x</code><span class="small">3 與 1 是現行預設門檻，機率工具可調，但贏多門檻必須大於贏少門檻。1x 屬於贏少，3x 屬於贏多。調門檻只會重新分類同一批自然實跑劇本，不得改寫劇本過程或結果。</span></div>
+      <div class="formula bluebox"><strong>劇本分類</strong><code>分類倍率 = 劇本承諾總派彩 ÷ 劇本原定總押</code><code>贏多：≥ 5x　｜　贏：≥ 1x 且 &lt; 5x　｜　輸：&lt; 1x</code><span class="small">5 與 1 是現行預設門檻，機率工具可調，但贏多門檻必須大於贏門檻。1x 屬於贏，5x 屬於贏多。調門檻後必須依新邊界重新產生、分類並重播正式故事。</span></div>
       <div class="formula greenbox"><strong>同一劇本通用所有 Bet</strong><code>玩家實際總押 = 劇本原定總押 X × Bet</code><code>玩家自然派彩 = 劇本承諾總派彩 X × Bet</code><code>(派彩 X × Bet) ÷ (總押 X × Bet) = 派彩 X ÷ 總押 X</code><span class="small">Bet 不參與 seed、發牌、魔法卡、換牌、AI 路線、結果分類或 240,000 配額。Bet 只在劇本鎖定後換算實際點數，並決定個人劇本水池記入哪一個帳務桶。</span></div>
       <div class="note"><strong>同一個鎖定目標 RTP：</strong>出廠 96%，平台可在 80%～99%（含）調整。同一隻 Boss 建立時鎖定當下值；三候選配籤、劇本首次調整、每筆實付入池與劇本外更換 Boss 入池都使用該值。後續改設定、換日或換版只影響新 Boss。</div>
     </section>
@@ -55,7 +55,7 @@
         <div class="node"><b>2 整隻規劃</b>評估勝率、傷害、剩餘血量、成本、派彩與獲利機會。</div>
         <div class="node"><b>3 合法遊玩</b>決定保留、換牌、繼續或停損；第一回合必玩。</div>
         <div class="node"><b>4 記錄結果</b>保存每回合操作、劇本原定總押、劇本承諾總派彩、是否擊殺與決策原因。</div>
-        <div class="node"><b>5 真實分類</b>只依最終實際倍率放入贏多、贏少或輸。</div>
+        <div class="node"><b>5 真實分類</b>只依最終實際倍率放入贏多、贏或輸。</div>
       </div>
       <div class="grid">
         <div class="card"><strong>人工智慧可以做</strong>預先讀取同一固定種子依法會出現的內容；比較合法路線；依成本與獲利機會停損；必要時手動調整保留。</div>
@@ -78,9 +78,9 @@
       <div class="steps">
         <div><strong>先確認最佳五張與 Joker 正式規則。</strong>詳細牌局與理牌規則不屬於本文件；本頁只記錄這是修改劇本 AI 的前置條件，且遊戲、理牌試玩與劇本 AI 必須共用唯一規則。</div>
         <div><strong>再修固定規則規劃器。</strong>只處理 2.2 的四項問題，建立對應回歸案例並提升規劃器版本；此階段不改三分類、三候選、96%、抑制或個人劇本水池規則。</div>
-        <div><strong>規則異動時先重播既有 seed。</strong>仍符合新版分類的 seed 繼續使用，只以新 seed 補足各星贏多、贏少、輸的缺額；發布前仍須完整驗證 240,000 筆，且每格精確 10,000 筆。</div>
+        <div><strong>分類門檻或正式契約異動時從空白重產。</strong>不得沿用舊 checkpoint、分類或摘要；依新版規則重新自然產生、分類並補滿各星贏多、贏、輸，發布前完整驗證 240,000 筆且每格精確 10,000 筆。</div>
       </div>
-      <div class="note"><strong>目前版本：</strong>遊戲、理牌試玩與劇本生成共用 <code>arrange-v10</code>；規劃器為 <code>boss-plan-v11</code>，故事索引為 <code>natural-story-preset-v14</code>，正式發布量為 24 個「星級 × 結果分類」資料格各 10,000 個。這 24 格不是 Bet 池。</div>
+      <div class="note"><strong>目前版本：</strong>遊戲、理牌試玩與劇本生成共用 <code>arrange-v10</code>；規劃器為 <code>boss-plan-v11</code>，故事索引為 <code>natural-story-preset-v15</code>，正式發布量為 24 個「星級 × 結果分類」資料格各 10,000 個。這 24 格不是 Bet 池。</div>
     </section>
 
     <section id="draw" class="gold">
@@ -88,7 +88,7 @@
       <h3>3.1 後端抽取順序</h3>
       <div class="steps">
         <div><strong>先驗證劇本來源。</strong>確認玩家、星級、劇本版本與資料索引；失敗時不建立新 Boss。</div>
-        <div><strong>三個完整分類各抽 1 個。</strong>在當前星級的贏多、贏少、輸分類內各自等機率抽取。</div>
+        <div><strong>三個完整分類各抽 1 個。</strong>在當前星級的贏多、贏、輸分類內各自等機率抽取。</div>
         <div><strong>以劇本原定總押與劇本承諾總派彩計分。</strong>不做類內排名，不挑比較接近目標 RTP 的劇本。</div>
         <div><strong>配置 1,000,000 張整數籤。</strong>三個候選都必須大於 0 籤，加權期望要符合目標。</div>
         <div><strong>依籤數抽中並鎖定。</strong>鎖定故事、發布版本、目標 RTP 與抑制簽章；第一次 START 成功扣款時，才把入場費乘上鎖定 RTP 加入對應 Bet 桶並預留原骰獎。</div>
@@ -99,7 +99,7 @@
 
     <section id="tickets" class="violet">
       <h2>四、目標 RTP 配籤專區｜從三個真實候選算到中籤劇本</h2>
-      <p>本區可獨立閱讀。三個候選已先從贏多、贏少、輸三個完整分類各等機率抽出；配籤只使用這三個候選的劇本原定總押與劇本承諾總派彩，不再回分類內挑牌局，也不讀玩家歷史、個人劇本水池或上一隻 Boss。</p>
+      <p>本區可獨立閱讀。三個候選已先從贏多、贏、輸三個完整分類各等機率抽出；配籤只使用這三個候選的劇本原定總押與劇本承諾總派彩，不再回分類內挑牌局，也不讀玩家歷史、個人劇本水池或上一隻 Boss。</p>
       <div class="formula violetbox"><strong>唯一正式公式</strong><code>鎖定目標 RTP = Q%，80 ≤ Q ≤ 99；出廠 Q=96</code><code>分數 scoreᵢ = 劇本承諾總派彩 Pᵢ × 100 − Q × 劇本原定總押 Wᵢ</code><code>Σ 籤數 nᵢ = 1,000,000；三個 nᵢ 都必須 ≥ 1</code><code>加權劇本承諾退幣率 = Σ(nᵢ × Pᵢ) ÷ Σ(nᵢ × Wᵢ)</code><code>等價檢查：Σ(nᵢ × scoreᵢ) ≈ 0</code><span class="small">Q=96 時正式容許差 0.01 個百分點，即 95.99%～96.01%。其他 Q 以相同公式與容許差驗收。</span></div>
       <h3>4.1 後端求籤固定順序</h3>
       <div class="steps">
@@ -108,38 +108,38 @@
         <div><strong>求連續機率解。</strong>在所有能令加權分數為 0 的三候選機率中，選擇最接近中性基準 1/3、1/3、1/3 的解；這只是在多個可行解間固定選法，不是指定分類比例。</div>
         <div><strong>轉為 1,000,000 張整數籤。</strong>在連續解附近尋找誤差最小的整數組合；三個候選都必須至少 1 籤。</div>
         <div><strong>驗收整組。</strong>重新用整數籤計算加權 W、加權 P 與 RTP；零籤、總籤數錯誤或誤差超過 0.01 個百分點都整組作廢。</div>
-        <div><strong>只抽一次 K。</strong>K 均勻抽自 1～1,000,000，依贏多 → 贏少 → 輸的累積籤區間選中唯一劇本並永久保存。</div>
+        <div><strong>只抽一次 K。</strong>K 均勻抽自 1～1,000,000，依贏多 → 贏 → 輸的累積籤區間選中唯一劇本並永久保存。</div>
       </div>
-      <div class="warning"><strong>最常見的錯法：</strong>不能把三個候選各自的退幣率直接平均；不能先指定贏多／贏少／輸固定百分比；不能讓其中一類拿 0 籤；不能因某一候選較接近 96% 就替換原先等機率抽出的候選。</div>
+      <div class="warning"><strong>最常見的錯法：</strong>不能把三個候選各自的退幣率直接平均；不能先指定贏多／贏／輸固定百分比；不能讓其中一類拿 0 籤；不能因某一候選較接近 96% 就替換原先等機率抽出的候選。</div>
 
       <h3>4.2 例一：三個候選總押相同</h3>
       <div class="table-wrap"><table class="tight"><thead><tr><th>分類</th><th>W</th><th>P</th><th>P÷W</th><th>分數 P×100−96W</th><th>整數籤</th><th>累積區間</th></tr></thead><tbody>
         <tr><td>贏多</td><td>4x</td><td>18x</td><td>450%</td><td>+1,416</td><td>85,714</td><td>1–85,714</td></tr>
-        <tr><td>贏少</td><td>4x</td><td>6x</td><td>150%</td><td>+216</td><td>382,858</td><td>85,715–468,572</td></tr>
+        <tr><td>贏</td><td>4x</td><td>6x</td><td>150%</td><td>+216</td><td>382,858</td><td>85,715–468,572</td></tr>
         <tr><td>輸</td><td>4x</td><td>0</td><td>0%</td><td>-384</td><td>531,428</td><td>468,573–1,000,000</td></tr>
       </tbody></table></div>
-      <div class="formula greenbox"><strong>例一驗算</strong><code>加權 W = 4x</code><code>加權 P = 18×0.085714 + 6×0.382858 + 0×0.531428 = 3.84x</code><code>3.84 ÷ 4 = 96%；加權分數和 = 0</code><span class="small">這就是完整實例 A、B、C 共用的配籤組。K=50,000 抽中贏多；K=200,000 抽中贏少；K=800,000 抽中輸。85,714／382,858／531,428 是這一組候選的求解結果，不是全遊戲固定比例。</span></div>
+      <div class="formula greenbox"><strong>例一驗算</strong><code>加權 W = 4x</code><code>加權 P = 18×0.085714 + 6×0.382858 + 0×0.531428 = 3.84x</code><code>3.84 ÷ 4 = 96%；加權分數和 = 0</code><span class="small">這就是完整實例 A、B、C 共用的配籤組。K=50,000 抽中贏多；K=200,000 抽中贏；K=800,000 抽中輸。85,714／382,858／531,428 是這一組候選的求解結果，不是全遊戲固定比例。</span></div>
 
       <h3>4.3 例二：三個候選總押不同，必須按總押加權</h3>
       <div class="table-wrap"><table class="tight"><thead><tr><th>分類</th><th>W</th><th>P</th><th>P÷W</th><th>分數</th><th>整數籤</th></tr></thead><tbody>
         <tr><td>贏多</td><td>2x</td><td>8x</td><td>400%</td><td>+608</td><td>319,920</td></tr>
-        <tr><td>贏少</td><td>5x</td><td>7x</td><td>140%</td><td>+220</td><td>328,928</td></tr>
+        <tr><td>贏</td><td>5x</td><td>7x</td><td>140%</td><td>+220</td><td>328,928</td></tr>
         <tr><td>輸</td><td>10x</td><td>2x</td><td>20%</td><td>-760</td><td>351,152</td></tr>
       </tbody></table></div>
       <div class="formula bluebox"><strong>例二驗算</strong><code>加權 W = 2×0.319920 + 5×0.328928 + 10×0.351152 = 5.796x</code><code>加權 P = 8×0.319920 + 7×0.328928 + 2×0.351152 = 5.56416x</code><code>5.56416 ÷ 5.796 = 96%</code><span class="small">錯誤算法是直接平均 400%、140%、20%，會得到 186.6667%；這完全忽略三個劇本的總押不同。正式後端永遠先加權總派彩與總押，再做一次除法。</span></div>
 
-      <h3>4.4 例三：贏少剛好 1x，仍高於 96% 目標</h3>
+      <h3>4.4 例三：贏剛好 1x，仍高於 96% 目標</h3>
       <div class="table-wrap"><table class="tight"><thead><tr><th>分類</th><th>W</th><th>P</th><th>P÷W</th><th>分數</th><th>整數籤</th></tr></thead><tbody>
         <tr><td>贏多</td><td>6x</td><td>24x</td><td>400%</td><td>+1,824</td><td>185,570</td></tr>
-        <tr><td>贏少</td><td>3x</td><td>3x</td><td>100%</td><td>+12</td><td>367,952</td></tr>
+        <tr><td>贏</td><td>3x</td><td>3x</td><td>100%</td><td>+12</td><td>367,952</td></tr>
         <tr><td>輸</td><td>8x</td><td>0</td><td>0%</td><td>-768</td><td>446,478</td></tr>
       </tbody></table></div>
-      <div class="formula goldbox"><strong>例三驗算</strong><code>加權 W = 5.7891x；加權 P = 5.557536x</code><code>5.557536 ÷ 5.7891 = 96%</code><span class="small">贏少候選雖然只是回本 100%，相對 96% 目標仍是正分數 +12，仍需要負分數的輸候選平衡。分類門檻 1x／3x 與配籤目標 96% 是兩件不同的事。</span></div>
+      <div class="formula goldbox"><strong>例三驗算</strong><code>加權 W = 5.7891x；加權 P = 5.557536x</code><code>5.557536 ÷ 5.7891 = 96%</code><span class="small">贏候選雖然只是回本 100%，相對 96% 目標仍是正分數 +12，仍需要負分數的輸候選平衡。分類門檻 1x／3x 與配籤目標 96% 是兩件不同的事。</span></div>
 
       <h3>4.5 例四：三類都有，但仍然不可配籤</h3>
       <div class="table-wrap"><table class="tight"><thead><tr><th>分類</th><th>W</th><th>P</th><th>P÷W</th><th>分數</th><th>判定</th></tr></thead><tbody>
         <tr><td>贏多</td><td>10x</td><td>30x</td><td>300%</td><td>+2,040</td><td rowspan="3">三個分數全部大於 0，任何正籤組合的加權 RTP 都會高於 96%；整組作廢，重新從三個完整分類各抽 1 個。</td></tr>
-        <tr><td>贏少</td><td>10x</td><td>12x</td><td>120%</td><td>+240</td></tr>
+        <tr><td>贏</td><td>10x</td><td>12x</td><td>120%</td><td>+240</td></tr>
         <tr><td>輸</td><td>100x</td><td>98x</td><td>98%</td><td>+200</td></tr>
       </tbody></table></div>
       <div class="warning"><strong>為什麼「輸」仍可能是正分數：</strong>輸分類只代表 P÷W &lt; 1；本例 98% 雖低於 1x，仍高於 96% 配籤目標，所以分數是正值。後端不能看到分類名稱「輸」就假定它一定能拉低到 96%，也不能硬給 0 籤或負籤。</div>
@@ -168,19 +168,19 @@
     <section id="suppress" class="red">
       <h2>六、玩家偏離時的過程抑制</h2>
       <div class="formula goldbox"><strong>唯一啟動條件</strong><code>抽中劇本 classKey = "lose"</code><code>而且：成功換牌時，玩家實際保留牌 ID 集合 ≠ 劇本同回合／同平手重發段／同換牌序號的預定保留牌 ID 集合</code><code>或：該位置沒有預定 REDRAW，plannedRecordMissing = true</code><span class="small">只比較牌的識別碼集合，不比較顯示順序。劇本路徑已結束、額外和局重發或額外換牌造成無對應紀錄時，不得以空集合冒充劇本要求全換；該次成功換牌直接算偏離。一旦符合條件，自該次換牌候選開始，本隻 Boss 後續永久處於抑制狀態。</span></div>
-      <p>抽中贏多或贏少劇本時完全不啟動過程抑制；是否擊殺不是啟動條件。本機制不要求玩家路徑重新接回原劇本。</p>
-      <div class="note"><strong>哪些偏離要存：</strong>FIGHT／FOLD、提前停止、CONTINUE、換 Boss、換 BET 與每次保留選擇都要保存並標示是否符合劇本；正式預設 <code>deviation-suppression-v5-lose-story-only</code> 只由上方「輸劇本＋成功 REDRAW 保留集合不同或無對應紀錄」啟動。劇本已結束後的合法操作與和局重發照常進行；贏多或贏少劇本只記偏離、不啟動本版抑制。</div>
+      <p>抽中贏多或贏劇本時完全不啟動過程抑制；是否擊殺不是啟動條件。本機制不要求玩家路徑重新接回原劇本。</p>
+      <div class="note"><strong>哪些偏離要存：</strong>FIGHT／FOLD、提前停止、CONTINUE、換 Boss、換 BET 與每次保留選擇都要保存並標示是否符合劇本；正式預設 <code>deviation-suppression-v5-lose-story-only</code> 只由上方「輸劇本＋成功 REDRAW 保留集合不同或無對應紀錄」啟動。劇本已結束後的合法操作與和局重發照常進行；贏多或贏劇本只記偏離、不啟動本版抑制。</div>
       <div class="table-wrap"><table><thead><tr><th>項目</th><th>後端實際處理</th></tr></thead><tbody>
         <tr><td>牌型階級</td><td>高牌＜一對＜兩對＜三條＜順子＜同花＜葫蘆＜四條＜同花順＜皇家同花順。同牌型內的點數或 kicker 改善不算升級。</td></tr>
         <tr><td>換牌候選</td><td>後端先抽完整換牌結果，與這次換牌前玩家的實際牌型比較，不和劇本預定牌型比較。牌型沒有上升就立即接受；牌型上升才再抽一次 50%，50% 接受、50% 拒絕。</td></tr>
         <tr><td>候選被拒絕</td><td>還原換牌前的手牌與牌堆，被拒絕牌放回，再抽下一個完整候選；前端完全看不到被拒絕結果。</td></tr>
-        <tr><td>重抽上限</td><td>每個改善候選都重新獨立抽 50%。最多檢查 30 個候選；第 30 個不再判斷，直接接受。</td></tr>
+        <tr><td>重抽次數</td><td>每個改善候選都重新獨立抽 50%。最多重抽 30 組候選；最後一次不再判斷，直接接受。</td></tr>
         <tr><td>最終暴擊</td><td>沒有抑制時使用正常表的後端隱藏值；有抑制時不看正常值，直接抽「暴擊倍率抑制表」。預設 x1／x2／x3／x4／x5＝69%／25%／3%／2%／1%。</td></tr>
         <tr><td>最終固傷</td><td>沒有抑制時使用正常表的後端隱藏值；有抑制時不看正常值，直接抽「固定傷害抑制表」。預設 +3／+4／+5／+6＝70%／25%／3%／2%。</td></tr>
         <tr><td>最終牌型魔法</td><td>三條、四條、順子、同花、葫蘆與日後新增的牌型傷害卡全部共用一張「牌型傷害倍率抑制表」。預設 x1／x2／x3＝80%／19%／1%；不得為每種牌型私建不同邏輯。</td></tr>
       </tbody></table></div>
       <div class="warning"><strong>前端揭露規則：</strong>開卡時只公開魔法卡種類；只有金幣卡立即公開實際加成。暴擊倍率、固定傷害與所有牌型傷害倍率，在手牌整理、換牌及 FIGHT 前都不得下發或以總傷害反推；比牌／傷害結算時才公開本次最終有效值。</div>
-      <div class="note"><strong>參數化與鎖定：</strong>機率工具的「抑制參數」只開放換牌升級／非升級候選接受率、單次候選上限，以及三張傷害抑制表的結果值與百分比；抑制啟動條件、生命週期、末候選強制接受及三張抑制表均固定啟用。每張表的百分比合計必須為 100%。建立 Boss 時必須鎖定完整參數與簽章；中途修改只套用下一隻 Boss。這是執行期規則，不重建或切分 240,000 個劇本。</div>
+      <div class="note"><strong>參數化與鎖定：</strong>同級／下降候選接受率固定為 100%，不在機率工具顯示；工具只開放牌型升級候選接受率、「重抽次數」，以及三張傷害抑制表的結果值與百分比。每回合魔法卡固定抽 2 張，也不作為參數顯示。抑制啟動條件、生命週期、末候選強制接受及三張抑制表均固定啟用。每張表的百分比合計必須為 100%。建立 Boss 時必須鎖定完整參數與簽章；中途修改只套用下一隻 Boss。這是執行期規則，不重建或切分 240,000 個劇本。</div>
     </section>
 
     <section id="pool" class="green">
@@ -261,7 +261,7 @@
       <h3>案例 C｜偏離劇本且最小合法骰獎仍超過額度</h3>
       <div class="case">
         <div class="case-step"><div class="case-step-title"><span class="step-no">1</span>實際行為改變最終結果</div><div class="lanes">
-          <div class="lane script"><strong>抽中輸劇本</strong>成功 REDRAW 的保留集合偏離時才啟動抑制；贏多與贏少只記偏離。</div>
+          <div class="lane script"><strong>抽中輸劇本</strong>成功 REDRAW 的保留集合偏離時才啟動抑制；贏多與贏只記偏離。</div>
           <div class="lane actual"><strong>玩家意外擊殺</strong>固定派彩先保持原值，不能回改金幣卡或魔法卡。</div>
         </div></div>
         <div class="case-step"><div class="case-step-title"><span class="step-no">2</span>不足時允許負池</div><div class="lanes">
@@ -276,12 +276,13 @@
     <section id="data" class="violet">
       <h2>十、現行劇本資料與正式產線</h2>
       <h3>10.1 正式發布資料</h3>
-      <p>現行正式資料由 <code>boss-plan-v11</code>、<code>arrange-v10</code> 與 <code>natural-story-preset-v14</code> 產生。每個候選種子只自然跑一次；產線持續換新種子直到各結果分類達標，發布時每個「星級 × 結果分類」資料格精確取 10,000 個，不複製、不改寫、不跨分類重用。同一筆以 X 倍數保存，所有 Bet 共用。</p>
+      <p>現行正式資料由 <code>boss-plan-v11</code>、<code>arrange-v10</code> 與 <code>natural-story-preset-v15</code> 產生。每個候選種子只自然跑一次；產線持續換新種子直到各結果分類達標，發布時每個「星級 × 結果分類」資料格精確取 10,000 個，不複製、不改寫、不跨分類重用。同一筆以 X 倍數保存，所有 Bet 共用。</p>
       <div class="note"><strong>每日發布版可重複抽取：</strong>營運建立每隻新 Boss 時都從完整分類池獨立放回抽樣，抽中的 seed 不從目錄移除；不同玩家或不同 Boss 可在同一天抽到同一劇本。seed 唯一性只要求同一份 240,000 筆發布索引內不重複。</div>
-      <div class="table-wrap"><table class="tight"><thead><tr><th>星級</th><th>贏多</th><th>贏少</th><th>輸</th><th>發布合計</th></tr></thead><tbody>
+      <div class="note"><strong>離線補量策略：</strong>候選先完成自然遊玩，再依 5／1 邊界分類。每批結束後檢查 24 格；仍有缺額時，離線產線把該批 BOSS 星級鎖定為缺額星級（該星出現率 100%），只保存仍不足的分類，並依實際命中率與剩餘數量自動調整下一批大小，直到該星贏多／贏／輸各 10,000。這不改遊戲內 BOSS 出現率，也不先指定結果造牌。</div>
+      <div class="table-wrap"><table class="tight"><thead><tr><th>星級</th><th>贏多</th><th>贏</th><th>輸</th><th>發布合計</th></tr></thead><tbody>
         <tr><td>1</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>2</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>3</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>4</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>5</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>6</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>7</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td>8</td><td>10,000</td><td>10,000</td><td>10,000</td><td>30,000</td></tr><tr><td><strong>合計</strong></td><td><strong>80,000</strong></td><td><strong>80,000</strong></td><td><strong>80,000</strong></td><td><strong>240,000</strong></td></tr>
       </tbody></table></div>
-      <div class="note"><strong>發布量與嘗試數不同：</strong>240,000 是正式索引內的精確可用量；八星贏少最稀少，因此自然嘗試數會明顯高於 240,000。嘗試失敗不是補造依據。</div>
+      <div class="note"><strong>發布量與嘗試數不同：</strong>240,000 是正式索引內的精確可用量；八星贏最稀少，因此自然嘗試數會明顯高於 240,000。嘗試失敗不是補造依據。</div>
       <div class="note"><strong>不要依 Bet 重建劇本：</strong>正式索引沒有 Bet 維度。Bet 1、Bet 2,000 或日後新增的正數 Bet 都引用同一個 <code>releaseVersion + star + seed</code>；只將 <code>spendX</code>、<code>payoutX</code> 與 <code>netX</code> 乘上實際 Bet，完整操作路徑與分類不得改變。</div>
       <h3>10.2 同一劇本資料分三層</h3>
       <div class="table-wrap"><table><thead><tr><th>資料層</th><th>使用端</th><th>只保存什麼</th></tr></thead><tbody><tr><td>輕量劇本索引</td><td>手機遊戲</td><td>版本、星級、分類、種子、定位資料與簽章；不載入大型統計。</td></tr><tr><td>統計摘要</td><td>機率工具</td><td>分類、劇本原定總押、劇本承諾總派彩、行為計數與驗證摘要。</td></tr><tr><td>完整稽核路徑</td><td>離線分析</td><td>每回合手牌、保留、換牌、魔法卡、對手牌、決策原因與結果。</td></tr></tbody></table></div>
@@ -335,7 +336,7 @@
       </tbody></table></div>
       <div class="pass"><strong>Excel 交付方式：</strong>Excel 與預覽不常駐 Git；需要交付時才由現行 240,000 筆索引產生總覽與 1～8 星共 9 分頁，每星 30,000 局、三分類各 10,000，避免重複資料占用專案容量。</div>
       <p class="small">英文檔名、欄位名與版本字串只作程式識別；所有對外內容一律稱「劇本」，差額帳本一律稱「個人劇本水池」。</p>
-      <div class="note"><strong>版本一致：</strong>種子檔只保存 24 個完整結果資料格，不保存預組候選群組。現行每次建立新 Boss 永遠從三個完整結果分類各抽 1 個；遊戲、機率工具、Excel、操作重播與完整稽核必須共同使用 <code>natural-story-preset-v14</code> 與 suppression-v5 執行期簽章。</div>
+      <div class="note"><strong>版本一致：</strong>種子檔只保存 24 個完整結果資料格，不保存預組候選群組。現行每次建立新 Boss 永遠從三個完整結果分類各抽 1 個；遊戲、機率工具、Excel、操作重播與完整稽核必須共同使用 <code>natural-story-preset-v15</code> 與 suppression-v5 執行期簽章。</div>
     </section>
 
     <footer>本頁是工程現行規格；《Boss Duel 故事池數學模型.md》與《Boss Duel 交接.md》必須同步。未實際驗證的項目不得宣稱通過。</footer>

@@ -33,9 +33,9 @@ const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionTreeCore = require("../src/probability/boss-duel-action-tree-core.js");
 
 const SERVICE_VERSION = "boss-duel-story-generator-v1";
-const GENERATOR_REVISION = "boss-plan-v11-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-production-v4";
-const PRESET_VERSION = "natural-story-preset-v14";
-const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v8";
+const GENERATOR_REVISION = "boss-plan-v11-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-threshold5-production-v5";
+const PRESET_VERSION = "natural-story-preset-v15";
+const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v9";
 const ARRANGEMENT_VERSION = "arrange-v10";
 const FORMAL_STORIES_PER_CLASS = 10000;
 const FORMAL_STORIES_PER_STAR = 30000;
@@ -143,8 +143,10 @@ function validateConfig(configInput, options = {}) {
   assert(Array.isArray(config.magicRows) && config.magicRows.length > 0, "INVALID_CONFIG", "magicRows 不可為空");
   assert(Array.isArray(config.handRows) && config.handRows.length > 0, "INVALID_CONFIG", "handRows 不可為空");
   assert(Array.isArray(config.drawFeesX) && config.drawFeesX.length > 0, "INVALID_CONFIG", "drawFeesX 不可為空");
-  assert(config.winMinReturnX === 3, "INVALID_CONFIG", "正式贏多分類線必須是 3 倍", { actual: config.winMinReturnX });
-  assert(config.pushMinReturnX === 1, "INVALID_CONFIG", "正式贏少分類線必須是 1 倍", { actual: config.pushMinReturnX });
+  assert(config.winMinReturnX === 5, "INVALID_CONFIG", "正式贏多分類線必須是 5 倍", { actual: config.winMinReturnX });
+  assert(config.pushMinReturnX === 1, "INVALID_CONFIG", "正式贏分類線必須是 1 倍", { actual: config.pushMinReturnX });
+  assert(config.magicCardsPerRound === 2, "INVALID_CONFIG", "每回合魔法卡張數固定為 2", { actual: config.magicCardsPerRound });
+  assert(config.suppressionPolicy.redraw.sameOrLowerAcceptPct === 100, "INVALID_CONFIG", "同級／下降候選接受率固定為 100%", { actual: config.suppressionPolicy.redraw.sameOrLowerAcceptPct });
   assert(config.maxGenerationAttemptsPerStar >= storiesPerClass * 3, "INVALID_CONFIG", "每星最大嘗試數不足以容納正式配額");
   if (formal) {
     assert(storiesPerClass === FORMAL_STORIES_PER_CLASS, "INVALID_FORMAL_QUOTA", "正式模式每星每桶必須是 10,000 筆", { actual: storiesPerClass });
@@ -159,6 +161,8 @@ function createBuildProfile(configInput, options = {}) {
   const workerDefault = Math.max(1, (os.cpus()?.length || 2) - 1);
   const workerCount = finiteInteger(options.workerCount, workerDefault, 1, 19);
   const chunkAttempts = finiteInteger(options.chunkAttempts, 1000, 100, 100000);
+  const minChunkAttempts = finiteInteger(options.minChunkAttempts, 100, 100, 100000);
+  const maxChunkAttempts = finiteInteger(options.maxChunkAttempts, Math.max(chunkAttempts, 3000), minChunkAttempts, 100000);
   const validationChunkSize = finiteInteger(options.validationChunkSize, 1000, 10, 10000);
   const configSignature = NaturalCore.poolSignature(validated.config);
   const releaseSignature = sha256(stableJson({
@@ -172,6 +176,8 @@ function createBuildProfile(configInput, options = {}) {
     ...validated,
     workerCount,
     chunkAttempts,
+    minChunkAttempts,
+    maxChunkAttempts,
     validationChunkSize,
     configSignature,
     releaseSignature,
@@ -182,6 +188,24 @@ function createBuildProfile(configInput, options = {}) {
       100000000
     )
   };
+}
+
+function adaptiveChunkAttempts(profile, state, wantedClassKeys) {
+  if (!state.nextAttempt || !wantedClassKeys.length) return profile.chunkAttempts;
+  let estimatedBatchAttempts = 0;
+  for (const classKey of wantedClassKeys) {
+    const remaining = Math.max(0, profile.storiesPerClass - state.seeds[classKey].length);
+    if (!remaining) continue;
+    const observed = Number(state.observed[classKey] || 0);
+    if (observed <= 0) return profile.chunkAttempts;
+    const observedRate = observed / state.nextAttempt;
+    estimatedBatchAttempts = Math.max(
+      estimatedBatchAttempts,
+      Math.ceil((remaining / observedRate) * 1.08)
+    );
+  }
+  const perWorker = Math.ceil(estimatedBatchAttempts / profile.workerCount);
+  return finiteInteger(perWorker, profile.chunkAttempts, profile.minChunkAttempts, profile.maxChunkAttempts);
 }
 
 function assertStar(starInput) {
@@ -440,10 +464,11 @@ async function buildStarClassCatalog(profileInput, starInput, options = {}) {
       });
     }
     const wantedClassKeys = CLASS_KEYS.filter((key) => state.seeds[key].length < profile.storiesPerClass);
+    const chunkAttempts = adaptiveChunkAttempts(profile, state, wantedClassKeys);
     const jobs = [];
     let cursor = state.nextAttempt;
     for (let index = 0; index < profile.workerCount && cursor < profile.maxAttemptsPerStar; index += 1) {
-      const attemptCount = Math.min(profile.chunkAttempts, profile.maxAttemptsPerStar - cursor);
+      const attemptCount = Math.min(chunkAttempts, profile.maxAttemptsPerStar - cursor);
       jobs.push({
         mode: "scan",
         config: profile.config,
@@ -465,6 +490,10 @@ async function buildStarClassCatalog(profileInput, starInput, options = {}) {
         phase: "generate",
         star,
         attempts: state.nextAttempt,
+        targetedStarOnly: true,
+        bossStarRatePct: 100,
+        wantedClassKeys: wantedClassKeys.slice(),
+        chunkAttempts,
         accepted: stateCounts(state),
         observed: clone(state.observed)
       });
@@ -717,7 +746,8 @@ async function buildRelease(options = {}) {
     configSignature: profile.configSignature,
     releaseSignature: profile.releaseSignature,
     classificationBasis: "TOTAL_PAYOUT_OVER_TOTAL_SPEND",
-    thresholds: { winMinReturnX: 3, pushMinReturnX: 1 },
+    generationStrategy: "GENERATE_THEN_CLASSIFY_ADAPTIVE_DEFICIT_STAR_ONLY",
+    thresholds: { winMinReturnX: 5, pushMinReturnX: 1 },
     storiesPerClass: FORMAL_STORIES_PER_CLASS,
     storiesPerStar: FORMAL_STORIES_PER_STAR,
     totalStories: FORMAL_TOTAL_STORIES,
@@ -767,6 +797,8 @@ function parseCliArguments(argv) {
     config,
     workerCount: values.workers ? Number(values.workers) : undefined,
     chunkAttempts: values["chunk-attempts"] ? Number(values["chunk-attempts"]) : undefined,
+    minChunkAttempts: values["min-chunk-attempts"] ? Number(values["min-chunk-attempts"]) : undefined,
+    maxChunkAttempts: values["max-chunk-attempts"] ? Number(values["max-chunk-attempts"]) : undefined,
     validationChunkSize: values["validation-chunk-size"] ? Number(values["validation-chunk-size"]) : undefined
   };
 }
@@ -815,6 +847,7 @@ const publicApi = {
   normalizeConfig,
   validateConfig,
   createBuildProfile,
+  adaptiveChunkAttempts,
   deriveSeed,
   generateStory,
   materializeStoryForBet,

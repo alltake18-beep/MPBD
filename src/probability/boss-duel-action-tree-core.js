@@ -23,7 +23,7 @@
   );
   if (!DiceCore || !Rules || !StoryPlanner || !NaturalCore) throw new Error("機率工具缺少共用遊戲核心");
   const TREE_KEYS = ["win", "push", "lose"];
-  const TREE_LABELS = { win: "贏多", push: "贏少", lose: "輸" };
+  const TREE_LABELS = { win: "贏多", push: "贏", lose: "輸" };
   const SPEND_FACTORS = { win: 0.90, push: 1.00, lose: 1.18 };
   const STORAGE_KEY = "boss-duel:action-tree-carry:config:v2";
   const CHANNEL_NAME = "boss-duel:action-tree-carry:hot-update:v1";
@@ -141,7 +141,7 @@
     storyPool: {
       seed: 20260824,
       storiesPerClass: 10000, storiesPerStar: 30000,
-      winMinReturnX: 3, pushMinReturnX: 1, smartMaxDraws: 9,
+      winMinReturnX: 5, pushMinReturnX: 1, smartMaxDraws: 9,
       candidateDrawMode: "FULL_CLASS_UNIFORM",
       ticketBasis: 1000000,
       maxGenerationAttemptsPerStar: 100000000, maxCandidateAttempts: 10000
@@ -260,7 +260,7 @@
     story.storiesPerClass = integer(story.storiesPerClass, 10000, 1, 10000000);
     story.storiesPerStar = story.storiesPerClass * TREE_KEYS.length;
     delete story.storiesPerCell;
-    story.winMinReturnX = clamp(finite(story.winMinReturnX, 3), 0.001, 1000000);
+    story.winMinReturnX = clamp(finite(story.winMinReturnX, 5), 0.001, 1000000);
     story.pushMinReturnX = clamp(finite(story.pushMinReturnX, 1), 0, 999999.999);
     if (story.winMinReturnX <= story.pushMinReturnX) story.winMinReturnX = Math.min(1000000, story.pushMinReturnX + 0.001);
     story.candidateDrawMode = "FULL_CLASS_UNIFORM";
@@ -302,7 +302,7 @@
     config.ruleSettings.playerBadHighRerollPct = clamp(finite(config.ruleSettings.playerBadHighRerollPct, 50), 0, 100);
     config.ruleSettings.bossBadHighRerollPct = clamp(finite(config.ruleSettings.bossBadHighRerollPct, 25), 0, 100);
     config.ruleSettings.initialRerollLimit = integer(config.ruleSettings.initialRerollLimit, 50, 0, 1000000);
-    config.ruleSettings.magicCardsPerRound = integer(config.ruleSettings.magicCardsPerRound, 2, 0, 10);
+    config.ruleSettings.magicCardsPerRound = 2;
     config.suppression = NaturalCore.normalizeSuppressionPolicy(config.suppression);
     config.suppression.enabled = true;
     config.suppression.activation.enabled = true;
@@ -310,6 +310,7 @@
     config.suppression.activation.requireKeepDeviation = true;
     config.suppression.activation.latchForBoss = true;
     config.suppression.redraw.enabled = true;
+    config.suppression.redraw.sameOrLowerAcceptPct = 100;
     config.suppression.redraw.forceFinalCandidate = true;
     config.suppression.magic.enabled = true;
     Object.values(config.suppression.magic.tables).forEach((table) => { table.enabled = true; });

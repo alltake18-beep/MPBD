@@ -6,7 +6,7 @@ const Rules = require("../src/core/boss-duel-rules.js");
 const StoryCore = require("../src/core/boss-duel-natural-story-core.js");
 
 const config = StoryCore.normalizeConfig({
-  storyPool: { seed: 20260824, winMinReturnX: 3, pushMinReturnX: 1, smartMaxDraws: 9 }
+  storyPool: { seed: 20260824, winMinReturnX: 5, pushMinReturnX: 1, smartMaxDraws: 9 }
 });
 
 function replay(story) {

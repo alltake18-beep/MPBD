@@ -98,10 +98,10 @@
   }
 
   function renderClassificationRule() {
-    const win = number(config.storyPool.winMinReturnX, 3);
+    const win = number(config.storyPool.winMinReturnX, 5);
     const push = number(config.storyPool.pushMinReturnX, 1);
     if ($("winClassificationRule")) $("winClassificationRule").textContent = `贏多：總派彩 ÷ 總押 ≥ ${win}x`;
-    if ($("pushClassificationRule")) $("pushClassificationRule").textContent = `贏少：${push}x ≤ 總派彩 ÷ 總押 < ${win}x`;
+    if ($("pushClassificationRule")) $("pushClassificationRule").textContent = `贏：${push}x ≤ 總派彩 ÷ 總押 < ${win}x`;
     if ($("loseClassificationRule")) $("loseClassificationRule").textContent = `輸：總派彩 ÷ 總押 < ${push}x`;
   }
 
@@ -121,7 +121,7 @@
   function readFixedControls() {
     config.targetCoreRtpPct = number($("targetCoreRtp")?.value, 96);
     config.tolerancePp = number($("tolerancePp")?.value, 0.01);
-    config.storyPool.winMinReturnX = number($("winMinReturnX")?.value, 3);
+    config.storyPool.winMinReturnX = number($("winMinReturnX")?.value, 5);
     config.storyPool.pushMinReturnX = number($("pushMinReturnX")?.value, 1);
     config.storyPool.candidateDrawMode = "FULL_CLASS_UNIFORM";
     config.storyPool.ticketBasis = number($("ticketBasis")?.value, 1000000);
@@ -210,7 +210,7 @@
   function designChecks() {
     const issues = [];
     if (config.storyPool.storiesPerClass !== 10000 || config.storyPool.storiesPerStar !== 30000) issues.push("遊戲故事池每星三分類必須各 10,000 局");
-    if (!(config.storyPool.winMinReturnX > config.storyPool.pushMinReturnX)) issues.push("贏多門檻必須大於贏少門檻");
+    if (!(config.storyPool.winMinReturnX > config.storyPool.pushMinReturnX)) issues.push("贏多門檻必須大於贏門檻");
     if (config.handRows.find((row) => row[0] === "straightFlush")?.[4] !== 30) issues.push("同花順正式傷害必須為 30");
     return { pass: issues.length === 0, issues };
   }
@@ -260,7 +260,7 @@
     $("validationState").textContent = simulationReady ? "三分類全池抽取／分數配籤已執行" : poolReady ? "正式故事目錄完成" : naturalState.pending ? "等待 240,000 個正式故事" : "故事目錄阻擋";
     $("validationState").className = poolReady ? "valid" : "warn";
     $("validationMessage").textContent = simulationReady
-      ? `已從贏多、贏少、輸三個完整分類各等機率抽一個自然故事，再配成 ${pct(config.targetCoreRtpPct, 3)}；實際總押注與劇本預定總押注的差額按同一 RTP 比例調整個人劇本水池。`
+      ? `已從贏多、贏、輸三個完整分類各等機率抽一個自然故事，再配成 ${pct(config.targetCoreRtpPct, 3)}；實際總押注與劇本預定總押注的差額按同一 RTP 比例調整個人劇本水池。`
       : poolReady
         ? "240,000 個正式故事已完成 24 個星級 × 結果分類資料格的數量、自然分類與重播契約驗證；可繼續執行三分類全池抽取與分數配籤模擬。"
       : naturalState.issues.slice(0, 4).join("；");
@@ -276,7 +276,7 @@
     const state = naturalChecks();
     const status = $("naturalStatus");
     status.className = `pending-box ${state.pending ? "warn" : state.pass ? "valid" : "error"}`;
-    status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "故事池驗證完成" : "故事池驗證失敗"}</strong><span>${state.pending ? "按「開始統計」後自動檢查 24 個結果資料格各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏少、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
+    status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "故事池驗證完成" : "故事池驗證失敗"}</strong><span>${state.pending ? "按「開始統計」後自動檢查 24 個結果資料格各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
   }
 
   function buildMechanics() {
@@ -330,15 +330,13 @@
       ["deckStopCount", "牌堆停止張數", 1],
       ["playerBadHighRerollPct", "玩家爛高牌重抽率（%）", 0.1],
       ["bossBadHighRerollPct", "Boss 爛高牌重抽率（%）", 0.1],
-      ["initialRerollLimit", "起手重抽上限", 1],
-      ["magicCardsPerRound", "每回合魔法卡張數", 1]
+      ["initialRerollLimit", "起手重抽上限", 1]
     ].map(([key, label, step]) => `<label>${label}<input data-rule-field="${key}" type="number" min="0" step="${step}" value="${config.ruleSettings[key]}"></label>`).join("");
     const suppressionNumber = (path, label, help, value, step = 1) => `<label>${label}<input data-suppression-path="${path}" type="number" min="0" step="${step}" value="${value}"><span class="field-help">${help}</span></label>`;
     const suppression = config.suppression;
     $("suppressionRedrawGrid").innerHTML = [
       suppressionNumber("redraw.improvedAcceptPct", "牌型升級候選接受率（％）", "候選牌型升級時，被接受的機率。", suppression.redraw.improvedAcceptPct, 0.1),
-      suppressionNumber("redraw.sameOrLowerAcceptPct", "同級／下降候選接受率（％）", "候選牌型同級或下降時，被接受的機率。", suppression.redraw.sameOrLowerAcceptPct, 0.1),
-      suppressionNumber("redraw.maxCandidates", "單次最多候選數", "一次換牌最多檢查的候選數量。", suppression.redraw.maxCandidates, 1)
+      suppressionNumber("redraw.maxCandidates", "重抽次數", "一次 REDRAW 最多重抽幾組候選；最後一次必定接受。", suppression.redraw.maxCandidates, 1)
     ].join("");
     const suppressionTableMeta = {
       crit: ["暴擊倍率", "CRITICAL"],
@@ -764,7 +762,7 @@
     const runId = existingRunId ?? beginSimulation(status);
     $("simulationState").textContent = status;
     try {
-      const worker = activeSimulationWorker || new Worker("src/probability/boss-duel-action-tree-worker.js?v=action-tree-v61");
+      const worker = activeSimulationWorker || new Worker("src/probability/boss-duel-action-tree-worker.js?v=action-tree-v62");
       activeSimulationWorker = worker;
       worker.onmessage = (event) => {
         if (runId !== simulationRunId || event.data?.runId !== runId) return;
@@ -852,7 +850,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v103",
+      v: "frontend-v104",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),

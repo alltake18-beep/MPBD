@@ -10,7 +10,7 @@ const config = NaturalCore.normalizeConfig({
     seed: 20260824,
     storiesPerClass: 10000,
     maxGenerationAttemptsPerStar: 10000000,
-    winMinReturnX: 3,
+    winMinReturnX: 5,
     pushMinReturnX: 1,
     smartMaxDraws: 9
   }
@@ -152,6 +152,7 @@ const customPolicy = NaturalCore.normalizeSuppressionPolicy({
     }
   }
 });
+assert.equal(customPolicy.redraw.sameOrLowerAcceptPct, 100, "same/lower redraw acceptance is a fixed rule");
 const customMagic = NaturalCore.resolveRuntimeMagic(magicState, {
   story,
   actionSequence: 4,

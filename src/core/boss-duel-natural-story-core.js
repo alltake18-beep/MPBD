@@ -23,7 +23,7 @@
   if (!DiceCore || !Rules || !StoryPlanner) throw new Error("自然劇本核心缺少骰獎、正式牌局規則或劇情規劃器");
 
   const STORY_KEYS = Object.freeze(["win", "push", "lose"]);
-  const STORY_LABELS = Object.freeze({ win: "贏多", push: "贏少", lose: "輸" });
+  const STORY_LABELS = Object.freeze({ win: "贏多", push: "贏", lose: "輸" });
   const DEFAULT_TICKET_PREFERENCE_PCT = Object.freeze({ win: 1, push: 1, lose: 1 });
   const DEFAULT_TICKET_BASIS = 10000;
   const STORIES_PER_CLASS = 10000;
@@ -197,7 +197,7 @@
         enabled: redraw.enabled !== false,
         maxCandidates: integer(redraw.maxCandidates, 30, 1, 1000),
         improvedAcceptPct: clamp(finite(redraw.improvedAcceptPct, 50), 0, 100),
-        sameOrLowerAcceptPct: clamp(finite(redraw.sameOrLowerAcceptPct, 100), 0, 100),
+        sameOrLowerAcceptPct: 100,
         forceFinalCandidate: redraw.forceFinalCandidate !== false
       },
       magic: {
@@ -254,7 +254,7 @@
       drawFeesX: (Array.isArray(input.drawFeesX) && input.drawFeesX.length ? input.drawFeesX : [1, 2, 3]).map((value) => Math.max(0, finite(value, 0))),
       storiesPerClass: integer(story.storiesPerClass, STORIES_PER_CLASS, 1, 10000000),
       storiesPerStar: integer(story.storiesPerClass, STORIES_PER_CLASS, 1, 10000000) * STORY_KEYS.length,
-      winMinReturnX: Math.max(0, finite(story.winMinReturnX, 3)),
+      winMinReturnX: Math.max(0, finite(story.winMinReturnX, 5)),
       pushMinReturnX: Math.max(0, finite(story.pushMinReturnX, 1)),
       ticketBasis: integer(story.ticketBasis, DEFAULT_TICKET_BASIS, 100, 1000000),
       smartMaxDraws: integer(story.smartMaxDraws, 9, 0, 100),
@@ -269,7 +269,7 @@
       playerBadHighRerollPct: clamp(finite(rules.playerBadHighRerollPct, 50), 0, 100),
       bossBadHighRerollPct: clamp(finite(rules.bossBadHighRerollPct, 25), 0, 100),
       initialRerollLimit: integer(rules.initialRerollLimit, 50, 0, 1000000),
-      magicCardsPerRound: integer(rules.magicCardsPerRound, 2, 0, 10),
+      magicCardsPerRound: 2,
       magicEnabled: mechanics.magicEnabled !== false,
       freeDrawEnabled: mechanics.freeDrawEnabled !== false,
       coinEnabled: mechanics.coinEnabled !== false,

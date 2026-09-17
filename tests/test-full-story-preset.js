@@ -12,8 +12,8 @@ assert.equal(summaryPreset.signature, preset.signature, "summary and seed preset
 const pool = StoryCore.buildNaturalStoryPoolFromPreset(config, { ...preset, naturalSummaries: summaryPreset.naturalSummaries }, { useCache: false, includePath: false });
 assert(pool, "preset did not hydrate");
 assert.equal(pool.fromPreset, true);
-assert.equal(preset.version, "natural-story-preset-v14");
-assert.equal(summaryPreset.version, "natural-story-summary-preset-v8");
+assert.equal(preset.version, "natural-story-preset-v15");
+assert.equal(summaryPreset.version, "natural-story-summary-preset-v9");
 assert.equal(summaryPreset.format, "compact-summary-v1");
 assert.equal(pool.naturalStories, 240000);
 assert.equal(pool.totalStories, 240000);
@@ -42,11 +42,11 @@ for (let star = 1; star <= 8; star += 1) {
 }
 
 assert.equal(checked, 240000);
-assert.equal(StoryCore.storyClass(3, config), "win");
-assert.equal(StoryCore.storyClass(2.999999, config), "push");
+assert.equal(StoryCore.storyClass(5, config), "win");
+assert.equal(StoryCore.storyClass(4.999999, config), "push");
 assert.equal(StoryCore.storyClass(1, config), "push");
 assert.equal(StoryCore.storyClass(0.999999, config), "lose");
-assert.equal(StoryCore.storyClass(2, config), "push");
+assert.equal(StoryCore.storyClass(1.5, config), "push");
 
 console.log(JSON.stringify({
   status: "ok",

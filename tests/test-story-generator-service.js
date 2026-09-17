@@ -16,6 +16,26 @@ async function main() {
   assert.deepEqual(Generator.CLASS_KEYS, ["win", "push", "lose"]);
   assert.equal(formalProfile.storiesPerClass, 10000);
   assert.equal(formalProfile.config.storiesPerStar, 30000);
+  assert.equal(formalProfile.minChunkAttempts, 100);
+  assert.ok(formalProfile.maxChunkAttempts >= formalProfile.chunkAttempts);
+
+  const adaptiveState = {
+    nextAttempt: 19000,
+    observed: { win: 100, push: 9000, lose: 9900, invalid: 0 },
+    seeds: { win: [], push: Array(10000), lose: Array(10000) }
+  };
+  assert.equal(
+    Generator.adaptiveChunkAttempts(formalProfile, adaptiveState, ["win"]),
+    formalProfile.maxChunkAttempts,
+    "rare deficient classes should raise the next batch to the configured cap"
+  );
+  adaptiveState.observed.win = 9500;
+  adaptiveState.seeds.win = Array(9999);
+  assert.equal(
+    Generator.adaptiveChunkAttempts(formalProfile, adaptiveState, ["win"]),
+    formalProfile.minChunkAttempts,
+    "near-complete classes should shrink the final batch"
+  );
 
   const expectedSeed = DiceCore.hash32(formalProfile.config.poolSeed, 0, 7001 + 1 * 97) >>> 0;
   assert.equal(Generator.deriveSeed(formalProfile.config, 1, 0), expectedSeed);
@@ -62,7 +82,7 @@ async function main() {
     (error) => error.code === "INVALID_BET"
   );
 
-  assert.equal(NaturalCore.storyClass(3, formalProfile.config), "win");
+  assert.equal(NaturalCore.storyClass(5, formalProfile.config), "win");
   assert.equal(NaturalCore.storyClass(1, formalProfile.config), "push");
   assert.equal(NaturalCore.storyClass(0.999999, formalProfile.config), "lose");
 
@@ -70,9 +90,13 @@ async function main() {
     { storyPool: { storiesPerClass: 1 } },
     { formal: false, storiesPerClass: 1, workerCount: 2, chunkAttempts: 100, maxAttemptsPerStar: 10000 }
   );
-  const generatedStar = await Generator.buildStarClassCatalog(smallProfile, 1);
+  const generationProgress = [];
+  const generatedStar = await Generator.buildStarClassCatalog(smallProfile, 1, {
+    onProgress(message) { generationProgress.push(message); }
+  });
   assert.deepEqual(Generator.stateCounts(generatedStar), { win: 1, push: 1, lose: 1 });
   assert.equal(new Set(Object.values(generatedStar.seeds).flat()).size, 3);
+  assert.ok(generationProgress.every((row) => row.targetedStarOnly && row.bossStarRatePct === 100));
 
   const states = [];
   for (let star = 1; star <= 8; star += 1) {
