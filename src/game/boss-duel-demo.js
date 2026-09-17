@@ -1414,6 +1414,7 @@
     playerState.storyBucketBalances = started.balances;
     encounter.storyPlannedSpendCredits = started.plannedSpendCredits;
     encounter.storyBudgetCredits = started.storyBudgetCredits;
+    encounter.storyOpeningAdjustmentCredits = started.storyOpeningAdjustmentCredits;
     encounter.storyTargetAccrualCredits = started.targetAccrualCredits;
     encounter.poolCommitApplied = true;
     encounter.poolCommit = started;
@@ -1457,7 +1458,7 @@
     );
     playerState.storyBucketBalances = result.balances;
     encounter.storySpendDeltaCredits = result.spendDeltaCredits;
-    encounter.storySpendDeltaTargetAccrualCredits = result.spendDeltaTargetAccrualCredits;
+    encounter.storySpendTargetAccrualCredits = result.actualSpendTargetAccrualCredits;
     encounter.storyTargetAccrualCredits = result.targetAccrualCredits;
     playerState.storyPoolTotals.targetAccrualCredits += result.targetAccrualCredits;
     playerState.storyPoolTotals.organicPayoutCredits += result.organicPayoutCredits;
@@ -1523,8 +1524,9 @@
       storySpendCredits: 0,
       storyPlannedSpendCredits: 0,
       storyBudgetCredits: 0,
+      storyOpeningAdjustmentCredits: 0,
       storySpendDeltaCredits: 0,
-      storySpendDeltaTargetAccrualCredits: 0,
+      storySpendTargetAccrualCredits: 0,
       storyTargetAccrualCredits: 0,
       poolTargetRtpPct: runtimeConfig.targetRtp * 100,
       coinBonusX: 0,
@@ -1599,8 +1601,22 @@
     playerState.targetCreditX = NaturalCore.roundMoney(playerState.targetCreditX + amount * runtimeConfig.targetRtp);
     const storySpend = options.storySpend !== false;
     if (encounter?.packet?.storyCommit && storySpend) {
-      beginStoryPoolCommit();
+      const started = beginStoryPoolCommit();
+      const posted = NaturalCore.postStorySpendToBuckets(
+        started,
+        playerState.storyBucketBalances,
+        activeBet,
+        amount,
+        { targetRtpPct: encounter.poolTargetRtpPct }
+      );
+      playerState.storyBucketBalances = posted.balances;
       encounter.storySpendCredits += amount;
+      encounter.storySpendTargetAccrualCredits = NaturalCore.roundMoney(
+        encounter.storySpendTargetAccrualCredits + posted.actualSpendTargetAccrualCredits
+      );
+      encounter.storyTargetAccrualCredits = NaturalCore.roundMoney(
+        encounter.storyOpeningAdjustmentCredits + encounter.storySpendTargetAccrualCredits
+      );
     } else if (NaturalCore && options.poolAccrual !== false) {
       const targetRtpPct = Number(options.targetRtpPct ?? runtimeConfig.targetRtp * 100);
       const posted = NaturalCore.addPoolCredits(playerState.storyBucketBalances, activeBet, amount * targetRtpPct / 100);

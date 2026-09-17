@@ -1,12 +1,12 @@
 "use strict";
 
 importScripts(
-  "../core/boss-duel-random.js?v=action-tree-v60",
+  "../core/boss-duel-random.js?v=action-tree-v61",
   "../core/boss-duel-poker-arrangement-core.js?v=arrange-v10",
-  "../core/boss-duel-rules.js?v=action-tree-v60",
+  "../core/boss-duel-rules.js?v=action-tree-v61",
   "../core/boss-duel-story-planner.js?v=boss-plan-v11",
-  "../core/boss-duel-natural-story-core.js?v=action-tree-v60",
-  "boss-duel-action-tree-core.js?v=action-tree-v60"
+  "../core/boss-duel-natural-story-core.js?v=action-tree-v61",
+  "boss-duel-action-tree-core.js?v=action-tree-v61"
 );
 
 self.BossDuelProbabilityWorkerState = { pool: null };

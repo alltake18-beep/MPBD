@@ -25,10 +25,10 @@ for (const asset of [
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v60/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v61/);
 assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v8/);
 assert.match(html, /src\/core\/boss-duel-poker-arrangement-core\.js\?v=arrange-v10/);
-assert.match(engineerDoc, /backend-doc-v14/);
+assert.match(engineerDoc, /backend-doc-v15/);
 
 function tag(id) {
   const match = html.match(new RegExp(`<[^>]+\\bid=["']${id}["'][^>]*>`, "i"));
@@ -79,7 +79,7 @@ assert.match(lab, /minimumCredits/);
 assert.match(lab, /maximumCredits/);
 assert.match(lab, /suppressionStats\?\.suppressedBosses/);
 assert.match(html, /<th>星級<\/th><th>RTP<\/th><th>平均賠率 x<\/th><th>平均幾次出現<\/th><th>擊殺率<\/th><th>獲得 Joker 次數<\/th><th>必殺次數<\/th><th>平均換牌次數<\/th><th>BOSS 刷新次數<\/th>/);
-assert.match(html, /<th>下注區間<\/th><th>包含下注額<\/th><th>總押注<\/th><th>入場 Bet 入池<\/th><th>押注差額調整<\/th><th>更換 BOSS 入池<\/th><th>劇本實際派彩<\/th><th>抑制機率<\/th><th>平均剩餘水池<\/th>/);
+assert.match(html, /<th>下注區間<\/th><th>包含下注額<\/th><th>總押注<\/th><th>首次劇本調整<\/th><th>入場／CONTINUE 入池<\/th><th>付費換牌入池<\/th><th>更換 BOSS 入池<\/th><th>實際總派彩<\/th><th>抑制機率<\/th><th>平均剩餘水池<\/th>/);
 assert.match(html, /data-report-panel="reportSuppressionPanel">抑制<\/button>/);
 assert.doesNotMatch(html, /劇本抽籤|配籤品質/);
 assert.match(html, /<span>總贏分<\/span><strong id="simPayout">/);
@@ -111,7 +111,7 @@ assert.match(html, /<h3>各星 BOSS 劇本抽中分布<\/h3>/);
 assert.match(html, /<th>星級<\/th><th>BOSS 數<\/th><th>贏多（%）<\/th><th>贏（%）<\/th><th>輸（%）<\/th><th>贏多數量<\/th><th>贏數量<\/th><th>輸數量<\/th>/);
 assert.match(lab, /pct\(ratioPct\(byClass\.win, bosses\), 2\),\s*pct\(ratioPct\(byClass\.push, bosses\), 2\),\s*pct\(ratioPct\(byClass\.lose, bosses\), 2\),\s*count\(byClass\.win\), count\(byClass\.push\), count\(byClass\.lose\)/);
 assert(fs.existsSync(path.join(root, "src", "probability", "boss-duel-action-tree-worker.js")), "missing cancellable statistics worker");
-assert.match(lab, /new Worker\("src\/probability\/boss-duel-action-tree-worker\.js\?v=action-tree-v60"\)/);
+assert.match(lab, /new Worker\("src\/probability\/boss-duel-action-tree-worker\.js\?v=action-tree-v61"\)/);
 assert.match(lab, /activeSimulationWorker \|\| new Worker/, "completed worker must remain available for later simulations");
 assert.match(worker, /type: "main-done"/, "main report must be published before independent cashout finishes");
 assert.match(worker, /BossDuelProbabilityWorkerState = \{ pool: null \}/, "worker must retain its hydrated story pool");
@@ -240,15 +240,20 @@ assert.equal(
   naturalCashoutResult.totals.spend,
   "three Bet buckets must contain main-simulation wagers only"
 );
-assert(naturalCashoutResult.carryBucketStats.every((row) => row.entryBetPoolCredits === 0), "entry Bet is already priced by RTP ticketing and must not be reported as pool accrual");
+assert(naturalCashoutResult.carryBucketStats.some((row) => row.entryBetPoolCredits > 0), "successful START and CONTINUE wagers must post to the live pool at locked RTP");
 for (const row of naturalCashoutResult.carryBucketStats) {
-  assert(Number.isFinite(row.spendDeltaPoolCredits), "each Bet bucket must report the signed RTP adjustment for actual minus planned story spend");
+  assert(Number.isFinite(row.storyOpeningAdjustmentCredits), "each Bet bucket must report the signed first-START story adjustment");
+  assert(Number.isFinite(row.entryBetPoolCredits), "each Bet bucket must report live START and CONTINUE accrual");
+  assert(Number.isFinite(row.redrawPoolCredits), "each Bet bucket must report live paid-redraw accrual");
+  assert(Number.isFinite(row.actualPayoutCredits), "each Bet bucket must report actual total payout debited from the pool");
+  assert(Math.abs(
+    row.targetAccrualCredits - (row.storyOpeningAdjustmentCredits + row.entryBetPoolCredits + row.redrawPoolCredits)
+  ) < 1e-6, "story accrual must equal opening adjustment plus all live in-story wagers at locked RTP");
   assert.equal(
     row.averageEndingBalanceCredits,
     row.endingBalanceCredits / cashoutConfig.simulation.playerCount,
-    "average remaining pool must use the actual ending balance because entry Bet never enters the pool"
+    "average remaining pool must use the actual ending balance after live wager accrual"
   );
-  assert.equal(row.entryTargetAccrualCredits, 0, "entry Bet must not produce hidden target accrual");
 }
 assert(naturalCashoutResult.carryBucketStats.every((row) => Number.isFinite(row.suppressionRatePct)), "suppression rate must be reported per Bet bucket");
 assert.deepEqual(naturalCashoutResult.storyTicketStats.map((row) => row.key), ["win", "push", "lose"]);
@@ -411,6 +416,6 @@ assert.match(game, /entryCostX: 1/);
 assert.match(game, /options\.poolAccrual !== false/);
 
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v60", storyCount: 240000,
+  status: "ok", cacheKey: "action-tree-v61", storyCount: 240000,
   controlCards: 5, reportTabs: reportLabels.length, uniqueDomIds: ids.length, rerolls: rerollResult.totals.bossRefreshes
 }, null, 2));

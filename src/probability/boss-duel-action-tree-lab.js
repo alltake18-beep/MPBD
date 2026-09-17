@@ -566,8 +566,8 @@
     ], true)).join("") : `<tr><td colspan="5">${unavailableMessage}</td></tr>`;
 
     $("carryBucketBody").innerHTML = result.carryBucketStats.map((row) => rowHtml([
-      row.label, row.bets.join("／"), credits(row.totalWagerCredits), credits(row.entryBetPoolCredits),
-      signedCredits(row.spendDeltaPoolCredits), credits(row.bossRerollPoolCredits), credits(row.storyPayoutCredits),
+      row.label, row.bets.join("／"), credits(row.totalWagerCredits), signedCredits(row.storyOpeningAdjustmentCredits),
+      credits(row.entryBetPoolCredits), credits(row.redrawPoolCredits), credits(row.bossRerollPoolCredits), credits(row.actualPayoutCredits),
       pct(row.suppressionRatePct, 2), signedCredits(row.averageEndingBalanceCredits)
     ], true)).join("");
     $("carryStarStoryBody").innerHTML = Array.from({ length: 8 }, (_unused, index) => {
@@ -764,7 +764,7 @@
     const runId = existingRunId ?? beginSimulation(status);
     $("simulationState").textContent = status;
     try {
-      const worker = activeSimulationWorker || new Worker("src/probability/boss-duel-action-tree-worker.js?v=action-tree-v60");
+      const worker = activeSimulationWorker || new Worker("src/probability/boss-duel-action-tree-worker.js?v=action-tree-v61");
       activeSimulationWorker = worker;
       worker.onmessage = (event) => {
         if (runId !== simulationRunId || event.data?.runId !== runId) return;
@@ -852,7 +852,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v102",
+      v: "frontend-v103",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),

@@ -176,7 +176,8 @@ const settlement = StoryCore.settleCommittedStory(
 assert.equal(settlement.storyBudgetCredits, 80);
 assert.equal(settlement.plannedSpendCredits, 100);
 assert.equal(settlement.spendDeltaCredits, 0);
-assert.equal(settlement.spendDeltaTargetAccrualCredits, 0);
+assert.equal(settlement.storyOpeningAdjustmentCredits, -16);
+assert.equal(settlement.actualSpendTargetAccrualCredits, 96);
 assert.equal(settlement.targetAccrualCredits, 80);
 assert.equal(settlement.availableBossPoolCredits, 20);
 assert.equal(settlement.correction.deltaCredits, 0);
@@ -203,7 +204,9 @@ const fourStarEightXSettlement = StoryCore.settleCommittedStory(
 );
 assert.equal(fourStarEightXSettlement.storyBudgetCredits, 8, "the selected story payout becomes positive pending payout budget");
 assert.equal(fourStarEightXSettlement.plannedSpendCredits, 1);
-assert.equal(fourStarEightXSettlement.spendDeltaTargetAccrualCredits, 0, "a story that spends exactly its planned total wager needs no RTP adjustment");
+assert.equal(fourStarEightXSettlement.storyOpeningAdjustmentCredits, 7.04, "first START posts planned payout minus planned spend at locked RTP");
+assert.equal(fourStarEightXSettlement.actualSpendTargetAccrualCredits, 0.96, "the paid START wager posts immediately at locked RTP");
+assert.equal(fourStarEightXSettlement.targetAccrualCredits, 8, "faithful play restores the full planned payout budget");
 assert.equal(fourStarEightXSettlement.correction.correctedRewardX, 8);
 assert.equal(fourStarEightXSettlement.actualPayoutCredits, 8);
 assert.equal(fourStarEightXSettlement.endingPoolCredits, 0, "Bet 1 / payout 8 must consume the exact story budget");
@@ -214,7 +217,9 @@ const paidRedrawSettlement = StoryCore.settleCommittedStory(
 );
 assert.equal(paidRedrawSettlement.storyBudgetCredits, 8);
 assert.equal(paidRedrawSettlement.spendDeltaCredits, 2);
-assert.equal(paidRedrawSettlement.spendDeltaTargetAccrualCredits, 1.92, "actual spend above the selected story plan adds the signed RTP difference");
+assert.equal(paidRedrawSettlement.storyOpeningAdjustmentCredits, 7.04);
+assert.equal(paidRedrawSettlement.actualSpendTargetAccrualCredits, 2.88, "all successful story wagers post at locked RTP");
+assert.equal(paidRedrawSettlement.targetAccrualCredits, 9.92);
 assert.equal(paidRedrawSettlement.correction.correctedRewardX, 9, "the dice reward consumes the largest legal amount that fits the available budget");
 assert.equal(paidRedrawSettlement.endingPoolCredits, 0.92);
 
@@ -224,7 +229,8 @@ const shortSpendSettlement = StoryCore.settleCommittedStory(
 );
 assert.equal(shortSpendSettlement.plannedSpendCredits, 3);
 assert.equal(shortSpendSettlement.spendDeltaCredits, -2);
-assert.equal(shortSpendSettlement.spendDeltaTargetAccrualCredits, -1.92, "actual spend below the selected story plan deducts the signed RTP difference");
+assert.equal(shortSpendSettlement.storyOpeningAdjustmentCredits, 5.12);
+assert.equal(shortSpendSettlement.actualSpendTargetAccrualCredits, 0.96);
 assert.equal(shortSpendSettlement.targetAccrualCredits, 6.08);
 assert(shortSpendSettlement.correction.correctedRewardX <= 6.08, "a killed Boss may only use a legal dice reward within the adjusted pool");
 
@@ -232,7 +238,8 @@ const longSpendNoKillSettlement = StoryCore.settleCommittedStory(
   { selectedStory: fourStarEightXStory }, [0, 0, 0], 1,
   { actualSpendCredits: 3, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
 );
-assert.equal(longSpendNoKillSettlement.spendDeltaTargetAccrualCredits, 1.92);
+assert.equal(longSpendNoKillSettlement.storyOpeningAdjustmentCredits, 7.04);
+assert.equal(longSpendNoKillSettlement.actualSpendTargetAccrualCredits, 2.88);
 assert.equal(longSpendNoKillSettlement.correction.applied, false, "a surviving Boss has no dice reward to correct");
 assert.equal(longSpendNoKillSettlement.endingPoolCredits, 9.92, "unused adjusted budget carries to the next Boss");
 
@@ -240,8 +247,71 @@ const shortSpendNoKillSettlement = StoryCore.settleCommittedStory(
   { selectedStory: { ...fourStarEightXStory, spendX: 3 } }, [0, 0, 0], 1,
   { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
 );
-assert.equal(shortSpendNoKillSettlement.spendDeltaTargetAccrualCredits, -1.92);
+assert.equal(shortSpendNoKillSettlement.storyOpeningAdjustmentCredits, 5.12);
+assert.equal(shortSpendNoKillSettlement.actualSpendTargetAccrualCredits, 0.96);
 assert.equal(shortSpendNoKillSettlement.endingPoolCredits, 6.08);
+
+const stagedCommit = StoryCore.commitStoryToBuckets(
+  { selectedStory: fourStarEightXStory }, [0, 0, 0], 1,
+  { plannedSpendCredits: 1, storyBudgetCredits: 8, targetRtpPct: 96 }
+);
+assert.equal(stagedCommit.storyOpeningAdjustmentCredits, 7.04);
+assert.deepEqual(stagedCommit.balances, [7.04, 0, 0], "first START must post the signed story opening adjustment exactly once");
+const stagedStartSpend = StoryCore.postStorySpendToBuckets(stagedCommit, stagedCommit.balances, 1, 1);
+assert.equal(stagedStartSpend.actualSpendTargetAccrualCredits, 0.96);
+assert.deepEqual(stagedStartSpend.balances, [8, 0, 0], "the successful START wager must enter the live pool immediately");
+const stagedSettlement = StoryCore.settleStartedStory(
+  { selectedStory: fourStarEightXStory }, stagedCommit, stagedStartSpend.balances, 1,
+  { actualSpendCredits: 1, organicPayoutCredits: 8, targetRtpPct: 96, rng: DiceCore.mulberry32(11) }
+);
+assert.equal(stagedSettlement.endingPoolCredits, 0, "settlement must only debit the actual payout without reposting a spend delta");
+
+const oneDieStory = (spendX, payoutX, originalBossRewardX, killed = true) => ({
+  killed, spendX, payoutX, netX: payoutX - spendX, originalBossRewardX,
+  originalDice: {
+    normalDice: 1, multiplierDice: 0,
+    normalFaces: [Math.max(1, originalBossRewardX || 1)], multiplierFaces: [],
+    normalSum: Math.max(1, originalBossRewardX || 1), multiplierSum: 0,
+    total: Math.max(1, originalBossRewardX || 1)
+  }
+});
+const winMoreDeviation = StoryCore.settleCommittedStory(
+  { selectedStory: oneDieStory(2, 7, 4) }, [0, 0, 0], 1,
+  { actualSpendCredits: 4, organicPayoutCredits: 7, targetRtpPct: 96, rng: DiceCore.mulberry32(31) }
+);
+assert.equal(winMoreDeviation.storyOpeningAdjustmentCredits, 5.08);
+assert.equal(winMoreDeviation.actualSpendTargetAccrualCredits, 3.84);
+assert.equal(winMoreDeviation.actualPayoutCredits, 8, "win story extra spend should allow dice 5 plus fixed coin 3");
+assert.equal(winMoreDeviation.endingPoolCredits, 0.92);
+
+const winNoKillDeviation = StoryCore.settleCommittedStory(
+  { selectedStory: oneDieStory(2, 4, 4) }, [0, 0, 0], 1,
+  { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
+);
+assert.equal(winNoKillDeviation.actualPayoutCredits, 0);
+assert.equal(winNoKillDeviation.endingPoolCredits, 3.04, "a deviated un-killed win story must leave its live balance in the bucket");
+
+const plannedNoKillDeviation = StoryCore.settleCommittedStory(
+  { selectedStory: oneDieStory(5, 0, 0, false) }, [0, 0, 0], 1,
+  {
+    actualSpendCredits: 3, organicPayoutCredits: 2, targetRtpPct: 96,
+    actualKilled: true, actualBossRewardX: 2,
+    actualDice: oneDieStory(1, 2, 2).originalDice,
+    rng: DiceCore.mulberry32(32)
+  }
+);
+assert.equal(plannedNoKillDeviation.storyOpeningAdjustmentCredits, -4.8);
+assert.equal(plannedNoKillDeviation.correction.correctedRewardX, 1, "an unexpected kill must use the locked real dice, not a zero summary reward");
+assert.equal(plannedNoKillDeviation.endingPoolCredits, -2.92);
+
+const loseKilledDeviation = StoryCore.settleCommittedStory(
+  { selectedStory: oneDieStory(2, 1, 1) }, [0, 0, 0], 1,
+  { actualSpendCredits: 4, organicPayoutCredits: 1, targetRtpPct: 96, rng: DiceCore.mulberry32(33) }
+);
+assert.equal(loseKilledDeviation.storyOpeningAdjustmentCredits, -0.92);
+assert.equal(loseKilledDeviation.correction.correctedRewardX, 2);
+assert.equal(loseKilledDeviation.actualPayoutCredits, 2);
+assert.equal(loseKilledDeviation.endingPoolCredits, 0.92, "a killed lose story may still retain unused positive pool credit after deviation");
 
 const posted = StoryCore.addPoolCredits([0, 0, 9], 20, 96);
 assert.deepEqual(posted.balances, [0, 96, 9], "target RTP spend must enter only the matching Bet bucket");

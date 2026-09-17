@@ -31,7 +31,7 @@
   const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v5-lose-story-only";
   const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v5";
   const STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
-  const POOL_SETTLEMENT_VERSION = "story-budget-personal-pool-v4-spend-delta";
+  const POOL_SETTLEMENT_VERSION = "story-budget-personal-pool-v5-live-wager";
   const DEFAULT_TARGET_RTP_PCT = 96;
   const MIN_TARGET_RTP_PCT = 80;
   const MAX_TARGET_RTP_PCT = 99;
@@ -1317,20 +1317,36 @@
 
   function commitStoryToBuckets(commit, bucketBalancesInput, bet = 1, options = {}) {
     if (!commit?.selectedStory) throw new Error("StoryCommit 缺少 selectedStory");
-    const actualSpendCredits = Math.max(0, finite(options.actualSpendCredits, commit.selectedStory.spendX * bet));
     const targetRtpPct = normalizeTargetRtpPct(options.targetRtpPct);
     const plannedSpendCredits = roundMoney(Math.max(0, finite(options.plannedSpendCredits, commit.selectedStory.spendX * bet)));
     const storyBudgetCredits = roundMoney(Math.max(0, finite(options.storyBudgetCredits, commit.selectedStory.payoutX * bet)));
-    const spendDeltaCredits = 0;
-    const spendDeltaTargetAccrualCredits = 0;
-    const targetAccrualCredits = storyBudgetCredits;
-    const posted = addPoolCredits(bucketBalancesInput, bet, targetAccrualCredits);
+    const plannedSpendTargetAccrualCredits = roundMoney(plannedSpendCredits * targetRtpPct / 100);
+    const storyOpeningAdjustmentCredits = roundMoney(storyBudgetCredits - plannedSpendTargetAccrualCredits);
+    const posted = addPoolCredits(bucketBalancesInput, bet, storyOpeningAdjustmentCredits);
     return {
       ...posted,
-      actualSpendCredits, targetRtpPct, plannedSpendCredits, storyBudgetCredits,
-      spendDeltaCredits, spendDeltaTargetAccrualCredits, targetAccrualCredits,
+      actualSpendCredits: 0,
+      targetRtpPct, plannedSpendCredits, storyBudgetCredits,
+      plannedSpendTargetAccrualCredits, storyOpeningAdjustmentCredits,
+      actualSpendTargetAccrualCredits: 0,
+      targetAccrualCredits: storyOpeningAdjustmentCredits,
       afterCommitCredits: posted.endingPoolCredits,
-      commitNetCredits: targetAccrualCredits
+      commitNetCredits: storyOpeningAdjustmentCredits
+    };
+  }
+
+  function postStorySpendToBuckets(startedCommit, bucketBalancesInput, bet = 1, spendCreditsInput = 0, options = {}) {
+    const wager = Math.max(1e-12, finite(bet, startedCommit?.bet || 1));
+    const targetRtpPct = normalizeTargetRtpPct(options.targetRtpPct ?? startedCommit?.targetRtpPct);
+    const spendCredits = roundMoney(Math.max(0, finite(spendCreditsInput, 0)));
+    const actualSpendTargetAccrualCredits = roundMoney(spendCredits * targetRtpPct / 100);
+    const posted = addPoolCredits(bucketBalancesInput, wager, actualSpendTargetAccrualCredits);
+    return {
+      ...posted,
+      spendCredits,
+      targetRtpPct,
+      actualSpendTargetAccrualCredits,
+      targetAccrualCredits: actualSpendTargetAccrualCredits
     };
   }
 
@@ -1348,17 +1364,21 @@
     const plannedSpendCredits = roundMoney(Math.max(0, finite(options.plannedSpendCredits, startedCommit?.plannedSpendCredits ?? story.spendX * wager)));
     const storyBudgetCredits = roundMoney(Math.max(0, finite(options.storyBudgetCredits, startedCommit?.storyBudgetCredits ?? story.payoutX * wager)));
     const spendDeltaCredits = roundMoney(actualSpendCredits - plannedSpendCredits);
-    const spendDeltaTargetAccrualCredits = roundMoney(spendDeltaCredits * targetRtpPct / 100);
-    const targetAccrualCredits = roundMoney(storyBudgetCredits + spendDeltaTargetAccrualCredits);
-    const adjusted = addPoolCredits(balances, wager, spendDeltaTargetAccrualCredits);
-    adjusted.balances.forEach((value, index) => { balances[index] = value; });
-    const afterCommitCredits = roundMoney(finite(startedCommit?.afterCommitCredits, adjusted.incomingPoolCredits));
+    const plannedSpendTargetAccrualCredits = roundMoney(plannedSpendCredits * targetRtpPct / 100);
+    const storyOpeningAdjustmentCredits = roundMoney(finite(
+      startedCommit?.storyOpeningAdjustmentCredits,
+      storyBudgetCredits - plannedSpendTargetAccrualCredits
+    ));
+    const actualSpendTargetAccrualCredits = roundMoney(actualSpendCredits * targetRtpPct / 100);
+    const targetAccrualCredits = roundMoney(storyOpeningAdjustmentCredits + actualSpendTargetAccrualCredits);
+    const afterCommitCredits = roundMoney(finite(startedCommit?.afterCommitCredits, balances[bucketIndex]));
     const afterSpendCredits = roundMoney(balances[bucketIndex]);
     const organicPayoutCredits = roundMoney(Math.max(0, finite(
       options.organicPayoutCredits ?? options.actualPayoutCredits,
       story.payoutX * wager
     )));
-    // 劇本預定派彩先入桶；實際總押注與劇本總押注的差額再依鎖定 RTP 正負調整。
+    // 第一次 START 已加入「預定派彩－預定總押 × 鎖定 RTP」，每筆成功扣款也已即時加入「實付 × 鎖定 RTP」。
+    // 結算只選擇合法 Boss 骰獎並扣除實際總派彩，不再補記押注差額。
     const releasedReservation = releaseBossReward(options.reservations, options.encounterId);
     const otherReservedCredits = reservedCreditsForBucket(releasedReservation.reservations, bucketIndex);
     const preCorrectionBookCredits = roundMoney(afterSpendCredits - organicPayoutCredits);
@@ -1391,9 +1411,11 @@
     return {
       version: POOL_SETTLEMENT_VERSION,
       bucketIndex, bucketKey: BET_BUCKETS[bucketIndex].key,
-      incomingPoolCredits: finite(startedCommit?.incomingPoolCredits, afterCommitCredits - storyBudgetCredits),
+      incomingPoolCredits: finite(startedCommit?.incomingPoolCredits, afterCommitCredits - storyOpeningAdjustmentCredits),
       targetRtpPct, plannedSpendCredits, storyBudgetCredits,
-      spendDeltaCredits, spendDeltaTargetAccrualCredits, targetAccrualCredits, commitNetCredits: targetAccrualCredits,
+      plannedSpendTargetAccrualCredits, storyOpeningAdjustmentCredits,
+      actualSpendTargetAccrualCredits, spendDeltaCredits,
+      targetAccrualCredits, commitNetCredits: targetAccrualCredits,
       afterSpendCredits, afterCommitCredits,
       organicPayoutCredits, fixedPayoutCredits, originalBossRewardCredits, correctedBossRewardCredits, availableBossPoolCredits,
       organicActualNetCredits, preCorrectionBookCredits, otherReservedCredits, preCorrectionPoolCredits, actualNetCredits,
@@ -1405,7 +1427,12 @@
 
   function settleCommittedStory(commit, bucketBalancesInput, bet = 1, options = {}) {
     const started = commitStoryToBuckets(commit, bucketBalancesInput, bet, options);
-    return settleStartedStory(commit, started, started.balances, bet, options);
+    const actualSpendCredits = Math.max(0, finite(options.actualSpendCredits, commit?.selectedStory?.spendX * bet));
+    const postedSpend = postStorySpendToBuckets(started, started.balances, bet, actualSpendCredits, options);
+    return settleStartedStory(commit, started, postedSpend.balances, bet, {
+      ...options,
+      actualSpendCredits
+    });
   }
 
   return {
@@ -1423,7 +1450,7 @@
     targetScorePoints, solveCandidateProbabilities, drawUniformPresetStoryCommit,
     legalDiceOutcomes, correctBossDiceReward,
     normalizeBossReservations, reserveBossReward, releaseBossReward, reservedCreditsForBucket, availablePoolCredits,
-    addPoolCredits, commitStoryToBuckets, settleStartedStory, settleCommittedStory,
+    addPoolCredits, commitStoryToBuckets, postStorySpendToBuckets, settleStartedStory, settleCommittedStory,
     clearPoolCache() { poolCache.clear(); }
   };
 });

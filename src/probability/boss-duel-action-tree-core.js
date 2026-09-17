@@ -1640,8 +1640,8 @@
     const carryBucketStats = NaturalCore.BET_BUCKETS.map((bucket, index) => ({
       index, key: bucket.key, label: bucket.label, bets: bucket.bets.slice(), bosses: 0,
       spendCredits: 0,
-      totalWagerCredits: 0, entryBetPoolCredits: 0, entryTargetAccrualCredits: 0, spendDeltaPoolCredits: 0, bossRerollPoolCredits: 0,
-      storyPayoutCredits: 0, suppressedBosses: 0, suppressionRatePct: 0, averageEndingBalanceCredits: 0,
+      totalWagerCredits: 0, storyOpeningAdjustmentCredits: 0, entryBetPoolCredits: 0, redrawPoolCredits: 0, bossRerollPoolCredits: 0,
+      storyPayoutCredits: 0, actualPayoutCredits: 0, suppressedBosses: 0, suppressionRatePct: 0, averageEndingBalanceCredits: 0,
       targetAccrualCredits: 0, committedNetCredits: 0, organicPayoutCredits: 0, organicActualNetCredits: 0,
       correctionIncreaseCredits: 0, correctionDecreaseCredits: 0,
       corrections: 0, currentBossGapCredits: 0, endingBalanceCredits: 0
@@ -1666,11 +1666,12 @@
       carryBucket.bosses += 1;
       carryBucket.spendCredits += spend;
       carryBucket.totalWagerCredits += spend + bossRerollSpend;
-      carryBucket.entryBetPoolCredits += 0;
-      carryBucket.entryTargetAccrualCredits += 0;
-      carryBucket.spendDeltaPoolCredits += record.settlement.spendDeltaTargetAccrualCredits;
+      carryBucket.storyOpeningAdjustmentCredits += record.settlement.storyOpeningAdjustmentCredits;
+      carryBucket.entryBetPoolCredits += NaturalCore.roundMoney(entrySpend * config.targetCoreRtpPct / 100);
+      carryBucket.redrawPoolCredits += NaturalCore.roundMoney(drawSpend * config.targetCoreRtpPct / 100);
       carryBucket.bossRerollPoolCredits += NaturalCore.roundMoney(bossRerollSpend * config.targetCoreRtpPct / 100);
       carryBucket.storyPayoutCredits += record.settlement.storyBudgetCredits;
+      carryBucket.actualPayoutCredits += record.settlement.actualPayoutCredits;
       carryBucket.suppressedBosses += record.suppressionActive ? 1 : 0;
       carryBucket.targetAccrualCredits += record.settlement.targetAccrualCredits;
       carryBucket.committedNetCredits += record.settlement.targetAccrualCredits;
