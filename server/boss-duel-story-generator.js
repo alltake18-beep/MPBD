@@ -6,7 +6,7 @@
  * 這個檔案只負責協調現行遊戲核心，不重寫理牌或玩家策略：
  * - src/core/boss-duel-random.js：固定亂數與 seed 衍生
  * - src/core/boss-duel-rules.js：rules-v11
- * - src/core/boss-duel-story-planner.js：boss-plan-v11
+ * - src/core/boss-duel-story-planner.js：boss-plan-v12
  * - src/core/boss-duel-natural-story-core.js：模擬、分類、摘要與重播
  *
  * CLI：
@@ -33,9 +33,9 @@ const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionTreeCore = require("../src/probability/boss-duel-action-tree-core.js");
 
 const SERVICE_VERSION = "boss-duel-story-generator-v1";
-const GENERATOR_REVISION = "boss-plan-v11-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-threshold5-production-v5";
-const PRESET_VERSION = "natural-story-preset-v15";
-const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v9";
+const GENERATOR_REVISION = "boss-plan-v12-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-threshold5-production-v6";
+const PRESET_VERSION = "natural-story-preset-v16";
+const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v10";
 const ARRANGEMENT_VERSION = "arrange-v10";
 const FORMAL_STORIES_PER_CLASS = 10000;
 const FORMAL_STORIES_PER_STAR = 30000;
@@ -43,7 +43,7 @@ const FORMAL_TOTAL_STORIES = 240000;
 const CLASS_KEYS = Object.freeze(["win", "push", "lose"]);
 const SUPPORTED_BETS = Object.freeze((NaturalCore.BET_VALUES || []).slice());
 const EXPECTED_RULES_VERSION = "rules-v11";
-const EXPECTED_PLANNER_VERSION = "boss-plan-v11";
+const EXPECTED_PLANNER_VERSION = "boss-plan-v12";
 const EXPECTED_ACTION_TRACE_VERSION = "story-action-trace-v2";
 const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v5-lose-story-only";
 const EXPECTED_STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
@@ -229,7 +229,7 @@ function generateStory(configInput, starInput, seedInput, options = {}) {
     includePath: options.includePath === true,
     summaryClassKeys: Array.isArray(options.summaryClassKeys) ? options.summaryClassKeys : undefined,
     fastClassification: options.fastClassification === true,
-    behavior: "SMART_PROFIT_PLANNER"
+    behavior: "RULE_PLAYER_V1"
   });
   assert(CLASS_KEYS.includes(story.classKey), "INVALID_STORY_RESULT", "劇本沒有合法分類", { star, seed, classKey: story.classKey });
   if (story.spendX !== undefined) {
@@ -573,8 +573,8 @@ function validatePreset(profileInput, preset, summaryPreset, options = {}) {
     }
   }
   const expectedTotal = 8 * CLASS_KEYS.length * profile.storiesPerClass;
-  assert(totalStories === expectedTotal, "QUOTA_NOT_MET", `正式故事總數必須是 ${expectedTotal}`, { actual: totalStories });
-  if (profile.formal) assert(totalStories === FORMAL_TOTAL_STORIES, "QUOTA_NOT_MET", "正式故事總數必須是 240,000", { actual: totalStories });
+  assert(totalStories === expectedTotal, "QUOTA_NOT_MET", `正式劇本總數必須是 ${expectedTotal}`, { actual: totalStories });
+  if (profile.formal) assert(totalStories === FORMAL_TOTAL_STORIES, "QUOTA_NOT_MET", "正式劇本總數必須是 240,000", { actual: totalStories });
   return { ok: true, totalStories, counts, configSignature: profile.configSignature, releaseSignature: profile.releaseSignature };
 }
 

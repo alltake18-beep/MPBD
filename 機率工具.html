@@ -8,13 +8,13 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "action-tree-v62");
+      params.set("v", "action-tree-v64");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("機率工具.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v62">
-  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v62">
+  <link rel="stylesheet" href="src/probability/styles.css?v=action-tree-v64">
+  <link rel="stylesheet" href="src/probability/boss-duel-action-tree-lab.css?v=action-tree-v64">
 </head>
 <body>
   <div class="app-shell action-tree-tool">
@@ -39,7 +39,7 @@
             <p class="eyebrow">SIMULATION CONTROL</p>
             <h2>參數設定</h2>
           </div>
-          <div class="version-state" aria-label="版本狀態"><span><i></i> 新版故事制數學模型</span><a href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v104" target="_blank" rel="noopener">開啟遊戲</a></div>
+          <div class="version-state" aria-label="版本狀態"><span><i></i> 新版劇本制數學模型</span><a href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v106" target="_blank" rel="noopener">開啟遊戲</a></div>
         </div>
 
         <details class="control-card" open>
@@ -92,7 +92,7 @@
           <div class="control-card-body" aria-labelledby="mechanicsTitle">
             <div class="section-intro">
               <h3 id="mechanicsTitle">遊戲機制（固定啟用）</h3>
-              <p>故事制、魔法卡、Joker、換牌、BOSS 與牌型機制皆為正式規則，不提供總開關。</p>
+              <p>劇本制、魔法卡、Joker、換牌、BOSS 與牌型機制皆為正式規則，不提供總開關。</p>
             </div>
             <div class="mechanic-tabbar" role="tablist" aria-label="遊戲參數分類" data-tab-scope>
               <button type="button" class="active" data-panel="bossPanel">8 星 Boss</button>
@@ -111,14 +111,20 @@
                 <div class="table-wrap table-scroll"><table class="dense-table"><thead><tr><th>牌型</th><th>名稱</th><th>基礎傷害</th></tr></thead><tbody id="handTableBody"></tbody></table></div>
                 <div class="fee-panel"><h3>每次換牌費（Bet x）</h3><p class="compact-copy">第 16 次起沿用第 15 次費用。</p><div id="drawFeeGrid" class="fee-grid"></div></div>
               </div>
-              <div class="sub-control-block"><h3>自然起手重抽與固定費用</h3><div id="naturalDealGrid" class="control-grid"></div></div>
             </div>
             <p id="mechanicsDirtyState" class="dirty-note">參數尚未變更。</p>
           </div>
         </details>
 
         <details class="control-card">
-          <summary><span>05</span><strong>故事產生</strong><small>分類與三候選動態配籤</small></summary>
+          <summary><span>05</span><strong>初始手牌重抽</strong><small>自然起手牌重抽條件</small></summary>
+          <div class="control-card-body">
+            <div id="naturalDealGrid" class="control-grid"></div>
+          </div>
+        </details>
+
+        <details class="control-card">
+          <summary><span>06</span><strong>劇本產生</strong><small>分類與三候選動態配籤</small></summary>
           <div class="control-card-body">
             <div class="control-grid primary-controls">
               <label>配籤 RTP 容許差（百分點）<input id="tolerancePp" type="number" min="0" max="2" step="0.001" value="0.01"></label>
@@ -128,12 +134,12 @@
               <label>分數籤總數<input id="ticketBasis" type="number" min="100" max="1000000" step="100" value="1000000"></label>
               <label>不可配籤重抽上限<input id="maxCandidateAttempts" type="number" min="1" max="1000000" step="1" value="10000"></label>
             </div>
-            <div class="legend-row" aria-label="故事分類規則">
+            <div class="legend-row" aria-label="劇本分類規則">
               <span id="winClassificationRule" class="tree-win"></span>
               <span id="pushClassificationRule" class="tree-push"></span>
               <span id="loseClassificationRule" class="tree-lose"></span>
             </div>
-            <p class="proxy-note"><strong>故事與 Bet：</strong>正式故事只依星級與結果分類保存 <code>spendX</code>／<code>payoutX</code>；不同 Bet 只做點數等比例換算，不改 seed、牌、魔法卡、AI 路徑或分類。</p>
+            <p class="proxy-note"><strong>劇本與 Bet：</strong>正式劇本只依星級與結果分類保存 <code>spendX</code>／<code>payoutX</code>；不同 Bet 只做點數等比例換算，不改 seed、牌、魔法卡、AI 路徑或分類。</p>
           </div>
         </details>
       </aside>
@@ -206,14 +212,14 @@
     </div>
   </div>
 
-  <script src="src/core/boss-duel-random.js?v=action-tree-v62"></script>
+  <script src="src/core/boss-duel-random.js?v=action-tree-v64"></script>
   <script src="src/core/boss-duel-poker-arrangement-core.js?v=arrange-v10"></script>
-  <script src="src/core/boss-duel-rules.js?v=action-tree-v62"></script>
-  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v11"></script>
-  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v16"></script>
-  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v9"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v62"></script>
-  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v62"></script>
-  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v62"></script>
+  <script src="src/core/boss-duel-rules.js?v=action-tree-v64"></script>
+  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v12"></script>
+  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v17"></script>
+  <script src="data/story/boss-duel-story-summary-preset-v1.js?v=story-summary-v10"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=action-tree-v64"></script>
+  <script src="src/probability/boss-duel-action-tree-core.js?v=action-tree-v64"></script>
+  <script src="src/probability/boss-duel-action-tree-lab.js?v=action-tree-v64"></script>
 </body>
 </html>

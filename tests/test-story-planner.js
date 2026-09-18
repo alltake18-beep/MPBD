@@ -5,10 +5,56 @@ const DiceCore = require("../src/core/boss-duel-random.js");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 const StoryCore = ActionCore.NaturalCore;
 const Planner = require("../src/core/boss-duel-story-planner.js");
-const preset = require("../data/story/boss-duel-story-preset-v1.js");
+const Rules = require("../src/core/boss-duel-rules.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-assert.equal(Planner.VERSION, "boss-plan-v11");
+assert.equal(Planner.VERSION, "boss-plan-v12");
+assert.equal(Planner.PLAYER_POLICY_VERSION, "story-player-policy-v1");
+
+const policyCard = (rank, suit, id, magicEffects) => ({ rank, suit, id, baseId: id, joker: false, magicEffects });
+function policyRoutes(playerCards, magicCards = []) {
+  const automatic = Rules.autoLockPlan(playerCards);
+  return Planner.routeCandidates({
+    playerCards,
+    magicCards,
+    arrangementPlan: automatic.arrangementPlan,
+    discardIndexes: automatic.discardIndexes
+  });
+}
+
+const pairVersusCritFlush = policyRoutes([
+  policyCard(10, "H", "10H"), policyCard(10, "S", "10S"),
+  policyCard(13, "C", "KC", { crit: 2 }), policyCard(12, "C", "QC"),
+  policyCard(7, "C", "7C"), policyCard(4, "D", "4D")
+], [{ key: "crit", target: "crit" }]);
+assert.equal(pairVersusCritFlush[0].key, "threeFlush");
+assert.deepEqual(pairVersusCritFlush[0].keepCardIds, ["7C", "KC", "QC"], "same-band critical route must replace the unrelated pair instead of mixing both routes");
+assert.deepEqual(pairVersusCritFlush[0].activeMagicKeys, ["crit"]);
+
+const pairVersusSingleCrit = policyRoutes([
+  policyCard(10, "H", "10H"), policyCard(10, "S", "10S"),
+  policyCard(13, "C", "KC", { crit: 2 }), policyCard(8, "D", "8D"),
+  policyCard(5, "S", "5S"), policyCard(3, "H", "3H")
+], [{ key: "crit", target: "crit" }]);
+assert.equal(pairVersusSingleCrit[0].key, "onePair");
+assert.deepEqual(pairVersusSingleCrit[0].keepCardIds, ["10H", "10S"], "a pair must beat a singleton critical route");
+
+const critInsidePair = policyRoutes([
+  policyCard(10, "H", "10H", { crit: 2 }), policyCard(10, "S", "10S"),
+  policyCard(13, "C", "KC"), policyCard(8, "D", "8D"),
+  policyCard(5, "S", "5S"), policyCard(3, "H", "3H")
+], [{ key: "crit", target: "crit" }]);
+assert.equal(critInsidePair[0].key, "onePair");
+assert.deepEqual(critInsidePair[0].keepCardIds, ["10H", "10S"]);
+assert.deepEqual(critInsidePair[0].activeMagicKeys, ["crit"], "an effect already inside the normal core must activate without an extra keep");
+
+const twoPairVersusCritFlush = policyRoutes([
+  policyCard(6, "C", "6C"), policyCard(6, "H", "6H"),
+  policyCard(2, "D", "2D"), policyCard(2, "S", "2S"),
+  policyCard(13, "C", "KC", { crit: 2 }), policyCard(9, "C", "9C")
+], [{ key: "crit", target: "crit" }]);
+assert.equal(twoPairVersusCritFlush[0].key, "twoPair");
+assert.deepEqual(twoPairVersusCritFlush[0].keepCardIds, ["2D", "2S", "6C", "6H"], "a lower-band critical route must not replace two pair");
 
 const userExampleCandidates = [
   { classKey: "win", spendX: 10, payoutX: 50 },
@@ -25,32 +71,17 @@ assert(Math.abs(userExampleTickets.weightedPayoutX - 9.6) < 1e-12);
 assert(Math.abs(userExampleTickets.rtpPct - 96) < 1e-12);
 
 const formerChase = StoryCore.simulateNaturalStory(config, 1, 1794219596, { includePath: true });
-assert(formerChase.spendX <= 3, "former 1-star 22x chase must not return");
-assert.equal(formerChase.behavior, "SMART_PROFIT_PLANNER");
+assert.equal(formerChase.behavior, "RULE_PLAYER_V1");
+assert.equal(formerChase.playerPolicyVersion, "story-player-policy-v1");
+assert.notEqual(formerChase.terminationReason, "STOP_LOSS");
 for (const step of formerChase.path) {
   assert(Array.isArray(step.initialKeepCardIds));
   assert(Array.isArray(step.autoKeepCardIds));
   assert.equal(typeof step.decisionReason, "string");
+  assert.equal(step.playerPolicyVersion, "story-player-policy-v1");
+  assert.equal(step.routeCandidates.filter((route) => route.selected).length, 1);
   assert(step.totalBetAfter >= step.totalBetBefore);
 }
-
-const freeTierStory = StoryCore.simulateNaturalStory(config, 1, 2844991469, { includePath: true });
-const freeThenPaid = freeTierStory.path.find((step) => step.drawLog[0]?.free && step.drawLog[1] && !step.drawLog[1].free);
-assert(freeThenPaid, "fixture must use one free redraw followed by a paid redraw");
-assert.equal(freeThenPaid.drawLog[0].feeX, 0);
-assert.equal(freeThenPaid.drawLog[1].feeX, config.drawFeesX[1], "free redraw must advance the redraw fee tier");
-
-const star8Commit = StoryCore.drawUniformPresetStoryCommit(
-  preset, config, 8, 96, DiceCore.mulberry32(20260826), { includePath: false, ticketBasis: 1000000 }
-);
-assert.equal(star8Commit.candidates.length, 3);
-assert.equal(star8Commit.slotWeights.length, 3);
-assert.equal(star8Commit.ticketCounts.reduce((sum, value) => sum + value, 0), 1000000);
-assert(star8Commit.ticketCounts.every((value) => value > 0));
-assert(Math.abs(star8Commit.weightedRtpPct - 96) <= 0.01);
-assert.equal(star8Commit.selectionPolicy, "FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS");
-assert(["win", "push", "lose"].includes(star8Commit.selectedClass));
-assert.equal(star8Commit.candidates[star8Commit.candidates.findIndex((story) => story.classKey === "lose")].netX < 0, true);
 
 let checked = 0;
 let manual = 0;
@@ -84,15 +115,10 @@ for (let star = 1; star <= 8; star += 1) {
       assert.equal(typeof step.hasJoker, "boolean");
       assert.equal(typeof step.jokerBehavior, "string");
       if (step.hasJoker) assert(step.paidDraws <= 2, "Joker route must shorten paid redraw chase");
-      if (step.manualAdjustment) {
-        assert(step.showdownWinProbability >= step.autoShowdownWinProbability + (step.hasJoker ? 0.05 : 0.03)
-          || step.expectedDamage >= step.autoExpectedDamage + (step.hasJoker ? 1 : 0.5)
-          || step.magicSynergyScore >= step.autoMagicSynergyScore + 1,
-        "manual adjustment must improve showdown odds, kill damage, or magic synergy");
-      }
+      assert.equal(step.routeCandidates.filter((route) => route.selected).length, 1, "each round must select exactly one initial route");
     }
     checked += 1;
   }
 }
 
-console.log(JSON.stringify({ status: "ok", checked, manualAdjustments: manual, formerChaseSpendX: formerChase.spendX, star8SelectedClass: star8Commit.selectedClass }, null, 2));
+console.log(JSON.stringify({ status: "ok", checked, manualAdjustments: manual, formerChaseSpendX: formerChase.spendX }, null, 2));

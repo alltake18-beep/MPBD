@@ -20,6 +20,29 @@
     flush: 7,
     straight: 8
   });
+  const PLAYER_POLICY_VERSION = "story-player-policy-v1";
+  const ROUTE_BANDS = Object.freeze({
+    royalFlush: 4,
+    straightFlush: 4,
+    fourOfAKind: 4,
+    fullHouse: 4,
+    flush: 4,
+    straight: 4,
+    openStraightFlush: 3,
+    singleStraightFlush: 3,
+    threeOfAKind: 3,
+    fourFlush: 3,
+    twoPair: 3,
+    openStraight: 3,
+    singleStraight: 3,
+    onePair: 2,
+    threeFlush: 2,
+    threeRun: 2,
+    twoFlush: 1,
+    twoStraight: 1,
+    effectOnly: 0,
+    none: 0
+  });
   const BOSS_REFERENCE_SAMPLE_SIZE = 4096;
 
   function buildBossReferenceHands() {
@@ -155,8 +178,14 @@
     return count;
   }
 
-  function effectCount(cards) {
-    return cards.reduce((count, card) => count + (Rules.hasAttachedEffect(card) ? 1 : 0), 0);
+  function hasOwnEffect(card, key) {
+    return Boolean(card?.magicEffects && Object.prototype.hasOwnProperty.call(card.magicEffects, key));
+  }
+
+  function attachedEffectTier(card) {
+    const crit = hasOwnEffect(card, "crit");
+    const flat = hasOwnEffect(card, "flatDamage");
+    return crit && flat ? 3 : crit ? 2 : flat ? 1 : 0;
   }
 
   function boostTargetForRoute(routeKey) {
@@ -169,14 +198,31 @@
     return null;
   }
 
-  function routeCandidates(state, maximum = 8) {
+  function routeBand(routeKey) {
+    return ROUTE_BANDS[String(routeKey || "none")] ?? 0;
+  }
+
+  function compareStoryPlayerRoutes(left, right) {
+    if (left.band !== right.band) return right.band - left.band;
+    if (left.activeMagicKeys.length !== right.activeMagicKeys.length) return right.activeMagicKeys.length - left.activeMagicKeys.length;
+    if (left.effectTier !== right.effectTier) return right.effectTier - left.effectTier;
+    if (left.hasCrit !== right.hasCrit) return left.hasCrit ? -1 : 1;
+    if (left.hasFlat !== right.hasFlat) return left.hasFlat ? -1 : 1;
+    if (left.priority !== right.priority) return left.priority - right.priority;
+    if (left.cards.length !== right.cards.length) return right.cards.length - left.cards.length;
+    if (left.effectDealIndex !== right.effectDealIndex) return left.effectDealIndex - right.effectDealIndex;
+    return left.signature.localeCompare(right.signature);
+  }
+
+  function routeCandidates(state, maximum = 64) {
     const autoPlan = state.arrangementPlan || Rules.autoLockPlan(state.playerCards).arrangementPlan;
     const autoCards = keptCards(state);
-    const autoIds = cardIds(autoCards);
-    const joker = state.playerCards.find((card) => card.joker);
-    const rows = [];
-    const seen = new Set();
-    const add = (cardsInput, key, label, priority, reason) => {
+    const autoIds = cardIds(autoCards).sort();
+    const jokers = state.playerCards.filter((card) => card.joker);
+    const jokerIds = new Set(jokers.map(Rules.cardId));
+    const rowsBySignature = new Map();
+    const handIndexById = new Map(state.playerCards.map((card, index) => [Rules.cardId(card), index]));
+    const add = (cardsInput, key, label, priority, source) => {
       const cards = [];
       const used = new Set();
       for (const card of cardsInput || []) {
@@ -185,64 +231,85 @@
         used.add(id);
         cards.push(card);
       }
-      if (joker && !used.has(Rules.cardId(joker)) && cards.length < 5) {
-        used.add(Rules.cardId(joker));
-        cards.push(joker);
+      for (const joker of jokers) {
+        const id = Rules.cardId(joker);
+        if (!used.has(id) && cards.length < 5) {
+          used.add(id);
+          cards.push(joker);
+        }
       }
-      if (!cards.length || cards.length >= state.playerCards.length) return;
+      if (cards.length >= state.playerCards.length) return;
       const ids = cardIds(cards).sort();
       const signature = ids.join("|");
-      if (seen.has(signature)) return;
-      seen.add(signature);
+      const activeMagicKeys = [];
+      const hasCrit = cards.some((card) => hasOwnEffect(card, "crit"));
+      const hasFlat = cards.some((card) => hasOwnEffect(card, "flatDamage"));
+      if (hasCrit) activeMagicKeys.push("crit");
+      if (hasFlat) activeMagicKeys.push("flatDamage");
+      const boostTarget = boostTargetForRoute(key);
+      for (const magic of state.magicCards || []) {
+        if (boostTarget && magic.target === boostTarget && /Boost$/.test(String(magic.key || ""))) {
+          activeMagicKeys.push(String(magic.key));
+        }
+      }
+      const effectCards = cards.filter((card) => attachedEffectTier(card) > 0);
+      const effectTier = effectCards.reduce((tier, card) => Math.max(tier, attachedEffectTier(card)), 0);
+      const effectDealIndex = effectCards.reduce(
+        (minimum, card) => Math.min(minimum, handIndexById.get(Rules.cardId(card)) ?? Number.POSITIVE_INFINITY),
+        Number.POSITIVE_INFINITY
+      );
       const changedCards = symmetricDifferenceSize(ids, autoIds);
-      rows.push({
+      const row = {
         key, label, priority: Number.isInteger(priority) ? priority : 99,
-        cards, keepCardIds: ids, changedCards,
+        band: routeBand(key), cards, keepCardIds: ids, signature,
+        activeMagicKeys: [...new Set(activeMagicKeys)],
+        effectTier, hasCrit, hasFlat, effectDealIndex,
+        source, changedCards,
         manualAdjustment: changedCards > 0,
-        reason: changedCards > 0 ? reason : "沿用系統自動保留"
-      });
+        reason: ""
+      };
+      const existing = rowsBySignature.get(signature);
+      if (!existing || compareStoryPlayerRoutes(row, existing) < 0) rowsBySignature.set(signature, row);
     };
 
-    add(autoCards, autoPlan?.key || "auto", autoPlan?.label || "系統建議", autoPlan?.priority, "沿用系統自動保留");
-    if (autoPlan?.coreCards?.length && autoPlan.coreCards.length < autoCards.length) {
-      add(autoPlan.coreCards, autoPlan.key, autoPlan.label, autoPlan.priority, "第一次換牌前解除與主要目標衝突的額外效果牌");
-    }
+    add(autoPlan?.coreCards || jokers, autoPlan?.key || "none", autoPlan?.label || "尚未形成正式核心", autoPlan?.priority, "NORMAL");
 
-    const autoPriority = Number.isInteger(autoPlan?.priority) ? autoPlan.priority : 18;
-    const candidates = (autoPlan?.candidates || []).slice().sort((left, right) => {
-      const priority = finite(left.priority, 99) - finite(right.priority, 99);
-      if (priority) return priority;
-      const effects = effectCount(right.cards || []) - effectCount(left.cards || []);
-      if (effects) return effects;
-      return (right.cards?.length || 0) - (left.cards?.length || 0);
+    const candidates = (autoPlan?.candidates || []).filter((candidate) => {
+      const ids = new Set((candidate.cards || []).map(Rules.cardId));
+      return [...jokerIds].every((id) => ids.has(id));
     });
-    const bestByKey = new Set();
-    const bestEffectByKey = new Set();
+    const effectCards = state.playerCards.filter((card) => !card.joker && attachedEffectTier(card) > 0);
+    const effectsWithCore = new Set();
     for (const candidate of candidates) {
-      const hasEffect = effectCount(candidate.cards || []) > 0;
-      const routeKey = String(candidate.key || "route");
-      const boostTarget = boostTargetForRoute(routeKey);
-      const hasMatchingBoost = Boolean(boostTarget && state.magicCards.some((card) => card.target === boostTarget));
-      if (!hasEffect && !hasMatchingBoost) continue;
-      const slotKey = `${routeKey}:${hasEffect ? "effect" : "plain"}`;
-      const targetSet = hasEffect ? bestEffectByKey : bestByKey;
-      if (targetSet.has(slotKey)) continue;
-      if (!hasEffect && finite(candidate.priority, 99) > Math.min(18, autoPriority + 5)) continue;
-      targetSet.add(slotKey);
+      const includedEffects = effectCards.filter((card) => (candidate.cards || []).some((item) => Rules.cardId(item) === Rules.cardId(card)));
+      for (const card of includedEffects) effectsWithCore.add(Rules.cardId(card));
+      const boostTarget = boostTargetForRoute(candidate.key);
+      const hasMatchingBoost = Boolean(boostTarget && (state.magicCards || []).some((card) => card.target === boostTarget && /Boost$/.test(String(card.key || ""))));
+      if (!includedEffects.length && !hasMatchingBoost) continue;
       add(
         candidate.cards,
-        routeKey,
-        candidate.label || routeKey,
+        candidate.key,
+        candidate.label || candidate.key,
         candidate.priority,
-        hasEffect
-          ? `第一次換牌前解決牌型核心與綁定效果牌的保留位置衝突，改走「${candidate.label || routeKey}」路線`
-          : hasMatchingBoost
-            ? `第一次換牌前依本回合${boostTarget}增傷，改走「${candidate.label || routeKey}」路線`
-            : `第一次換牌前比較比牌勝率、擊殺機會與換牌成本，改走「${candidate.label || routeKey}」路線`
+        includedEffects.length ? "ATTACHED_EFFECT" : "HAND_BOOST"
       );
-      if (rows.length >= maximum) break;
     }
-    return rows.slice(0, maximum);
+    for (const card of effectCards) {
+      if (!effectsWithCore.has(Rules.cardId(card))) {
+        add([card], "effectOnly", "單張效果牌", 99, "ATTACHED_EFFECT");
+      }
+    }
+
+    const rows = [...rowsBySignature.values()].sort(compareStoryPlayerRoutes).slice(0, maximum);
+    if (rows.length) {
+      const selected = rows[0];
+      const magic = selected.activeMagicKeys.length ? `，可啟動 ${selected.activeMagicKeys.join("＋")}` : "，不啟動額外魔法";
+      selected.reason = `固定劇本玩家規則：等級 ${selected.band}${magic}；依固定排序選定後鎖定本回合路線`;
+      for (let index = 1; index < rows.length; index += 1) {
+        rows[index].reason = `固定劇本玩家規則候選：等級 ${rows[index].band}`;
+      }
+    }
+    return rows;
   }
 
   function drawFee(config, drawIndex) {
@@ -251,8 +318,8 @@
   }
 
   function plannedPaidDrawLimit(route, hasJoker = false) {
-    if (route.priority <= 3) return 0;
-    if (route.priority <= 14) return hasJoker ? 2 : 3;
+    if (route.band >= 4) return 0;
+    if (route.band === 3) return hasJoker ? 2 : 3;
     return hasJoker ? 1 : 2;
   }
 
@@ -294,6 +361,9 @@
       routeKey: route.key,
       routeLabel: includeDetails ? route.label : "",
       routePriority: route.priority,
+      routeBand: route.band,
+      activeRouteMagicKeys: route.activeMagicKeys.slice(),
+      playerPolicyVersion: PLAYER_POLICY_VERSION,
       initialKeepCardIds: route.keepCardIds.slice(),
       autoKeepCardIds: route.autoKeepCardIds.slice(),
       changedCards: route.changedCards,
@@ -337,99 +407,80 @@
     const original = cloneRoundState(sourceState);
     const autoKeepCardIds = cardIds(keptCards(original)).sort();
     const routes = routeCandidates(original).map((route) => ({ ...route, autoKeepCardIds }));
-    const options = [];
-    const seenOptions = new Set();
-    const addOption = (option) => {
-      const signature = [option.finalHand, option.bossHand, option.draws, option.drawSpendX, option.initialKeepCardIds.join("|")].join("::");
-      if (seenOptions.has(signature)) return;
-      seenOptions.add(signature);
-      options.push(option);
-    };
-
-    const baseRoute = routes.find((route) => !route.manualAdjustment) || routes[0];
+    const route = routes[0];
+    if (!route) return [];
     const initialCards = includeDetails ? cardTexts(original.playerCards) : [];
     const bossCards = includeDetails ? cardTexts(original.bossCards) : [];
-    if (baseRoute) addOption(roundActionOption(original, baseRoute, original.playerEval.key, initialCards, bossCards, [], 0, 0, 0, config, includeDetails));
-
-    for (const route of routes) {
-      let state = cloneRoundState(original);
-      Rules.applyRecommendedKeepCards(state, route.keepCardIds);
-      const startHand = original.playerEval.key;
-      const drawLog = [];
-      let paidDraws = 0;
-      let freeDraws = 0;
-      let drawSpendX = 0;
-      const completedPriority = COMPLETE_HAND_PRIORITY[startHand] ?? Number.POSITIVE_INFINITY;
-      const improvesCompletedHand = finite(route.priority, 99) < completedPriority;
-      const protectsCompletedHand = COMPLETE_HAND_KEYS.has(startHand) && !improvesCompletedHand;
-      const routeDrawLimit = protectsCompletedHand
-        ? 0
-        : plannedPaidDrawLimit(route, state.playerCards.some((card) => card.joker));
-      const paidDrawLimit = Math.min(config.smartMaxDraws, routeDrawLimit);
-      const totalDrawLimit = protectsCompletedHand
-        ? 0
-        : paidDrawLimit + (config.freeDrawEnabled && state.magicCards.some((card) => card.key === "freeDraw") ? 1 : 0);
-      for (let drawIndex = 0; drawIndex < totalDrawLimit; drawIndex += 1) {
-        if (!state.discardIndexes.size) break;
-        if (state.playerDeck.length - state.discardIndexes.size < config.deckStopCount) break;
-        const discardedCards = includeDetails ? [...state.discardIndexes].map((index) => cardText(state.playerCards[index])) : [];
-        const discardedCardIds = includeDetails ? [...state.discardIndexes].map((index) => Rules.cardId(state.playerCards[index])) : [];
-        const keepCardIds = includeDetails
-          ? state.playerCards
-            .filter((_card, index) => !state.discardIndexes.has(index))
-            .map((card) => Rules.cardId(card))
-            .sort()
-          : [];
-        const freeAvailable = config.freeDrawEnabled && !state.freeUsed && state.magicCards.some((card) => card.key === "freeDraw");
-        let feeX = 0;
-        if (freeAvailable) {
-          state.freeUsed = true;
-          freeDraws += 1;
-        } else {
-          if (!config.paidDrawEnabled) break;
-          if (paidDraws >= paidDrawLimit) break;
-          feeX = drawFee(config, drawLog.length);
-          drawSpendX += feeX;
-          paidDraws += 1;
-        }
-        const before = state.draws;
-        Rules.redraw(state, new Set(state.discardIndexes));
-        if (state.draws === before) break;
-        drawLog.push(includeDetails ? {
-          draw: drawLog.length + 1,
-          free: freeAvailable,
-          feeX,
-          keepCardIds,
-          discardedCardIds,
-          discardedCards,
-          acceptedCardIds: state.playerCards
-            .filter((card) => !keepCardIds.includes(Rules.cardId(card)))
-            .map((card) => Rules.cardId(card))
-            .sort(),
-          nextKeepCardIds: state.playerCards
-            .filter((_card, index) => !state.discardIndexes.has(index))
-            .map((card) => Rules.cardId(card))
-            .sort()
-        } : null);
-        addOption(roundActionOption(state, route, startHand, initialCards, bossCards, drawLog, paidDraws, freeDraws, drawSpendX, config, includeDetails));
+    const state = cloneRoundState(original);
+    Rules.applyRecommendedKeepCards(state, route.keepCardIds);
+    const startHand = original.playerEval.key;
+    const drawLog = [];
+    let paidDraws = 0;
+    let freeDraws = 0;
+    let drawSpendX = 0;
+    const protectsCompletedHand = route.band >= 4 || COMPLETE_HAND_KEYS.has(startHand);
+    const routeDrawLimit = protectsCompletedHand
+      ? 0
+      : plannedPaidDrawLimit(route, state.playerCards.some((card) => card.joker));
+    const paidDrawLimit = Math.min(config.smartMaxDraws, routeDrawLimit);
+    const totalDrawLimit = protectsCompletedHand
+      ? 0
+      : paidDrawLimit + (config.freeDrawEnabled && state.magicCards.some((card) => card.key === "freeDraw") ? 1 : 0);
+    for (let drawIndex = 0; drawIndex < totalDrawLimit; drawIndex += 1) {
+      if (COMPLETE_HAND_KEYS.has(state.playerEval.key)) break;
+      if (!state.discardIndexes.size) break;
+      if (state.playerDeck.length - state.discardIndexes.size < config.deckStopCount) break;
+      const discardedCards = includeDetails ? [...state.discardIndexes].map((index) => cardText(state.playerCards[index])) : [];
+      const discardedCardIds = includeDetails ? [...state.discardIndexes].map((index) => Rules.cardId(state.playerCards[index])) : [];
+      const keepCardIds = state.playerCards
+        .filter((_card, index) => !state.discardIndexes.has(index))
+        .map((card) => Rules.cardId(card))
+        .sort();
+      const freeAvailable = config.freeDrawEnabled && !state.freeUsed && state.magicCards.some((card) => card.key === "freeDraw");
+      let feeX = 0;
+      if (freeAvailable) {
+        state.freeUsed = true;
+        freeDraws += 1;
+      } else {
+        if (!config.paidDrawEnabled || paidDraws >= paidDrawLimit) break;
+        feeX = drawFee(config, drawLog.length);
+        drawSpendX += feeX;
+        paidDraws += 1;
       }
+      const before = state.draws;
+      Rules.redraw(state, new Set(state.discardIndexes));
+      if (state.draws === before) break;
+      drawLog.push(includeDetails ? {
+        draw: drawLog.length + 1,
+        free: freeAvailable,
+        feeX,
+        keepCardIds,
+        discardedCardIds,
+        discardedCards,
+        acceptedCardIds: state.playerCards
+          .filter((card) => !keepCardIds.includes(Rules.cardId(card)))
+          .map((card) => Rules.cardId(card))
+          .sort(),
+        nextKeepCardIds: state.playerCards
+          .filter((_card, index) => !state.discardIndexes.has(index))
+          .map((card) => Rules.cardId(card))
+          .sort()
+      } : null);
     }
-    const pruned = pruneRoundActions(options);
-    const autoOptions = pruned.filter((option) => !option.manualAdjustment);
-    for (const option of pruned) {
-      const comparableAuto = autoOptions
-        .filter((row) => row.drawSpendX <= option.drawSpendX)
-        .sort((left, right) => right.showdownWinProbability - left.showdownWinProbability
-          || right.expectedDamage - left.expectedDamage
-          || right.magicSynergyScore - left.magicSynergyScore)[0] || autoOptions[0];
-      option.autoShowdownWinProbability = finite(comparableAuto?.showdownWinProbability, 0);
-      option.autoExpectedDamage = finite(comparableAuto?.expectedDamage, 0);
-      option.autoMagicSynergyScore = finite(comparableAuto?.magicSynergyScore, 0);
-    }
-    return pruned.filter((option) => !option.manualAdjustment
-      || option.showdownWinProbability >= option.autoShowdownWinProbability + (option.hasJoker ? 0.05 : 0.03)
-      || option.expectedDamage >= option.autoExpectedDamage + (option.hasJoker ? 1 : 0.5)
-      || option.magicSynergyScore >= option.autoMagicSynergyScore + 1);
+    const option = roundActionOption(state, route, startHand, initialCards, bossCards, drawLog, paidDraws, freeDraws, drawSpendX, config, includeDetails);
+    option.autoShowdownWinProbability = option.showdownWinProbability;
+    option.autoExpectedDamage = option.expectedDamage;
+    option.autoMagicSynergyScore = option.magicSynergyScore;
+    option.routeCandidates = includeDetails ? routes.map((candidate) => ({
+      key: candidate.key,
+      label: candidate.label,
+      band: candidate.band,
+      priority: candidate.priority,
+      keepCardIds: candidate.keepCardIds.slice(),
+      activeMagicKeys: candidate.activeMagicKeys.slice(),
+      selected: candidate === route
+    })) : [];
+    return [option];
   }
 
   function emptyOutcome(reason = "STOP_LOSS") {
@@ -590,12 +641,6 @@
         : option.playerWins
           ? (context.hpAfter <= 0 ? "KILLED" : "WIN")
           : option.result;
-      const showdownDeltaPp = (option.showdownWinProbability - option.autoShowdownWinProbability) * 100;
-      const expectedDamageDelta = option.expectedDamage - option.autoExpectedDamage;
-      const magicSynergyDelta = option.magicSynergyScore - option.autoMagicSynergyScore;
-      const metricReason = option.manualAdjustment
-        ? `；相較自動路線：比牌勝率${showdownDeltaPp >= 0 ? "+" : ""}${showdownDeltaPp.toFixed(1)}個百分點、預期傷害${expectedDamageDelta >= 0 ? "+" : ""}${expectedDamageDelta.toFixed(1)}、魔法連動${magicSynergyDelta >= 0 ? "+" : ""}${magicSynergyDelta.toFixed(1)}`
-        : "；沿用自動鎖牌後評估比牌勝率、擊殺機會與魔法連動";
       step = {
         round: context.round,
         tieIndex: context.tieIndex,
@@ -615,11 +660,19 @@
         routeKey: option.routeKey,
         routeLabel: option.routeLabel,
         routePriority: option.routePriority,
+        routeBand: option.routeBand,
+        activeRouteMagicKeys: option.activeRouteMagicKeys.slice(),
+        routeCandidates: option.routeCandidates.map((route) => ({
+          ...route,
+          keepCardIds: route.keepCardIds.slice(),
+          activeMagicKeys: route.activeMagicKeys.slice()
+        })),
+        playerPolicyVersion: option.playerPolicyVersion,
         autoKeepCardIds: option.autoKeepCardIds.slice(),
         initialKeepCardIds: option.initialKeepCardIds.slice(),
         changedCards: option.changedCards,
         manualAdjustment: option.manualAdjustment,
-        decisionReason: `${option.decisionReason}${metricReason}`,
+        decisionReason: option.decisionReason,
         drawLog: option.drawLog.map((row) => ({
           ...row,
           keepCardIds: row.keepCardIds.slice(),
@@ -639,15 +692,15 @@
         autoMagicSynergyScore: option.autoMagicSynergyScore,
         hasJoker: option.hasJoker,
         jokerBehavior: option.hasJoker
-          ? "Joker 固定保留並視為任意缺口；縮短追牌上限，只有獲利機率或魔法連動明顯提升才改動其他鎖牌"
-          : "按實際缺牌與可成牌張數評估；小幅改善不手動改動自動鎖牌",
+          ? "Joker 固定保留並視為任意缺口；依固定規則減少一次付費換牌上限"
+          : "依起手路線等級使用固定付費換牌上限",
         killOpportunityProbability: option.damage >= context.hpBefore ? option.showdownWinProbability : 0,
         bossHpBefore: context.hpBefore,
         bossHpAfter: context.hpAfter,
         playerBadHighRerolls: option.playerBadHighRerolls,
         bossBadHighRerolls: option.bossBadHighRerolls,
         totalBetAfter: spendX - tail.spendX,
-        planner: "整隻 BOSS 預排／玩家可執行"
+        planner: "固定劇本玩家規則／不預看後續牌"
       };
     }
     const directKillProbability = option.action === "FIGHT" && option.damage >= context.hpBefore
@@ -720,10 +773,6 @@
       const cacheKey = `${round}:${tieIndex}:${hpLeft}:${bankedCoinX}:${mayStop ? 1 : 0}:${spentSoFar}:${realizedPayoutSoFar}`;
       if (solveCache.has(cacheKey)) return solveCache.get(cacheKey);
       let best = null;
-      if (mayStop) {
-        best = emptyOutcome("STOP_LOSS");
-        best.hpLeft = hpLeft;
-      }
       const state = getRound(round, tieIndex);
       const actionKey = `${round}:${tieIndex}`;
       if (!actionCache.has(actionKey)) actionCache.set(actionKey, enumerateRoundActions(state, config, { includeDetails: includePath }));
@@ -770,6 +819,10 @@
           mayStop
         ) > 0) best = combined;
       }
+      if (!best) {
+        best = emptyOutcome("INSUFFICIENT_FUNDS");
+        best.hpLeft = hpLeft;
+      }
       solveCache.set(cacheKey, best);
       return best;
     };
@@ -798,13 +851,15 @@
       expectedNetX: profitView.expectedNetX,
       payoutWithKillX: profitView.payoutWithKillX
     };
-    outcome.behavior = "以最終有機率獲利為目標；用比牌勝率、擊殺機率與魔法卡連動估算，並扣除總押、換牌與手動操作成本";
-    outcome.plannerVersion = "boss-plan-v11";
+    outcome.behavior = "每回合依固定等級與魔法啟動排序選定一條互斥路線；不預看後續牌、不讀最終分類且不執行停損";
+    outcome.playerPolicyVersion = PLAYER_POLICY_VERSION;
+    outcome.plannerVersion = "boss-plan-v12";
     return outcome;
   }
 
   return {
-    VERSION: "boss-plan-v11",
+    VERSION: "boss-plan-v12",
+    PLAYER_POLICY_VERSION,
     planBossStory,
     enumerateRoundActions,
     routeCandidates,

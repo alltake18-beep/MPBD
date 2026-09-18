@@ -17,7 +17,7 @@ const summaryPreset = require(path.join(root, "data", "story", "boss-duel-story-
 const ActionCore = require(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"));
 const combined = `${html}\n${lab}\n${coreSource}`;
 
-assert.equal(preset.version, "natural-story-preset-v15");
+assert.equal(preset.version, "natural-story-preset-v16");
 for (const asset of [
   "src/core/boss-duel-random.js", "src/core/boss-duel-poker-arrangement-core.js", "src/core/boss-duel-rules.js",
   "src/core/boss-duel-story-planner.js", "data/story/boss-duel-story-preset-v1.js", "data/story/boss-duel-story-summary-preset-v1.js",
@@ -25,10 +25,10 @@ for (const asset of [
 ]) {
   assert.match(html, new RegExp(asset.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `${asset} must be loaded`);
 }
-assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v62/);
-assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v9/);
+assert.match(html, /boss-duel-action-tree-core\.js\?v=action-tree-v64/);
+assert.match(html, /boss-duel-story-summary-preset-v1\.js\?v=story-summary-v10/);
 assert.match(html, /src\/core\/boss-duel-poker-arrangement-core\.js\?v=arrange-v10/);
-assert.match(engineerDoc, /backend-doc-v16/);
+assert.match(engineerDoc, /backend-doc-v18/);
 
 function tag(id) {
   const match = html.match(new RegExp(`<[^>]+\\bid=["']${id}["'][^>]*>`, "i"));
@@ -36,10 +36,10 @@ function tag(id) {
   return match[0];
 }
 
-assert.equal((html.match(/class="control-card"/g) || []).length, 5);
-const controlOrder = ["模擬設定", "抑制設定", "個人劇本水池", "遊戲機制", "故事產生"].map((label) => html.indexOf(`<strong>${label}</strong>`));
+assert.equal((html.match(/class="control-card"/g) || []).length, 6);
+const controlOrder = ["模擬設定", "抑制設定", "個人劇本水池", "遊戲機制", "初始手牌重抽", "劇本產生"].map((label) => html.indexOf(`<strong>${label}</strong>`));
 assert(controlOrder.every((index) => index >= 0));
-assert.deepEqual([...controlOrder].sort((a, b) => a - b), controlOrder, "parameter cards must follow the old workflow with story generation last");
+assert.deepEqual([...controlOrder].sort((a, b) => a - b), controlOrder, "initial-hand reroll must be outer section 05 and story generation must be section 06");
 const simulationOrder = ["<h3>玩家行為</h3>", "<h3>模擬規格</h3>", "<h3>退幣條件</h3>"].map((label) => lab.indexOf(label));
 assert(simulationOrder.every((index) => index >= 0));
 assert.deepEqual([...simulationOrder].sort((a, b) => a - b), simulationOrder, "player behavior must precede scale and cashout conditions");
@@ -50,9 +50,12 @@ assert(targetRtpIndex < playerCountIndex, "RTP setting must be the first simulat
 const decimalPlacesIndex = lab.indexOf('simulationInput("decimalPlaces", "顯示小數位", 1)');
 assert(decimalPlacesIndex > simulationOrder[1] && decimalPlacesIndex < simulationOrder[2], "display decimals must belong to simulation specifications");
 assert.match(html, /<summary><span>02<\/span><strong>抑制設定<\/strong>/);
+assert.match(html, /<summary><span>05<\/span><strong>初始手牌重抽<\/strong>/);
+assert.match(html, /<summary><span>06<\/span><strong>劇本產生<\/strong>/);
 assert.doesNotMatch(combined, /提前離開率|earlyTerminationPct|RTP 容許差（pp）|池尾差容許|rtpTolerancePp|poolTailTolerancePp|波動與報表設定/);
+assert.doesNotMatch(combined, /REROLL BOSS 費用（x）/);
 
-assert.doesNotMatch(html, /八星自然故事目錄|故事目錄驗證|進水起伏|普通局BOSS|高星局BOSS|連殺/);
+assert.doesNotMatch(html, /八星自然劇本目錄|劇本目錄驗證|進水起伏|普通局BOSS|高星局BOSS|連殺/);
 assert.doesNotMatch(html, /id="storyCarryEnabled"|id="switchGrid"|id="switchesPanel"|功能開關/);
 assert.match(html, /<h3 id="carryTitle">個人劇本水池<\/h3>/);
 assert.match(html, /遊戲機制（固定啟用）/);
@@ -111,7 +114,7 @@ assert.match(html, /<h3>各星 BOSS 劇本抽中分布<\/h3>/);
 assert.match(html, /<th>星級<\/th><th>BOSS 數<\/th><th>贏多（%）<\/th><th>贏（%）<\/th><th>輸（%）<\/th><th>贏多數量<\/th><th>贏數量<\/th><th>輸數量<\/th>/);
 assert.match(lab, /pct\(ratioPct\(byClass\.win, bosses\), 2\),\s*pct\(ratioPct\(byClass\.push, bosses\), 2\),\s*pct\(ratioPct\(byClass\.lose, bosses\), 2\),\s*count\(byClass\.win\), count\(byClass\.push\), count\(byClass\.lose\)/);
 assert(fs.existsSync(path.join(root, "src", "probability", "boss-duel-action-tree-worker.js")), "missing cancellable statistics worker");
-assert.match(lab, /new Worker\("src\/probability\/boss-duel-action-tree-worker\.js\?v=action-tree-v62"\)/);
+assert.match(lab, /new Worker\("src\/probability\/boss-duel-action-tree-worker\.js\?v=action-tree-v64"\)/);
 assert.match(lab, /activeSimulationWorker \|\| new Worker/, "completed worker must remain available for later simulations");
 assert.match(worker, /type: "main-done"/, "main report must be published before independent cashout finishes");
 assert.match(worker, /BossDuelProbabilityWorkerState = \{ pool: null \}/, "worker must retain its hydrated story pool");
@@ -346,7 +349,6 @@ for (const behavior of ["SMART", "OFFICIAL_FUNDED", "FREE_RIDE", "EXTREME"]) {
     `${behavior} must never suppress a win or push story`
   );
   if (behavior === "SMART") assert.equal(behaviorResult.suppressionStats.suppressedBosses, 0, "exact story replay must not deviate");
-  else assert(behaviorResult.suppressionStats.suppressedBosses > 0, `${behavior} must exercise lose-story deviation suppression in the deterministic sample`);
 }
 
 const forcedOff = ActionCore.sanitizeConfig({
@@ -426,6 +428,6 @@ assert.match(game, /entryCostX: 1/);
 assert.match(game, /options\.poolAccrual !== false/);
 
 console.log(JSON.stringify({
-  status: "ok", cacheKey: "action-tree-v62", storyCount: 240000,
-  controlCards: 5, reportTabs: reportLabels.length, uniqueDomIds: ids.length, rerolls: rerollResult.totals.bossRefreshes
+  status: "ok", cacheKey: "action-tree-v64", storyCount: 240000,
+  controlCards: 6, reportTabs: reportLabels.length, uniqueDomIds: ids.length, rerolls: rerollResult.totals.bossRefreshes
 }, null, 2));

@@ -176,7 +176,7 @@ assert.equal(contract.version, "story-action-trace-v2");
 assert.equal(contract.storySeed, story.seed);
 assert.equal(contract.originalStoryClass, "lose");
 assert.equal(contract.rulesVersion, Rules.VERSION);
-assert.equal(contract.plannerVersion, "boss-plan-v11");
+assert.equal(contract.plannerVersion, "boss-plan-v12");
 assert.equal(contract.suppressionPolicyVersion, NaturalCore.SUPPRESSION_POLICY_VERSION);
 assert.equal(contract.suppressionPolicy.magic.mode, "SEPARATE_TABLE");
 assert.equal(contract.suppressionPolicySignature, JSON.stringify(contract.suppressionPolicy));

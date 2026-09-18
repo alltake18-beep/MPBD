@@ -1291,7 +1291,7 @@
   }
 
   function drawRuntimeStoryExperience(star) {
-    if (!NaturalCore || !StoryPreset?.natural) throw new Error("正式故事池載入失敗");
+    if (!NaturalCore || !StoryPreset?.natural) throw new Error("正式劇本池載入失敗");
     const config = runtimeNaturalConfig(runtimeConfig);
     const commit = NaturalCore.drawUniformPresetStoryCommit(
       StoryPreset, config, star, runtimeConfig.targetRtp * 100, runtimeStoryRng(star),
@@ -1510,7 +1510,7 @@
       lockedTargetRtpPct: runtimeConfig.targetRtp * 100,
       storyConfig: activeStoryExperience.config,
       storyCommit: activeStoryExperience.commit,
-      ledgerDecision: storyExperience ? "指定故事體驗" : `三分類全池各抽一個，再配籤至 ${platformTargetRtpPct}%`,
+      ledgerDecision: storyExperience ? "指定劇本體驗" : `三分類全池各抽一個，再配籤至 ${platformTargetRtpPct}%`,
       ledgerProjectedX: 0
     };
     encounter = {
@@ -2476,7 +2476,7 @@
     savePlayerState();
     archiveEncounterAudit("REROLL_BOSS");
     spawnBoss(previousStar);
-    setMessage(leavingFixedStory ? "已離開指定故事並支付更換 BOSS 費用，改抽下一隻。" : "已支付更換 BOSS 費用，改抽下一隻。", "");
+    setMessage(leavingFixedStory ? "已離開指定劇本並支付更換 BOSS 費用，改抽下一隻。" : "已支付更換 BOSS 費用，改抽下一隻。", "");
   }
 
   function changeBet(direction) {
@@ -2519,8 +2519,8 @@
     const storyHint = qaParams.get("qaAudit") !== "1" || remainingStoryDraws === null
       ? ""
       : remainingStoryDraws > 0
-        ? `｜故事節奏：照自動保留再換 ${remainingStoryDraws} 次`
-        : `｜故事節奏：現在 ${storyStep.action}`;
+        ? `｜劇本節奏：照自動保留再換 ${remainingStoryDraws} 次`
+        : `｜劇本節奏：現在 ${storyStep.action}`;
     if (result.playerRank === 0) return discardCount ? `HIGH CARD｜已建議更換 ${discardCount} 張牌${boundWarning}${storyHint}。` : `HIGH CARD｜可 FOLD${storyHint}。`;
     return `${result.playerHand.label}｜建議更換 ${discardCount} 張${boundWarning}｜牌型基礎傷害 ${result.playerEval.damage} DMG；魔法值比牌時揭露${storyHint}。`;
   }
@@ -2877,7 +2877,7 @@
     els.personalPool.textContent = signedCredits(storyBalances.reduce((sum, value) => sum + Number(value || 0), 0));
     els.activeBetPool.textContent = NaturalCore
       ? `${NaturalCore.BET_BUCKETS[activeStoryBucket].label}｜${signedCredits(storyBalances[activeStoryBucket])}`
-      : "等待故事核心";
+      : "等待劇本核心";
     els.supplyDecision.textContent = `自然／${packet.storyRecord.classLabel}／派彩率 ${packet.storyRecord.returnX.toFixed(2)}x`;
     const guaranteedPremiumDice = guaranteedPremiumDiceForStar(packet.star);
     const rainbowStars = entryCompositionVisible
@@ -2932,18 +2932,18 @@
     els.treasureBadge.hidden = false;
     const dynamicStoryMode = packet.storyRuntimeMode === "DYNAMIC";
     els.settingsEyebrow.textContent = dynamicStoryMode ? "LIVE NATURAL STORY" : "STORY CATALOG REPLAY";
-    els.settingsHeading.textContent = dynamicStoryMode ? "動態故事／三分類分數配籤" : "故事目錄重播狀態";
-    els.cyclePositionLabel.textContent = "故事星級";
+    els.settingsHeading.textContent = dynamicStoryMode ? "動態劇本／三分類分數配籤" : "劇本目錄重播狀態";
+    els.cyclePositionLabel.textContent = "劇本星級";
     els.targetRtpLabel.textContent = "結果分類";
     els.couplingLabel.textContent = "供應模型";
     els.cyclePosition.textContent = `${packet.star} 星｜seed ${packet.naturalStorySeed}`;
     els.targetRtp.textContent = packet.storyRecord.classLabel;
     els.couplingValue.textContent = dynamicStoryMode
       ? `三分類全池各抽 1 個 → 配籤 ${packet.lockedTargetRtpPct}%`
-      : "指定 Natural 故事";
+      : "指定 Natural 劇本";
     const weightCopy = packet.storyCommit?.weights
       ? `贏多 ${(packet.storyCommit.weights.win * 100).toFixed(2)}%／贏 ${(packet.storyCommit.weights.push * 100).toFixed(2)}%／輸 ${(packet.storyCommit.weights.lose * 100).toFixed(2)}%`
-      : "指定故事不重新抽籤";
+      : "指定劇本不重新抽籤";
     const ticketCopy = Array.isArray(packet.storyCommit?.ticketCounts)
       ? `${Number(packet.storyCommit.ticketBasis || 0).toLocaleString("zh-TW")} 分數籤：贏多 ${packet.storyCommit.ticketCounts[0].toLocaleString("zh-TW")}／贏 ${packet.storyCommit.ticketCounts[1].toLocaleString("zh-TW")}／輸 ${packet.storyCommit.ticketCounts[2].toLocaleString("zh-TW")}`
       : "";
@@ -3101,7 +3101,7 @@
     encounter = null;
     els.settingsSheet.hidden = true;
     spawnBoss();
-    setMessage("試玩紀錄已重置；下一隻會從贏多、贏、輸完整故事池各抽一個，再動態配籤。", "");
+    setMessage("試玩紀錄已重置；下一隻會從贏多、贏、輸完整劇本池各抽一個，再動態配籤。", "");
   }
 
   function primaryAction() {

@@ -2,7 +2,7 @@
 
 (function actionTreeLab() {
   const Core = window.BossDuelActionTreeCore;
-  if (!Core) throw new Error("自然故事核心未載入。");
+  if (!Core) throw new Error("自然劇本核心未載入。");
 
   const $ = (id) => document.getElementById(id);
   const treeKeys = Core.TREE_KEYS;
@@ -38,7 +38,7 @@
   }
   config = Core.sanitizeConfig(config);
   config.modelId = "natural-story-v4-full-class-ticket";
-  config.versions.storyPool = "natural-240000-boss-plan-v11-score-ticket";
+  config.versions.storyPool = "natural-240000-boss-plan-v12-score-ticket";
   let design = null;
   let storyPoolCells = [];
   let catalogPool = null;
@@ -155,7 +155,7 @@
       const poolReady = storyPoolCells.filter((cell) => cell.star === star.star).length === 3;
       const starCells = storyPoolCells.filter((cell) => cell.star === star.star);
       const byTree = Object.fromEntries(starCells.map((cell) => [cell.tree, cell]));
-      const status = poolReady ? "240,000 正式故事已建" : "等待產生";
+      const status = poolReady ? "240,000 正式劇本已建" : "等待產生";
       return `<tr data-star="${star.star}">
         <th scope="row">${star.star}★</th>
         <td><input data-tree-field="bossTickets" type="number" min="0" step="1" value="${star.bossTickets}"></td>
@@ -209,14 +209,14 @@
 
   function designChecks() {
     const issues = [];
-    if (config.storyPool.storiesPerClass !== 10000 || config.storyPool.storiesPerStar !== 30000) issues.push("遊戲故事池每星三分類必須各 10,000 局");
+    if (config.storyPool.storiesPerClass !== 10000 || config.storyPool.storiesPerStar !== 30000) issues.push("遊戲劇本池每星三分類必須各 10,000 局");
     if (!(config.storyPool.winMinReturnX > config.storyPool.pushMinReturnX)) issues.push("贏多門檻必須大於贏門檻");
     if (config.handRows.find((row) => row[0] === "straightFlush")?.[4] !== 30) issues.push("同花順正式傷害必須為 30");
     return { pass: issues.length === 0, issues };
   }
 
   function naturalChecks() {
-    if (storyPoolCells.length !== 24) return { pass: false, pending: true, issues: ["尚未建立 8 星 × 3 分類的故事目錄"] };
+    if (storyPoolCells.length !== 24) return { pass: false, pending: true, issues: ["尚未建立 8 星 × 3 分類的劇本目錄"] };
     const issues = [];
     storyPoolCells.forEach((cell) => {
       const label = `${cell.star}星${treeLabels[cell.tree] || cell.tree}`;
@@ -225,7 +225,7 @@
     });
     for (let star = 1; star <= 8; star += 1) {
       const total = storyPoolCells.filter((cell) => cell.star === star).reduce((sum, cell) => sum + cell.naturalCount, 0);
-      if (total !== config.storyPool.storiesPerStar) issues.push(`${star}星實跑故事不是 ${config.storyPool.storiesPerStar} 局`);
+      if (total !== config.storyPool.storiesPerStar) issues.push(`${star}星實跑劇本不是 ${config.storyPool.storiesPerStar} 局`);
     }
     return { pass: issues.length === 0, pending: false, issues };
   }
@@ -250,19 +250,19 @@
     $("maxStarError").textContent = simulationReady ? `${number(simulationResult.totals.ticketErrorPpMax).toFixed(9)}pp` : "待模擬";
     $("rtpSwingState").textContent = simulationReady ? "自然結果已結算" : "等待動態模擬";
     $("rtpSwingNote").textContent = "抽劇本與每筆花費入池共用目標 RTP；三桶只在擊殺後以合法骰面補正";
-    setState("pushFloorState", poolReady, poolReady ? "正式故事 240,000" : "待建池");
-    $("ticketState").textContent = simulationReady ? "逐 BOSS 已求解" : poolReady ? "可執行" : "等待故事";
+    setState("pushFloorState", poolReady, poolReady ? "正式劇本 240,000" : "待建池");
+    $("ticketState").textContent = simulationReady ? "逐 BOSS 已求解" : poolReady ? "可執行" : "等待劇本";
     $("ticketState").className = simulationReady ? "valid" : "warn";
     $("naturalGateState").textContent = naturalState.pending ? "待驗證" : naturalState.pass ? "通過" : "阻擋";
     $("naturalGateState").className = naturalState.pending ? "warn" : naturalState.pass ? "valid" : "error";
-    $("publishState").textContent = poolReady ? "可體驗" : "等待故事";
+    $("publishState").textContent = poolReady ? "可體驗" : "等待劇本";
     $("publishState").className = poolReady ? "valid" : "warn";
-    $("validationState").textContent = simulationReady ? "三分類全池抽取／分數配籤已執行" : poolReady ? "正式故事目錄完成" : naturalState.pending ? "等待 240,000 個正式故事" : "故事目錄阻擋";
+    $("validationState").textContent = simulationReady ? "三分類全池抽取／分數配籤已執行" : poolReady ? "正式劇本目錄完成" : naturalState.pending ? "等待 240,000 個正式劇本" : "劇本目錄阻擋";
     $("validationState").className = poolReady ? "valid" : "warn";
     $("validationMessage").textContent = simulationReady
-      ? `已從贏多、贏、輸三個完整分類各等機率抽一個自然故事，再配成 ${pct(config.targetCoreRtpPct, 3)}；實際總押注與劇本預定總押注的差額按同一 RTP 比例調整個人劇本水池。`
+      ? `已從贏多、贏、輸三個完整分類各等機率抽一個自然劇本，再配成 ${pct(config.targetCoreRtpPct, 3)}；實際總押注與劇本預定總押注的差額按同一 RTP 比例調整個人劇本水池。`
       : poolReady
-        ? "240,000 個正式故事已完成 24 個星級 × 結果分類資料格的數量、自然分類與重播契約驗證；可繼續執行三分類全池抽取與分數配籤模擬。"
+        ? "240,000 個正式劇本已完成 24 個星級 × 結果分類資料格的數量、自然分類與重播契約驗證；可繼續執行三分類全池抽取與分數配籤模擬。"
       : naturalState.issues.slice(0, 4).join("；");
   }
 
@@ -276,7 +276,7 @@
     const state = naturalChecks();
     const status = $("naturalStatus");
     status.className = `pending-box ${state.pending ? "warn" : state.pass ? "valid" : "error"}`;
-    status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "故事池驗證完成" : "故事池驗證失敗"}</strong><span>${state.pending ? "按「開始統計」後自動檢查 24 個結果資料格各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
+    status.innerHTML = `<strong>${state.pending ? "等待驗證" : state.pass ? "劇本池驗證完成" : "劇本池驗證失敗"}</strong><span>${state.pending ? "按「開始統計」後自動檢查 24 個結果資料格各 10,000 局、分類與重播契約。" : state.pass ? "8 星的贏多、贏、輸各 10,000 局，全部具備種子與版本化操作重播契約。" : state.issues.slice(0, 4).join("；")}</span>`;
   }
 
   function buildMechanics() {
@@ -326,11 +326,11 @@
     $("magicTableBody").innerHTML = config.magicRows.map((row, rowIndex) => `<tr>${[0, 1, 3, 4, 5].map((columnIndex) => `<td><input data-magic-row="${rowIndex}" data-column="${columnIndex}" type="${columnIndex < 2 ? "text" : "number"}" step="0.01"${row[0] === "crit" && columnIndex === 4 ? ' min="1"' : ""} value="${esc(row[columnIndex])}" ${columnIndex === 0 ? "readonly" : ""}></td>`).join("")}</tr>`).join("");
     $("handTableBody").innerHTML = config.handRows.map((row, rowIndex) => `<tr>${[0, 1, 4].map((columnIndex) => `<td><input data-hand-row="${rowIndex}" data-column="${columnIndex}" type="${columnIndex < 2 ? "text" : "number"}" step="1" value="${esc(row[columnIndex])}" ${columnIndex === 0 ? "readonly" : ""}></td>`).join("")}</tr>`).join("");
     $("drawFeeGrid").innerHTML = config.drawFeesX.map((value, index) => `<label>第 ${index + 1} 次<input data-draw-fee="${index}" type="number" min="0" step="0.01" value="${value}"></label>`).join("");
-    $("naturalDealGrid").innerHTML = `<label>REROLL BOSS 費用（x）<input type="number" value="1" readonly><span class="field-help">固定為當前押注額 × 1。</span></label>` + [
+    $("naturalDealGrid").innerHTML = [
       ["deckStopCount", "牌堆停止張數", 1],
       ["playerBadHighRerollPct", "玩家爛高牌重抽率（%）", 0.1],
       ["bossBadHighRerollPct", "Boss 爛高牌重抽率（%）", 0.1],
-      ["initialRerollLimit", "起手重抽上限", 1]
+      ["initialRerollLimit", "初始手牌重抽上限", 1]
     ].map(([key, label, step]) => `<label>${label}<input data-rule-field="${key}" type="number" min="0" step="${step}" value="${config.ruleSettings[key]}"></label>`).join("");
     const suppressionNumber = (path, label, help, value, step = 1) => `<label>${label}<input data-suppression-path="${path}" type="number" min="0" step="${step}" value="${value}"><span class="field-help">${help}</span></label>`;
     const suppression = config.suppression;
@@ -646,8 +646,8 @@
     $("runSimulationButton").style.setProperty("--statistics-progress", `${percent}%`);
     if (message.phase === "pool") {
       $("simulationState").textContent = message.reusedPool
-        ? "正式故事水池已快取，準備執行主要模擬。"
-        : "正在載入並整理 240,000 筆正式故事…";
+        ? "正式劇本水池已快取，準備執行主要模擬。"
+        : "正在載入並整理 240,000 筆正式劇本…";
     } else if (message.phase === "main") {
       $("simulationState").textContent = `主要模擬：玩家 ${count(message.completedPlayers)}／${count(message.totalPlayers)}；已完成 ${count(message.bosses)} 隻 BOSS。`;
     } else if (message.phase === "cashout") {
@@ -695,7 +695,7 @@
     readFixedControls();
     readTreeMatrix();
     config = Core.sanitizeConfig(config);
-    const runId = beginSimulation("正在載入正式故事資料…");
+    const runId = beginSimulation("正在載入正式劇本資料…");
     requestAnimationFrame(() => {
       if (runId !== simulationRunId) return;
       try {
@@ -706,7 +706,7 @@
           ...seedPreset,
           naturalSummaries: summaryPreset.naturalSummaries
         });
-        if (!pool) throw new Error("遊戲故事預置與目前正式規則不一致");
+        if (!pool) throw new Error("遊戲劇本預置與目前正式規則不一致");
         catalogPool = pool;
         simulationResult = null;
         storyPoolCells = [];
@@ -715,18 +715,18 @@
           storyPoolCells.push({
             star, tree, sampleSize: naturalRows.length,
             naturalCount: naturalRows.length,
-            replayVerified: naturalRows.every((story) => story.seed !== undefined && story.classKey === tree && story.plannerVersion === "boss-plan-v11")
+            replayVerified: naturalRows.every((story) => story.seed !== undefined && story.classKey === tree && story.plannerVersion === "boss-plan-v12")
           });
         }
         config.versions.storyPool = pool.version;
         simulationHash = currentHash();
         $("resultsArea").classList.add("is-hidden");
         $("copyStatisticsButton").disabled = true;
-        $("simulationState").textContent = "正式故事資料載入完成，準備執行統計。";
+        $("simulationState").textContent = "正式劇本資料載入完成，準備執行統計。";
         if (options.runAfterLoad) runRuntimeSimulation(runId);
       } catch (error) {
         catalogPool = null;
-        clearSimulation(`故事產生失敗：${error.message}`);
+        clearSimulation(`劇本產生失敗：${error.message}`);
       }
       if (!options.runAfterLoad && runId === simulationRunId) {
         simulationRunning = false;
@@ -741,7 +741,7 @@
     readSimulationControls();
     const usesNaturalStories = true;
     if (usesNaturalStories && !catalogPool) {
-      $("simulationState").textContent = "請先載入 240,000 個正式故事。";
+      $("simulationState").textContent = "請先載入 240,000 個正式劇本。";
       simulationRunning = false;
       setSimulationButtons(false);
       return;
@@ -762,7 +762,7 @@
     const runId = existingRunId ?? beginSimulation(status);
     $("simulationState").textContent = status;
     try {
-      const worker = activeSimulationWorker || new Worker("src/probability/boss-duel-action-tree-worker.js?v=action-tree-v62");
+      const worker = activeSimulationWorker || new Worker("src/probability/boss-duel-action-tree-worker.js?v=action-tree-v64");
       activeSimulationWorker = worker;
       worker.onmessage = (event) => {
         if (runId !== simulationRunId || event.data?.runId !== runId) return;
@@ -834,7 +834,7 @@
         const label = treeLabels[classKey] || classKey;
         $("storyExperienceSummary").textContent = `${star} 星「${label}」目前 0 局；這是實跑分類結果，不補造案例。`;
       } else {
-        $("storyExperienceSummary").textContent = "請先載入 240,000 個正式故事。";
+        $("storyExperienceSummary").textContent = "請先載入 240,000 個正式劇本。";
       }
       return;
     }
@@ -850,7 +850,7 @@
     if (!selected) return;
     const { story, source } = selected;
     const params = new URLSearchParams({
-      v: "frontend-v104",
+      v: "frontend-v106",
       storyMode: "1",
       storyStar: String(story.star),
       storySeed: String(story.seed),

@@ -70,8 +70,8 @@ if (isMainThread) {
   const StoryCore = ActionCore.NaturalCore;
   const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v1.js"));
   const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-  if (preset.version !== "natural-story-preset-v15" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
-    throw new Error("故事明細只能由現行 natural-story-preset-v15 正式種子產生");
+  if (preset.version !== "natural-story-preset-v16" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
+    throw new Error("劇本明細只能由現行 natural-story-preset-v16 正式種子產生");
   }
   const seeds = preset.natural?.[workerData.star]?.[workerData.classKey] || [];
   if (seeds.length !== config.storiesPerClass) {

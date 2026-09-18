@@ -19,7 +19,7 @@ const handLabel = {
 };
 const suitCode = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
 const headers = [
-  "排序", "故事 ID", "種子", "分類", "擊殺", "總押 x", "總派彩 x", "遊戲淨結果 x", "分類倍率",
+  "排序", "劇本 ID", "種子", "分類", "擊殺", "總押 x", "總派彩 x", "遊戲淨結果 x", "分類倍率",
   "BOSS HP", "剩餘 HP", "回合", "操作合計", "初始／自動／劇本保留", "劇本換牌操作", "各回合結果與雙方手牌",
   "完整重播稽核 JSON", "重播契約"
 ];
@@ -72,7 +72,7 @@ function rowValues(story, index) {
     path: story.path
   });
   if (fullReplayAudit.length > 32767) throw new Error(`${story.id} 完整稽核超過 Excel 單格上限`);
-  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v11"}／story-action-trace-v2／deviation-suppression-v5-lose-story-only`;
+  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v12"}／story-action-trace-v2／deviation-suppression-v5-lose-story-only`;
   return [
     index + 1, story.id, story.seed, classLabel[story.classKey], story.killed ? "是" : "否",
     story.spendX, story.payoutX, story.netX, story.payoutX / Math.max(story.spendX, Number.EPSILON),
@@ -177,8 +177,8 @@ async function buildSummarySheet(statsRows) {
   }, { count: 0, kills: 0, classCounts: { win: 0, push: 0, lose: 0 }, spend: 0, payout: 0, returnX: 0, net: 0, redrawStories: 0 });
   const rows = [];
   rows.push(`<row r="1" ht="34" customHeight="1">${stringCell("A1", "Boss Duel｜逐利型聰明玩家劇情總覽（8 星 × 30,000 局）", 1)}</row>`);
-  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v104／action-tree-v62／boss-plan-v11／arrange-v10／natural-story-preset-v15；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
-  const summaryHeaders = ["星級", "故事數", "擊殺", "擊殺率", "贏多", "贏", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌故事", "完整稽核", "重播契約"];
+  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v106／action-tree-v64／boss-plan-v12／arrange-v10／natural-story-preset-v16；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
+  const summaryHeaders = ["星級", "劇本數", "擊殺", "擊殺率", "贏多", "贏", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌劇本", "完整稽核", "重播契約"];
   rows.push(`<row r="4" ht="40" customHeight="1">${summaryHeaders.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   statsRows.forEach((stats, index) => rows.push(summaryRowXml(stats, index + 5)));
   rows.push(`<row r="13">${stringCell("A13", "合計／加權", 2)}${formulaCell("B13", "SUM(B5:B12)", total.count)}${formulaCell("C13", "SUM(C5:C12)", total.kills)}${formulaCell("D13", "C13/B13", total.kills / total.count, 8)}${formulaCell("E13", "SUM(E5:E12)", total.classCounts.win)}${formulaCell("F13", "SUM(F5:F12)", total.classCounts.push)}${formulaCell("G13", "SUM(G5:G12)", total.classCounts.lose)}${formulaCell("H13", "SUMPRODUCT(H5:H12,B5:B12)/B13", total.spend / total.count, 7)}${formulaCell("I13", "SUMPRODUCT(I5:I12,B5:B12)/B13", total.payout / total.count, 7)}${formulaCell("J13", "SUMPRODUCT(J5:J12,B5:B12)/B13", total.returnX / total.count, 7)}${formulaCell("K13", "SUMPRODUCT(K5:K12,B5:B12)/B13", total.net / total.count, 7)}${formulaCell("L13", "SUM(L5:L12)", total.redrawStories)}${formulaCell("M13", "SUM(M5:M12)", total.count)}${formulaCell("N13", "SUM(N5:N12)", total.count)}</row>`);

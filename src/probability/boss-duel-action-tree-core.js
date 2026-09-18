@@ -27,7 +27,7 @@
   const SPEND_FACTORS = { win: 0.90, push: 1.00, lose: 1.18 };
   const STORAGE_KEY = "boss-duel:action-tree-carry:config:v2";
   const CHANNEL_NAME = "boss-duel:action-tree-carry:hot-update:v1";
-  // 三個統計玩家使用 10,000 基點；故事配籤另讀 storyPool.ticketBasis。
+  // 三個統計玩家使用 10,000 基點；劇本配籤另讀 storyPool.ticketBasis。
   const TICKET_BASIS = 10000;
   const PAYOUT_BUCKETS = [0, 1, 2, 3, 5, 8, 10, 15, 20, 30, 40, 50, 60, 80, 100, 150, 200, 300, 500, 1000];
   const BET_VALUES = [1, 2, 5, 10, 20, 50, 100, 200, 500, 800, 1000, 1200, 1500, 1800, 2000];
@@ -159,7 +159,7 @@
       pokerBoostEnabled: true, chainEnabled: false, bossRerollEnabled: true,
       paidDrawEnabled: true, tieRedealEnabled: true, strictNaturalGate: true
     },
-    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v11-score-ticket" },
+    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v12-score-ticket" },
     ruleSettings: {
       refreshCostX: 1, deckStopCount: 10,
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
@@ -558,7 +558,7 @@
 
   function drawFullClassStoryCommit(pool, config, star, random) {
     const cells = pool?.naturalCells?.[star] || pool?.cells?.[star];
-    if (!cells || TREE_KEYS.some((key) => !(cells[key] || []).length)) throw new Error(`${star} 星三分類故事池不完整`);
+    if (!cells || TREE_KEYS.some((key) => !(cells[key] || []).length)) throw new Error(`${star} 星三分類劇本池不完整`);
     const maxAttempts = config.storyPool.maxCandidateAttempts;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const candidates = TREE_KEYS.map((key) => {
@@ -945,7 +945,7 @@
 
   function simulateFullClassNaturalPopulation(config, options = {}) {
     const pool = options.pool;
-    if (!pool?.naturalCells && !pool?.cells) throw new Error("缺少已實跑的三分類故事池");
+    if (!pool?.naturalCells && !pool?.cells) throw new Error("缺少已實跑的三分類劇本池");
     const naturalConfig = NaturalCore.normalizeConfig(config);
     const runtimeStoryCache = options.runtimeStoryCache instanceof Map ? options.runtimeStoryCache : new Map();
     const cashoutMode = options.cashoutMode === true;
@@ -2058,13 +2058,13 @@
     const riskFindings = [
       {
         severity: "高", code: "TICKET_STARVATION",
-        evidence: `最小權重 ${minimumTicketWeightPct.toFixed(6)}%；單故事最大權重 ${ticketHealth.maxWeightPct.toFixed(3)}%`,
-        impact: "三個故事名義上存在，但個別故事可能近乎永遠抽不到；需決定最低籤權或接受此結果。"
+        evidence: `最小權重 ${minimumTicketWeightPct.toFixed(6)}%；單劇本最大權重 ${ticketHealth.maxWeightPct.toFixed(3)}%`,
+        impact: "三個劇本名義上存在，但個別劇本可能近乎永遠抽不到；需決定最低籤權或接受此結果。"
       },
       {
         severity: "中", code: "CANDIDATE_REJECTION_BIAS",
         evidence: `淘汰 ${ticketHealth.rejectedCandidateSets} 組，占全部嘗試 ${(ticketHealth.rejectedCandidateSets / Math.max(ticketHealth.candidateSetsTried, 1) * 100).toFixed(2)}%`,
-        impact: "無法配成目標 RTP 的三故事會整組重抽，實際候選分布不再等於從三池各均勻抽一次。"
+        impact: "無法配成目標 RTP 的三劇本會整組重抽，實際候選分布不再等於從三池各均勻抽一次。"
       },
       {
         severity: "中", code: "TARGET_RTP_POOL_TAIL",
@@ -2074,7 +2074,7 @@
       {
         severity: "高", code: "EXACT_REPLAY_BLIND_SPOT",
         evidence: `本次依目標 RTP 入池並實跑 ${correctionHealth.opportunities} 次非零補正機會`,
-        impact: "固定故事重播可驗證水池守恆與合法骰面容量；玩家臨場偏離分布仍需另做壓測。"
+        impact: "固定劇本重播可驗證水池守恆與合法骰面容量；玩家臨場偏離分布仍需另做壓測。"
       },
       {
         severity: "高", code: "DICE_CORRECTION_GAPS",

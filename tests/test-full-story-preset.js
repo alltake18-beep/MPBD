@@ -12,8 +12,8 @@ assert.equal(summaryPreset.signature, preset.signature, "summary and seed preset
 const pool = StoryCore.buildNaturalStoryPoolFromPreset(config, { ...preset, naturalSummaries: summaryPreset.naturalSummaries }, { useCache: false, includePath: false });
 assert(pool, "preset did not hydrate");
 assert.equal(pool.fromPreset, true);
-assert.equal(preset.version, "natural-story-preset-v15");
-assert.equal(summaryPreset.version, "natural-story-summary-preset-v9");
+assert.equal(preset.version, "natural-story-preset-v16");
+assert.equal(summaryPreset.version, "natural-story-summary-preset-v10");
 assert.equal(summaryPreset.format, "compact-summary-v1");
 assert.equal(pool.naturalStories, 240000);
 assert.equal(pool.totalStories, 240000);

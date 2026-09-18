@@ -27,7 +27,7 @@ for (const character of cssForBalance) {
 assert.equal(cssBraceDepth, 0, "Demo CSS has an unmatched block brace");
 assert.equal(cssMinimumDepth, 0, "Demo CSS closes a block before it is opened");
 assert(!html.includes("boss-duel-five-route.js") && !js.includes("BossDuelFiveRoute") && !js.includes("RouteCore"), "formal game must not load or fall back to the removed five-route model");
-assert(js.includes('if (!NaturalCore || !StoryPreset?.natural) throw new Error("正式故事池載入失敗")'), "missing formal story data must fail closed instead of switching models");
+assert(js.includes('if (!NaturalCore || !StoryPreset?.natural) throw new Error("正式劇本池載入失敗")'), "missing formal story data must fail closed instead of switching models");
 const shellRule = css.match(/\.game-shell\s*\{([^}]*)\}/)?.[1] || "";
 const shellWidth = Number(shellRule.match(/width:\s*(\d+)px/)?.[1]);
 const shellHeight = Number(shellRule.match(/height:\s*(\d+)px/)?.[1]);
@@ -253,11 +253,11 @@ assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.include
 assert(css.includes("width: min(366px,calc(100vw - 20px))") && css.includes("height: 584px") && css.includes("grid-template-rows: 252px auto") && css.includes(".tutorial-page .tutorial-preview { position: relative; width: 288px; max-width: 100%; height: 244px") && css.includes(".tutorial-bonus-preview { width: 306px; max-width: 100%; height: 218px"), "tutorial proportions must reserve dedicated live-preview and copy areas without clipping narrow screens");
 assert(css.includes("round-panel.png") && html.includes("round-word.png") && css.includes("round-numbers.png"), "the supplied ROUND panel, word, and number sheet must replace system text");
 assert(/\.round-ribbon\s*\{[^}]*width:\s*84px;[^}]*height:\s*59px;[^}]*transform:\s*none;/.test(css), "the top-left ROUND panel must use the original 84x59 reference size without the oversized 2x transform");
-assert(html.includes("src/core/boss-duel-poker-arrangement-core.js?v=frontend-v104") && html.includes("src/core/boss-duel-rules.js?v=frontend-v104") && html.includes("src/core/boss-duel-natural-story-core.js?v=frontend-v104") && html.includes("src/game/boss-duel-demo.js?v=frontend-v104") && html.includes("src/game/boss-duel-demo.css?v=frontend-v104"), "Demo code, shared arrangement, and live story assets must share the v104 cache key");
+assert(html.includes("src/core/boss-duel-poker-arrangement-core.js?v=frontend-v106") && html.includes("src/core/boss-duel-rules.js?v=frontend-v106") && html.includes("src/core/boss-duel-natural-story-core.js?v=frontend-v106") && html.includes("src/game/boss-duel-demo.js?v=frontend-v106") && html.includes("src/game/boss-duel-demo.css?v=frontend-v106"), "Demo code, shared arrangement, and live story assets must share the v106 cache key");
 assert(js.includes("STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION") && js.includes("NaturalCore.materializeStoryForBet") && js.includes("storyBetContract"), "game must use the shared X-multiplier story contract across every Bet and expose it in replay audit");
 assert(js.includes('els.betButton.setAttribute("aria-label", hand ? localeText("fold")') && js.includes('els.compareButton.setAttribute("aria-label", localeText("fight"))') && js.includes('els.entryButton.setAttribute("aria-label", roundResult ? localeText("continueRound")') && /els\.languageButton\.addEventListener\("click", \(\) => \{[\s\S]*?applyLocale\([\s\S]*?render\(\);/.test(js), "image-based primary actions must retain state-aware accessible names after state or locale changes");
 assert(js.includes("NaturalCore.drawUniformPresetStoryCommit") && js.includes("ticketBasis: 1000000") && !js.includes("ticketCandidateTournamentSize"), "normal Demo play must draw one candidate uniformly from each full class pool and score-ticket only those three candidates");
-assert(html.includes("src/core/boss-duel-story-planner.js?v=boss-plan-v11") && html.includes("data/story/boss-duel-story-preset-v1.js?v=story-catalog-v16"), "Demo must load the planner and current validated 240,000-story seed preset");
+assert(html.includes("src/core/boss-duel-story-planner.js?v=boss-plan-v12") && html.includes("data/story/boss-duel-story-preset-v1.js?v=story-catalog-v17"), "Demo must load the planner and current validated 240,000-story seed preset");
 assert(js.includes("executeRuntimeRedraw") && js.includes("plannedKeepIds") && js.includes("actualKeepIds") && js.includes("suppressionActive"), "Demo must compare each successful redraw with the planned action and persist suppression state");
 assert(js.includes("drawCostX(encounter.draws)") && js.includes("plannedRecordMissing: Boolean(redrawAudit?.plannedRecordMissing)"), "free redraw must advance the fee tier and missing planned redraws must remain visible in the operation audit");
 assert(js.includes("suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy") && js.includes("SUPPRESSION_STORAGE_KEY"), "game redraw and showdown must use the versioned suppression policy selected by the tool");
@@ -270,7 +270,7 @@ assert(!js.includes("storySpendDeltaTargetAccrualCredits") && js.includes("plann
 assert(js.includes("NaturalCore.normalizeTargetRtpPct(window.BOSS_DUEL_PLATFORM_CONFIG?.targetRtpPct)") && js.includes("lockedTargetRtpPct"), "platform RTP must be clamped to 80%-99% and locked into each Boss");
 assert(js.includes("settleStoryPool(organicPayoutCredits, true)") && js.includes("NaturalCore.settleStartedStory") && js.includes("organicPayoutCredits: organicPayout"), "the current killed Boss must debit organic payout and apply the shared legal-dice correction exactly once");
 assert(js.includes("Rules.createNaturalRound") && js.includes("1201 + tieIndex * 17") && !js.includes("Rules.createRound") && !js.includes("Rules.prepareCompare"), "every encounter must replay the formal natural story without an obsolete controlled-round fallback");
-assert(js.includes('qaParams.get("qaAudit") !== "1" || remainingStoryDraws === null') && js.includes("故事節奏：照自動保留再換") && js.includes("? 120 : HAND_SECONDS"), "story rhythm must remain available to QA audit without exposing the backend plan to ordinary players");
+assert(js.includes('qaParams.get("qaAudit") !== "1" || remainingStoryDraws === null') && js.includes("劇本節奏：照自動保留再換") && js.includes("? 120 : HAND_SECONDS"), "story rhythm must remain available to QA audit without exposing the backend plan to ordinary players");
 assert(js.includes('buttonMarkup("text-fold.png", "FOLD", "")') && !js.includes('buttonMarkup("text-fold.png", "FOLD", "GIVE UP")'), "the fold control must use one consistent FOLD label");
 assert(css.includes('.menu-button::after,.deck-stack::after') && css.includes('width: max(44px,100%)') && css.includes('.phase-ready.has-started #rerollButton') && css.includes('height: 44px'), "small menu, deck, and reroll controls must expose at least a 44px touch target");
 assert(js.includes("let storyExperience = loadStoryExperience(runtimeConfig)") && js.includes("if (leavingFixedStory) storyExperience = null"), "paid reroll from a fixed story must leave the selected story before spawning the next dynamic Boss");
@@ -286,7 +286,7 @@ assert.deepEqual(Rules.magicDisplay({ key: "flatDamage", label: "FIXED DMG", typ
 assert.equal(Rules.magicDisplay({ key: "threeBoost", label: "THREE OF A KIND", type: "DMG", value: 3 }).label, "THREE OF A KIND");
 assert.equal(Rules.magicDisplay({ key: "coin", label: "GOLD", type: "GOLD", value: 6 }).label, "+6x", "coin is the only card that exposes its amount at reveal");
 assert(js.includes('source: "NATURAL"'), "story experience must use the Natural-only catalog");
-assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v104"'), "probability tool must keep a direct link to the current frontend Demo");
+assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v106"'), "probability tool must keep a direct link to the current frontend Demo");
 assert(!html.includes("Killstreak") && !html.includes("連殺與魔法卡加成"), "disabled killstreak copy must not remain in the game tutorial or reroll prompt");
 
 console.log(JSON.stringify({

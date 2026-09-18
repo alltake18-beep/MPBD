@@ -411,8 +411,9 @@
       star,
       classKey,
       classLabel: STORY_LABELS[classKey],
-      behavior: "SMART_PROFIT_PLANNER",
-      plannerVersion: "boss-plan-v11",
+      behavior: "RULE_PLAYER_V1",
+      plannerVersion: "boss-plan-v12",
+      playerPolicyVersion: "story-player-policy-v1",
       hp: row[1],
       hpLeft: row[2],
       roundLimit: row[3],
@@ -859,7 +860,8 @@
     const originalBossRewardX = outcome.killed ? profile.dice.total : 0;
     return {
       id: storyId(star, seed), seed, star, classKey, classLabel: STORY_LABELS[classKey],
-      behavior: options.behavior || "SMART_PROFIT_PLANNER",
+      behavior: options.behavior || "RULE_PLAYER_V1",
+      playerPolicyVersion: outcome.playerPolicyVersion,
       plannerVersion: outcome.plannerVersion,
       hp: initialHp, hpLeft: outcome.hpLeft, roundLimit: profile.roundLimit, rounds: outcome.rounds, killed: outcome.killed,
       spendX, payoutX, netX, returnX, rtpPct: returnX * 100,
@@ -935,7 +937,7 @@
         }
       }
       const starCount = STORY_KEYS.reduce((sum, classKey) => sum + cells[star][classKey].length, 0);
-      if (starCount !== config.storiesPerStar) throw new Error(`${star} 星自然故事不是 ${config.storiesPerStar} 個`);
+      if (starCount !== config.storiesPerStar) throw new Error(`${star} 星自然劇本不是 ${config.storiesPerStar} 個`);
     }
     const pool = {
       version: "natural-story-runtime-classification-v1", signature, config: clone(config),
@@ -1075,15 +1077,15 @@
     };
   }
 
-  // 正式遊戲抽法：三個分類各自從完整自然故事池等機率抽一個，
-  // 再只依這三個故事的實際總押／總派彩配成目標 RTP。
-  // 不使用分類配比，也不在分類內以分數錦標賽偏挑靠近目標的故事。
+  // 正式遊戲抽法：三個分類各自從完整自然劇本池等機率抽一個，
+  // 再只依這三個劇本的實際總押／總派彩配成目標 RTP。
+  // 不使用分類配比，也不在分類內以分數錦標賽偏挑靠近目標的劇本。
   function drawUniformPresetStoryCommit(preset, configInput, starInput, targetRtpPct, rng = Math.random, options = {}) {
     const config = configInput?.storiesPerStar === undefined ? normalizeConfig(configInput) : configInput;
     const star = integer(starInput, 1, 1, 8);
     const naturalCells = preset?.natural?.[star];
     const seedRows = STORY_KEYS.flatMap((key) => naturalCells?.[key] || []);
-    if (!naturalCells || seedRows.length !== config.storiesPerStar) throw new Error(`${star} 星遊戲故事 seed 不是 ${config.storiesPerStar} 個`);
+    if (!naturalCells || seedRows.length !== config.storiesPerStar) throw new Error(`${star} 星遊戲劇本 seed 不是 ${config.storiesPerStar} 個`);
     const invalidCells = STORY_KEYS.filter((key) => (naturalCells[key] || []).length !== config.storiesPerClass);
     if (invalidCells.length) throw new Error(`${star} 星${invalidCells.map((key) => STORY_LABELS[key]).join("、")}不是各 ${config.storiesPerClass} 個，無法抽正式三候選`);
 
@@ -1093,7 +1095,7 @@
     const replay = (seedInput) => {
       const seed = Number(seedInput) >>> 0;
       if (!replayCache.has(seed)) {
-        const story = simulateNaturalStory(config, star, seed, { includePath: options.includePath === true, behavior: "SMART_PROFIT_PLANNER" });
+        const story = simulateNaturalStory(config, star, seed, { includePath: options.includePath === true, behavior: "RULE_PLAYER_V1" });
         story.sourcePool = "NATURAL";
         replayCache.set(seed, story);
       }
