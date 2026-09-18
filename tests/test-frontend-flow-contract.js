@@ -8,7 +8,6 @@ const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "遊戲Demo.html"), "utf8");
 const css = fs.readFileSync(path.join(root, "src", "game", "boss-duel-demo.css"), "utf8");
 const js = fs.readFileSync(path.join(root, "src", "game", "boss-duel-demo.js"), "utf8");
-const toolHtml = fs.readFileSync(path.join(root, "機率工具.html"), "utf8");
 const DiceCore = require(path.join(root, "src", "core", "boss-duel-random.js"));
 const Rules = require(path.join(root, "src", "core", "boss-duel-rules.js"));
 const sourceBetween = (source, startMarker, endMarker) => {
@@ -184,7 +183,6 @@ assert(js.includes('els.gameShell.style.top = `${viewportTop + safeArea.top}px`'
 assert(!css.includes(".phase-boss-dialogue .combat-message") && !css.includes(".phase-boss-victory-dialogue .combat-message"), "Boss speech must never cover the table after compare or damage");
 assert(css.includes(".phase-round-result .combat-message,.phase-resolved-loss .combat-message { display: none; }"), "round result must keep the former speech area hidden");
 assert(html.includes('location.protocol === "file:"') && html.includes("http://127.0.0.1:4173/"), "file-opened Demo must redirect to the local server so Boss Spine assets can load");
-assert(toolHtml.includes('location.protocol === "file:"') && toolHtml.includes("http://127.0.0.1:4173/"), "file-opened probability tool must share the Demo HTTP origin so hot update remains connected");
 assert(js.includes('data-effect-toggle=') && js.includes('aria-expanded=') && css.includes('.playing-card.effect-expanded'), "bound damage values must expand on tap without being covered by neighboring cards");
 assert(js.includes('data-magic-preview=') && js.includes("openMagicPreview(Number(card.dataset.magicPreview))") && js.includes("if (event.target === els.magicPreview) closeMagicPreview()"), "left mini magic cards must reopen supplied big-card art and close from the backdrop without game-state writes");
 assert(/\.deck-stack\s*\{[^}]*top:\s*-12px;[^}]*right:\s*-15px;/.test(css) && /\.deck-stack b\s*\{[^}]*right:\s*-5px;[^}]*bottom:\s*8px;[^}]*min-width:\s*46px;[^}]*font-size:\s*13px;/.test(css) && js.includes('`${encounter.presentation.playerDeck.length}/52`') && js.includes('const atRoundBoundary = encounter.phase === "round-result"'), "deck count must stay at the pile bottom-right as n/52 while the entire pile clears the ONE PAIR paytable row and remains inside the viewport");
@@ -253,7 +251,7 @@ assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.include
 assert(css.includes("width: min(366px,calc(100vw - 20px))") && css.includes("height: 584px") && css.includes("grid-template-rows: 252px auto") && css.includes(".tutorial-page .tutorial-preview { position: relative; width: 288px; max-width: 100%; height: 244px") && css.includes(".tutorial-bonus-preview { width: 306px; max-width: 100%; height: 218px"), "tutorial proportions must reserve dedicated live-preview and copy areas without clipping narrow screens");
 assert(css.includes("round-panel.png") && html.includes("round-word.png") && css.includes("round-numbers.png"), "the supplied ROUND panel, word, and number sheet must replace system text");
 assert(/\.round-ribbon\s*\{[^}]*width:\s*84px;[^}]*height:\s*59px;[^}]*transform:\s*none;/.test(css), "the top-left ROUND panel must use the original 84x59 reference size without the oversized 2x transform");
-assert(html.includes("src/core/boss-duel-poker-arrangement-core.js?v=frontend-v106") && html.includes("src/core/boss-duel-rules.js?v=frontend-v106") && html.includes("src/core/boss-duel-natural-story-core.js?v=frontend-v106") && html.includes("src/game/boss-duel-demo.js?v=frontend-v106") && html.includes("src/game/boss-duel-demo.css?v=frontend-v106"), "Demo code, shared arrangement, and live story assets must share the v106 cache key");
+assert(html.includes("src/core/boss-duel-poker-arrangement-core.js?v=frontend-v107") && html.includes("src/core/boss-duel-rules.js?v=frontend-v107") && html.includes("src/core/boss-duel-natural-story-core.js?v=frontend-v107") && html.includes("src/game/boss-duel-demo.js?v=frontend-v107") && html.includes("src/game/boss-duel-demo.css?v=frontend-v107"), "Demo code, shared arrangement, and live story assets must share the v107 cache key");
 assert(js.includes("STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION") && js.includes("NaturalCore.materializeStoryForBet") && js.includes("storyBetContract"), "game must use the shared X-multiplier story contract across every Bet and expose it in replay audit");
 assert(js.includes('els.betButton.setAttribute("aria-label", hand ? localeText("fold")') && js.includes('els.compareButton.setAttribute("aria-label", localeText("fight"))') && js.includes('els.entryButton.setAttribute("aria-label", roundResult ? localeText("continueRound")') && /els\.languageButton\.addEventListener\("click", \(\) => \{[\s\S]*?applyLocale\([\s\S]*?render\(\);/.test(js), "image-based primary actions must retain state-aware accessible names after state or locale changes");
 assert(js.includes("NaturalCore.drawUniformPresetStoryCommit") && js.includes("ticketBasis: 1000000") && !js.includes("ticketCandidateTournamentSize"), "normal Demo play must draw one candidate uniformly from each full class pool and score-ticket only those three candidates");
@@ -286,7 +284,8 @@ assert.deepEqual(Rules.magicDisplay({ key: "flatDamage", label: "FIXED DMG", typ
 assert.equal(Rules.magicDisplay({ key: "threeBoost", label: "THREE OF A KIND", type: "DMG", value: 3 }).label, "THREE OF A KIND");
 assert.equal(Rules.magicDisplay({ key: "coin", label: "GOLD", type: "GOLD", value: 6 }).label, "+6x", "coin is the only card that exposes its amount at reveal");
 assert(js.includes('source: "NATURAL"'), "story experience must use the Natural-only catalog");
-assert(toolHtml.includes('href="%E9%81%8A%E6%88%B2Demo.html?v=frontend-v106"'), "probability tool must keep a direct link to the current frontend Demo");
+assert(!html.includes("機率工具") && !html.includes("action-tree-v"), "public Demo must not expose the internal probability tool");
+assert(html.includes('id="modelInfoButton"') && html.includes('title="MODEL" hidden') && js.includes('els.modelInfoButton.hidden = qaParams.get("qaAudit") !== "1"'), "model diagnostics must stay hidden outside explicit QA audit mode");
 assert(!html.includes("Killstreak") && !html.includes("連殺與魔法卡加成"), "disabled killstreak copy must not remain in the game tutorial or reroll prompt");
 
 console.log(JSON.stringify({

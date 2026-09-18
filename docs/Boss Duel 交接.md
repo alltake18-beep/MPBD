@@ -15,8 +15,8 @@
 
 | 項目 | 現行版本 | 現行契約 |
 |---|---|---|
-| 手機遊戲 | `frontend-v106` | 正式劇本、三候選配籤、三個個人劇本水池、逐筆實付入池 |
-| 機率工具 | `action-tree-v64` | 四種玩家、正式 240,000 筆劇本、背景 Worker、現行水池與抑制報表 |
+| 手機遊戲 | `frontend-v107` | 正式劇本、三候選配籤、三個個人劇本水池、逐筆實付入池；公開頁不提供內部工具入口 |
+| 本機機率工具 | `action-tree-v64` | 四種玩家、正式 240,000 筆劇本、背景 Worker、現行水池與抑制報表；不追蹤、不發布 |
 | 後端文件 | `backend-doc-v18` | 現行工程流程與資料契約 |
 | 牌局規則 | `rules-v11` | 發牌、牌型、傷害、魔法卡、換牌與骰獎 |
 | 理牌核心 | `arrange-v10` | 遊戲、理牌試玩與劇本產生共用 |
@@ -31,10 +31,11 @@
 
 對外入口：
 
-- [遊戲 Demo](https://alltake18-beep.github.io/MPBD/%E9%81%8A%E6%88%B2Demo.html?v=frontend-v106)
-- [機率工具](https://alltake18-beep.github.io/MPBD/%E6%A9%9F%E7%8E%87%E5%B7%A5%E5%85%B7.html?v=action-tree-v64)
+- [遊戲 Demo](https://alltake18-beep.github.io/MPBD/%E9%81%8A%E6%88%B2Demo.html?v=frontend-v107)
 - [後端文件](https://alltake18-beep.github.io/MPBD/%E5%BE%8C%E7%AB%AF%E6%96%87%E4%BB%B6.html?v=backend-doc-v18)
 - [GitHub 專案](https://github.com/alltake18-beep/MPBD)
+
+發布邊界：GitHub Pages 只提供遊戲與交付文件。`機率工具.html`、機率工具操作程式、背景 Worker、專用樣式及專用測試只保留在授權的本機工作環境，不得加入 Git；一般遊戲網址也不顯示模型診斷入口，只有明確加入 `qaAudit=1` 的本機 QA 網址才顯示。
 
 ## 2. 必須先分清楚的三種資料
 
@@ -291,7 +292,9 @@ Bet 1、RTP 96%，抽中劇本預定總實付 1、預定總派彩 8：
 
 一般玩家可以在任何合法手牌自行 FIGHT 或 FOLD，也可手動改保留集合。倒數結束才依劇本規劃器的高牌 FOLD／一對以上 FIGHT 規則代為選擇。劇本玩家規則只控制離線產生與忠實重播，不剝奪一般玩家操作權。
 
-## 10. 機率工具 `action-tree-v64`
+## 10. 本機機率工具 `action-tree-v64`
+
+本節描述內部 QA 契約。工具只在本機使用，不是 GitHub Pages 對外產品，也不應由公開 Demo 提供入口。
 
 ### 10.1 參數結構
 
@@ -349,7 +352,7 @@ Bet 1、RTP 96%，抽中劇本預定總實付 1、預定總派彩 8：
 
 Boss 理論最高獎依實際可抽骰型計算，1～8 星依序為 6x、36x、72x、144x、216x、288x、432x、576x。
 
-## 11. 遊戲 `frontend-v106`
+## 11. 遊戲 `frontend-v107`
 
 - 三候選抽中後鎖定劇本、RTP、版本與抑制簽章；前端只表演已鎖定結果。
 - START 表演十張魔法卡候選，再亮出後端已鎖定的兩張；一般與 Turbo 都不得重新抽取。
@@ -392,7 +395,7 @@ Excel 不常駐 Repository。需要交付時，以 `tools/generate-story-details
 - `arrange-v10` 的同花順／四條強制覆蓋、四張核心效果補位、二至三張核心補暴擊／固傷與同牌去重通過。
 - 抑制只有輸劇本成功 REDRAW 偏離啟動；贏多與贏只記偏離；`plannedRecordMissing`、候選重播與傷害分表通過。
 - 個人水池的贏多、贏、輸未擊殺、輸但擊殺四種偏離分支，逐筆實付、REROLL BOSS、三桶隔離、預留與 0.1～10 倍合法骰獎補正通過。
-- 本機瀏覽器確認遊戲、機率工具與後端文件可載入，主控台錯誤與警告為 0。
+- 本機瀏覽器確認遊戲、本機機率工具與後端文件可載入，主控台錯誤與警告為 0。
 - 本機瀏覽器確認一般／Turbo 魔法十選二表演、傷害與 HP 同步、1 星與 8 星開獎、快速點骰只結算一次。
 - 390×695 與 360×640 瀏覽器視窗已檢查主要流程與溢位。
 
@@ -409,7 +412,8 @@ Excel 不常駐 Repository。需要交付時，以 `tools/generate-story-details
 | 檔案 | 現行責任 |
 |---|---|
 | `遊戲Demo.html`、`src/game/` | 遊戲頁面、入場、表演、劇本鎖定與前端稽核 |
-| `機率工具.html`、`src/probability/` | 機率工具、四玩家模擬、背景 Worker、報表與參數保存 |
+| 本機 `機率工具.html`、機率工具 UI／Worker／樣式 | 內部 QA；由 `.gitignore` 排除，不發布到 GitHub Pages |
+| `src/probability/boss-duel-action-tree-core.js` | 正式產生與本機 QA 共用的模擬核心 |
 | `src/core/boss-duel-rules.js` | 正式牌局、發牌、魔法、傷害與換牌 |
 | `src/core/boss-duel-poker-arrangement-core.js` | 唯一理牌、保留、替換與排序實作 |
 | `src/core/boss-duel-story-planner.js` | 離線劇本玩家互斥選路、換牌上限與 FIGHT／FOLD |
@@ -427,7 +431,7 @@ Excel 不常駐 Repository。需要交付時，以 `tools/generate-story-details
 
 ## 15. 接手後的優先順序
 
-1. 以 Android 與 iOS 實體裝置驗證 `frontend-v106`。
+1. 以 Android 與 iOS 實體裝置驗證 `frontend-v107`。
 2. 執行百萬局 RTP、三桶水池與各星合法骰獎補正壓測。
 3. 將正式產生器接入後端版本化持久儲存，完成原子切換、回滾與失敗復原。
 4. 壓測每日最稀少分類的產能與資源使用。

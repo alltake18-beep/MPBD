@@ -33,6 +33,15 @@ outputs/
 # Local server
 dev-server.mjs
 
+# Internal probability tool. Keep these files available locally, but never
+# publish them with the playable GitHub Pages Demo.
+/機率工具.html
+/src/probability/boss-duel-action-tree-lab.css
+/src/probability/boss-duel-action-tree-lab.js
+/src/probability/boss-duel-action-tree-worker.js
+/src/probability/styles.css
+/tests/test-action-tree-tool-schema.js
+
 # OS/editor noise
 .DS_Store
 Thumbs.db

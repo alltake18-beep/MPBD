@@ -6,7 +6,7 @@
 
 ## Current Status
 
-- 現行遊戲：`frontend-v106`；機率工具：`action-tree-v64`；後端文件：`backend-doc-v18`。
+- 現行遊戲：`frontend-v107`；本機機率工具：`action-tree-v64`；後端文件：`backend-doc-v18`。機率工具頁面、UI、Worker、樣式及專用測試不追蹤、不發布。
 - 現行規劃器：`boss-plan-v12`／`story-player-policy-v1`；理牌核心：`arrange-v10`；操作軌跡：`story-action-trace-v2`；抑制：`deviation-suppression-v5-lose-story-only`。
 - 現行正式劇本：`natural-story-preset-v16`，共 240,000 筆，不分 Bet；贏多為總派彩／總實付 `>=5`、贏為 `>=1` 且 `<5`、輸為 `<1`，24 格各 10,000 筆，已完成全量重播。
 - Repository 專案工作規則在根目錄 `AGENTS.md`；完整產品規格維持於 `docs/Boss Duel 交接.md`。
@@ -57,7 +57,7 @@
 - `docs/Boss Duel 交接.md`：現行產品規格與詳細驗證紀錄。
 - `README.md`：檔案責任與驗證入口。
 - `遊戲Demo.html`、`src/game/`：遊戲頁面與前端表演。
-- `機率工具.html`、`src/probability/`：機率工具。
+- 本機 `機率工具.html` 與 UI／Worker／樣式：內部 QA，由 `.gitignore` 排除；`src/probability/boss-duel-action-tree-core.js` 仍是正式產生與 QA 共用核心。
 - `src/core/`：共用規則、理牌、規劃與劇本核心。
 - `server/boss-duel-story-generator.js`：正式 240,000 筆劇本產生入口。
 - `後端文件.html`：交付工程師的後端規格。
@@ -72,8 +72,8 @@
 
 ## Validation Status
 
-- `frontend-v106`／`action-tree-v64`／`backend-doc-v18` 已移除機率工具的 REROLL BOSS 費用欄位，將初始手牌重抽獨立為外層 05、劇本產生順延為 06，並把中文介面與規格用詞統一為「劇本」；全部 10 組測試通過。
-- `frontend-v106`／`action-tree-v64`／`backend-doc-v18` 為現行版本；`natural-story-preset-v16` 已從空白完成 240,000 筆正式劇本與全量重播，24 格各 10,000 筆。生成採先產生後分類、缺額星級鎖定與自適應批量；1～8 星嘗試量依序為 349,562、116,033、118,427、77,805、69,198、66,500、57,000、74,499 局。
+- `frontend-v107` 將機率工具頁面與所有公開入口自 Git 移除；標準 Demo 隱藏模型診斷入口，只有 `qaAudit=1` 顯示。本機 `action-tree-v64` 保留使用，公開頁面契約與本機完整測試通過。
+- `frontend-v107`／本機 `action-tree-v64`／`backend-doc-v18` 為現行版本；`natural-story-preset-v16` 已從空白完成 240,000 筆正式劇本與全量重播，24 格各 10,000 筆。生成採先產生後分類、缺額星級鎖定與自適應批量；1～8 星嘗試量依序為 349,562、116,033、118,427、77,805、69,198、66,500、57,000、74,499 局。
 - `action-tree-v58` 將「各星 BOSS 劇本抽中分布」欄位改為星級／BOSS 數／三分類占比／三分類數量，並套用 2026-09-17 匯出參數作為機率工具出廠預設；全部 10 組測試通過。本機瀏覽器已確認新預設與欄位順序，主控台錯誤與警告為 0。獨立退幣的 1 人預設保留，但不適合估計穩定退幣率。
 - `action-tree-v59` 將退幣起始資產／目標改為實際分數 100／200；退幣沿用主模擬玩家行為、RTP、Bet 模式與同一次隨機種子。付不起指定入場 Bet 才死亡，付不起的換牌不執行，達標後在 BOSS 結算點立即停止，不設回合或 BOSS 上限；統計表結構未改。全部 10 組測試通過，本機極端玩家 1 人 × 主模擬 100 隻實跑完成，主控台錯誤與警告為 0。
 - `frontend-v103`／`action-tree-v61`／`backend-doc-v15` 將個人劇本水池改為 `story-budget-personal-pool-v5-live-wager`：第一次 START 記入劇本首次調整與入場實付，CONTINUE、付費 REDRAW 與 REROLL BOSS 每次成功實付即時依 RTP 入池，擊殺時全額扣實際派彩，結算不再補押注差額。贏多、贏、輸未擊殺與輸但擊殺四種偏離分支已有定向回歸；全部 10 組測試通過。

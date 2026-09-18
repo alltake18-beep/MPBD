@@ -7,9 +7,10 @@ GitHub Pages 開啟根網址後會自動進入遊戲；建議使用直向手機�
 ## 入口
 
 - 遊戲：`遊戲Demo.html`
-- 機率工具：`機率工具.html`
 - 後端文件：`後端文件.html`
 - 理牌試玩：`理牌試玩.html`
+
+機率工具是本機內部 QA 工具，其頁面與操作介面不追蹤、不發布到 GitHub Pages。
 
 ## 現行文件
 
@@ -27,7 +28,7 @@ GitHub Pages 開啟根網址後會自動進入遊戲；建議使用直向手機�
 | 自動理牌 | `src/core/boss-duel-poker-arrangement-core.js` |
 | 劇本規劃、重播與分類 | `src/core/boss-duel-story-planner.js`、`src/core/boss-duel-natural-story-core.js`、`server/boss-duel-story-generator.js` |
 | 遊戲 | `遊戲Demo.html`、`src/game/` |
-| 機率工具 | `機率工具.html`、`src/probability/` |
+| 共用模擬核心 | `src/probability/boss-duel-action-tree-core.js`；供正式產生與本機 QA 共用 |
 | 對外工程規格 | `後端文件.html`、`docs/Boss Duel 產生劇本業務邏輯.md` |
 
 `data/story/` 只放正式產生器輸出的 240,000 筆劇本索引與摘要，不可手動修改。Excel 僅使用 `tools/build-story-workbook-streaming.js` 產生。
@@ -38,6 +39,6 @@ GitHub Pages 開啟根網址後會自動進入遊戲；建議使用直向手機�
 node tests/run-tests.js
 ```
 
-此指令會執行全部 10 組測試，包含 240,000 筆劇本數量、重播、三分類、跨 Bet、抑制、遊戲流程與公開頁面契約。規則、共用核心、劇本資料、遊戲流程或跨頁契約變更應完整通過再發布；單純文案或連結調整只需執行直接受影響的檢查。
+此指令會執行目前工作目錄內的全部測試，包含 240,000 筆劇本數量、重播、三分類、跨 Bet、抑制、遊戲流程與公開頁面契約；本機若保留內部機率工具，會額外執行其專用測試。規則、共用核心、劇本資料、遊戲流程或跨頁契約變更應完整通過再發布；單純文案或連結調整只需執行直接受影響的檢查。
 
 本儲存庫不包含本機測試報告、Excel 匯出、開發工具與環境快取。

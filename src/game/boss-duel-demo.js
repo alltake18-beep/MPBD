@@ -55,6 +55,7 @@
     { key: "cinderdragon", name: "CINDER DRAGON", title: "assets/mobile/text-cinderdragon.png", fallback: "assets/mobile/boss-fallback/cinderdragon.png" }
   ];
   const qaParams = new URLSearchParams(location.search);
+  els.modelInfoButton.hidden = qaParams.get("qaAudit") !== "1";
   const qaBossOverride = qaParams.get("qa") === "1" && bossSkins.some((boss) => boss.key === qaParams.get("boss"))
     ? qaParams.get("boss")
     : "";
