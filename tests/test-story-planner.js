@@ -83,6 +83,17 @@ for (const step of formerChase.path) {
   assert(step.totalBetAfter >= step.totalBetBefore);
 }
 
+const entryOnlyBudget = StoryCore.simulateNaturalStory(config, 1, 927000383, {
+  includePath: true,
+  maxSpendX: 1
+});
+assert.equal(entryOnlyBudget.spendX, 1, "an affordable START must execute even when the next scripted paid redraw is unaffordable");
+assert.equal(entryOnlyBudget.rounds, 1, "the funded round must resolve before the story stops for insufficient funds");
+assert.equal(entryOnlyBudget.path[0].freeDraws, 1, "an affordable free redraw must still execute");
+assert.equal(entryOnlyBudget.path[0].paidDraws, 0, "an unaffordable paid redraw must not execute");
+assert.equal(entryOnlyBudget.terminationReason, "INSUFFICIENT_FUNDS");
+assert(entryOnlyBudget.spendX <= 1, "cashout replay must never exceed the available score");
+
 let checked = 0;
 let manual = 0;
 for (let star = 1; star <= 8; star += 1) {

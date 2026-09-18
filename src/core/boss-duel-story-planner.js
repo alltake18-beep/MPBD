@@ -404,6 +404,9 @@
 
   function enumerateRoundActions(sourceState, config, runOptions = {}) {
     const includeDetails = runOptions.includeDetails !== false;
+    const maxDrawSpendX = Number.isFinite(Number(runOptions.maxDrawSpendX))
+      ? Math.max(0, finite(runOptions.maxDrawSpendX, 0))
+      : Infinity;
     const original = cloneRoundState(sourceState);
     const autoKeepCardIds = cardIds(keptCards(original)).sort();
     const routes = routeCandidates(original).map((route) => ({ ...route, autoKeepCardIds }));
@@ -444,6 +447,7 @@
       } else {
         if (!config.paidDrawEnabled || paidDraws >= paidDrawLimit) break;
         feeX = drawFee(config, drawLog.length);
+        if (drawSpendX + feeX > maxDrawSpendX + 1e-9) break;
         drawSpendX += feeX;
         paidDraws += 1;
       }
@@ -770,16 +774,30 @@
         safety.hpLeft = hpLeft;
         return safety;
       }
+      const entrySpendX = tieIndex === 0 ? 1 : 0;
+      if (spentSoFar + entrySpendX > maxSpendX + 1e-9) {
+        const insufficient = emptyOutcome("INSUFFICIENT_FUNDS");
+        insufficient.hpLeft = hpLeft;
+        return insufficient;
+      }
       const cacheKey = `${round}:${tieIndex}:${hpLeft}:${bankedCoinX}:${mayStop ? 1 : 0}:${spentSoFar}:${realizedPayoutSoFar}`;
       if (solveCache.has(cacheKey)) return solveCache.get(cacheKey);
       let best = null;
       const state = getRound(round, tieIndex);
-      const actionKey = `${round}:${tieIndex}`;
-      if (!actionCache.has(actionKey)) actionCache.set(actionKey, enumerateRoundActions(state, config, { includeDetails: includePath }));
+      const availableDrawSpendX = Number.isFinite(maxSpendX)
+        ? Math.max(0, maxSpendX - spentSoFar - entrySpendX)
+        : Infinity;
+      const actionKey = `${round}:${tieIndex}:${Number.isFinite(availableDrawSpendX) ? availableDrawSpendX : "INF"}`;
+      if (!actionCache.has(actionKey)) {
+        actionCache.set(actionKey, enumerateRoundActions(state, config, {
+          includeDetails: includePath,
+          maxDrawSpendX: availableDrawSpendX
+        }));
+      }
       const options = actionCache.get(actionKey);
       for (const option of options) {
         const nextCoinX = bankedCoinX + option.coinX;
-        const optionSpendX = (tieIndex === 0 ? 1 : 0) + option.drawSpendX;
+        const optionSpendX = entrySpendX + option.drawSpendX;
         if (spentSoFar + optionSpendX > maxSpendX + 1e-9) continue;
         const currentHandPayoutX = option.playerWins && !option.tie ? handPayoutX(option.finalHand) : 0;
         let tail;

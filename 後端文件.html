@@ -19,7 +19,7 @@
     <header>
       <p class="eyebrow">工程唯一現行規格 · 2026-09-18</p>
       <h1>Boss Duel 後端文件</h1>
-      <div class="badges"><span class="badge">backend-doc-v19</span><span class="badge">suppression-v5 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
+      <div class="badges"><span class="badge">backend-doc-v20</span><span class="badge">suppression-v5 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
       <div class="grid four" style="margin-top:16px">
         <div class="card"><strong>劇本來源</strong><code>story-player-policy-v1</code> 只依當下資訊固定選路並跑完整隻 Boss；同一劇本以 X 倍數通用所有 Bet。</div>
         <div class="card"><strong>新 Boss 抽取</strong>贏多、贏、輸三個完整分類各抽 1 個；贏多至少 3%、贏至少 35%，再做目標 RTP 分數配籤。</div>
@@ -73,6 +73,7 @@
         <tr><td>重播</td><td>保存全部候選、選中路線、初始保留、每次換牌與強制覆蓋；相同 seed、設定與版本必須得到相同軌跡。</td></tr>
       </tbody></table></div>
       <div class="note"><strong>一般玩家自動保留：</strong>前端的一般玩家仍使用既有基礎核心加效果牌補位規則；這不等於離線劇本玩家選路。劇本玩家走一般路線時只取 <code>coreCards</code>，效果牌只有在相容候選核心內才會跟著保留。</div>
+      <div class="note"><strong>機率工具的劇本玩家：</strong>資金足夠時，牌局操作依抽中的正式劇本執行。獨立退幣會逐筆檢查支付能力：可付入場就開始，免費換牌照做，付不起的付費換牌不執行，並以當下手牌完成 FIGHT／FOLD；下一回合入場付不起時停止該 Boss。最終實際派彩仍依個人劇本水池結算。</div>
       <div class="note"><strong>REDRAW 保留契約：</strong>保留牌不區分系統自動或玩家手選，送出 REDRAW 時全部視為玩家確認，一般情況不得取消。唯一例外是換牌後完整六張已形成皇家同花順、同花順或四條；此時直接改保留優先序最高的完成牌型，即使必須取消先前保留。其他牌型仍必須完整包含全部確認牌。</div>
       <h3>2.3 固定開發順序</h3>
       <div class="steps">
@@ -329,7 +330,7 @@
         <tr><td><a href="server/boss-duel-story-generator.js"><code>server/boss-duel-story-generator.js</code></a></td><td>工程正式入口：協調現行核心，產生每星三種結果各 10,000、全量重播、checkpoint、簽章與原子發布；以 X 倍數劇本通用所有 Bet。</td></tr>
         <tr><td><code>src/core/boss-duel-natural-story-core.js</code></td><td>劇本生成、分類、三候選與配籤；唯一 <code>story-bet-scaling-v1</code> 換算；<code>deviation-suppression-v5-lose-story-only</code> 確定性分表抽取，以及 <code>story-budget-personal-pool-v5-live-wager</code> 三桶、首次劇本調整、逐筆實付入池、預留與合法骰獎補正核心。</td></tr>
         <tr><td><code>src/game/boss-duel-demo.js</code></td><td>遊戲接線：比牌前隱藏傷害魔法數值、玩家實際總押、偏離鎖定、換 Boss／BET、分表魔法結算與個人劇本水池結算。</td></tr>
-        <tr><td><code>src/probability/boss-duel-action-tree-core.js</code></td><td>工具四玩家統計、逐利玩家配籤、個人劇本水池、補正容量與抑制參數資料契約。</td></tr>
+        <tr><td><code>src/probability/boss-duel-action-tree-core.js</code></td><td>工具四玩家統計、劇本玩家配籤與忠實執行、個人劇本水池、補正容量與抑制參數資料契約。</td></tr>
         <tr><td><code>src/probability/boss-duel-action-tree-lab.js</code></td><td>工具操作、分類參數區塊、抑制專用表設定、補正試算與統計報表。</td></tr>
         <tr><td><code>src/core/boss-duel-story-planner.js</code></td><td>離線劇本玩家固定規則；負責當下資訊的互斥選路、Joker、路線鎖定、換牌上限與 FIGHT／FOLD。</td></tr>
         <tr><td><code>src/core/boss-duel-poker-arrangement-core.js</code></td><td>正式遊戲與理牌試玩共用的保留、替換與排序核心。</td></tr>

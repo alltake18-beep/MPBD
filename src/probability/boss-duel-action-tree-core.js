@@ -1057,7 +1057,7 @@
             redrawCredits: redrawSpendCredits,
             bossRerollCredits: 0
           },
-          // 逐利玩家忠實重播；其餘模式依行為操作並保存偏離與抑制稽核。
+          // 劇本玩家忠實執行抽中劇本；其餘模式依行為操作並保存偏離與抑制稽核。
           suppressionActive: Boolean(story.suppressionActive),
           deviationCount: Math.max(0, finite(story.deviationCount, 0)),
           redrawAudits: story.redrawAudits || []
