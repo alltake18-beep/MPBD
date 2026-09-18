@@ -32,10 +32,12 @@ const StoryPlanner = require("../src/core/boss-duel-story-planner.js");
 const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionTreeCore = require("../src/probability/boss-duel-action-tree-core.js");
 
-const SERVICE_VERSION = "boss-duel-story-generator-v1";
+const SERVICE_VERSION = "boss-duel-story-generator-v2";
 const GENERATOR_REVISION = "boss-plan-v12-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-threshold5-production-v6";
 const PRESET_VERSION = "natural-story-preset-v16";
 const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v10";
+const PRESET_FILE_NAME = `boss-duel-story-preset-${PRESET_VERSION.match(/v\d+$/)[0]}.js`;
+const SUMMARY_PRESET_FILE_NAME = `boss-duel-story-summary-preset-${SUMMARY_PRESET_VERSION.match(/v\d+$/)[0]}.js`;
 const ARRANGEMENT_VERSION = "arrange-v10";
 const FORMAL_STORIES_PER_CLASS = 10000;
 const FORMAL_STORIES_PER_STAR = 30000;
@@ -712,8 +714,8 @@ async function buildRelease(options = {}) {
 
   const storyDataRoot = path.join(stagingRoot, "data", "story");
   fs.mkdirSync(storyDataRoot, { recursive: true });
-  const presetFile = path.join(storyDataRoot, "boss-duel-story-preset-v1.js");
-  const summaryFile = path.join(storyDataRoot, "boss-duel-story-summary-preset-v1.js");
+  const presetFile = path.join(storyDataRoot, PRESET_FILE_NAME);
+  const summaryFile = path.join(storyDataRoot, SUMMARY_PRESET_FILE_NAME);
   const diagnosticsFile = path.join(storyDataRoot, "natural-story-diagnostics.json");
   atomicWrite(presetFile, presetJavascript("BossDuelStoryPresetV1", preset));
   atomicWrite(summaryFile, presetJavascript("BossDuelStorySummaryPresetV1", summaryPreset));
@@ -836,6 +838,8 @@ const publicApi = {
   GENERATOR_REVISION,
   PRESET_VERSION,
   SUMMARY_PRESET_VERSION,
+  PRESET_FILE_NAME,
+  SUMMARY_PRESET_FILE_NAME,
   ARRANGEMENT_VERSION,
   FORMAL_STORIES_PER_CLASS,
   FORMAL_STORIES_PER_STAR,

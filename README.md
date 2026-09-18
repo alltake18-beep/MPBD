@@ -15,6 +15,7 @@ GitHub Pages 開啟根網址後會自動進入遊戲；建議使用直向手機�
 ## 現行文件
 
 - [劇本池數學模型](docs/Boss%20Duel%20劇本池數學模型.md)
+- [劇本玩家規則](docs/Boss%20Duel%20劇本玩家規則%20V1.md)
 - [產生劇本業務邏輯](docs/Boss%20Duel%20產生劇本業務邏輯.md)
 - [專案交接](docs/Boss%20Duel%20交接.md)
 

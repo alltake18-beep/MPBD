@@ -1301,6 +1301,34 @@
     return { config, story: commit.selectedStory, source: "NATURAL", commit };
   }
 
+  function storyTicketSelectionAudit(commit, targetRtpPct) {
+    if (!commit || !Array.isArray(commit.candidates) || !Array.isArray(commit.ticketCounts)) return null;
+    return {
+      policy: commit.selectionPolicy || "",
+      policyVersion: commit.selectionPolicyVersion || "",
+      targetRtpPct,
+      candidateSetsEvaluated: Number(commit.candidateSetsEvaluated) || 0,
+      ticketBasis: Number(commit.ticketBasis) || 0,
+      ticketRoll: Number(commit.ticketRoll) || 0,
+      selectedIndex: Number(commit.selectedIndex) || 0,
+      selectedClass: commit.selectedClass || "",
+      selectedStoryId: commit.selectedStory?.id || "",
+      minimumTicketPct: { ...(commit.minimumTicketPct || {}) },
+      minimumTicketCounts: (commit.minimumTicketCounts || []).slice(),
+      weightedRtpPct: Number(commit.weightedRtpPct),
+      rtpErrorPp: Number(commit.rtpErrorPp),
+      candidates: commit.candidates.map((story, index) => ({
+        storyId: story?.id || "",
+        seed: Number(story?.seed) >>> 0,
+        classKey: story?.classKey || "",
+        spendX: Number(story?.spendX) || 0,
+        payoutX: Number(story?.payoutX) || 0,
+        scorePoints: Number(commit.scorePoints?.[index]) || 0,
+        ticketCount: Number(commit.ticketCounts[index]) || 0
+      }))
+    };
+  }
+
   function drawBossStar(avoidStar = 0) {
     const rows = runtimeNaturalConfig(runtimeConfig).bossRows.filter((row) => Number(row[5]) > 0 && Number(row[0]) !== Number(avoidStar));
     const rng = runtimeStoryRng(0);
@@ -1511,7 +1539,7 @@
       lockedTargetRtpPct: runtimeConfig.targetRtp * 100,
       storyConfig: activeStoryExperience.config,
       storyCommit: activeStoryExperience.commit,
-      ledgerDecision: storyExperience ? "指定劇本體驗" : `三分類全池各抽一個，再配籤至 ${platformTargetRtpPct}%`,
+      ledgerDecision: storyExperience ? "指定劇本體驗" : `三分類全池各抽一個，贏多至少 3%、贏至少 35%，再配籤至 ${platformTargetRtpPct}%`,
       ledgerProjectedX: 0
     };
     encounter = {
@@ -1557,7 +1585,8 @@
     encounter.replayContract = {
       ...encounter.replayContract,
       bossInstanceId: encounter.bossInstanceId,
-      storyBetContract: storyCreditsForBet(story, activeBet)
+      storyBetContract: storyCreditsForBet(story, activeBet),
+      ticketSelection: storyTicketSelectionAudit(activeStoryExperience.commit, packet.lockedTargetRtpPct)
     };
     encounter.operationSequence = 0;
     encounter.clientEventSequence = 0;
@@ -2940,7 +2969,7 @@
     els.cyclePosition.textContent = `${packet.star} 星｜seed ${packet.naturalStorySeed}`;
     els.targetRtp.textContent = packet.storyRecord.classLabel;
     els.couplingValue.textContent = dynamicStoryMode
-      ? `三分類全池各抽 1 個 → 配籤 ${packet.lockedTargetRtpPct}%`
+      ? `三分類全池各抽 1 個 → 贏多 ≥3%、贏 ≥35% → 配籤 ${packet.lockedTargetRtpPct}%`
       : "指定 Natural 劇本";
     const weightCopy = packet.storyCommit?.weights
       ? `贏多 ${(packet.storyCommit.weights.win * 100).toFixed(2)}%／贏 ${(packet.storyCommit.weights.push * 100).toFixed(2)}%／輸 ${(packet.storyCommit.weights.lose * 100).toFixed(2)}%`
@@ -2952,7 +2981,7 @@
     const actualResultCopy = storyBetCredits
       ? `劇本總押 ${storyBetCredits.spendX.toFixed(2)}x、總派彩 ${storyBetCredits.payoutX.toFixed(2)}x；BET ${storyBetCredits.bet} 實際點數為押 ${storyBetCredits.totalSpendCredits.toFixed(2)}、派 ${storyBetCredits.totalPayoutCredits.toFixed(2)}`
       : "";
-    els.settingsNote.textContent = `贏多、贏、輸各從完整結果分類等機率抽 1 個；同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`;
+    els.settingsNote.textContent = `贏多、贏、輸各從完整結果分類等機率抽 1 個；只接受贏多籤至少 3%、贏籤至少 35%、輸籤大於 0 的整組，不成立就三筆一起重抽。同一 seed 以 X 倍數通用所有 BET。${weightCopy}。${ticketCopy ? `${ticketCopy}。` : ""}${actualResultCopy}。個人劇本水池不參與選劇本。`;
     els.combatLockState.textContent = `seed ${packet.naturalStorySeed}｜${packet.storyRecord.rounds} 回合`;
     els.diceLockState.textContent = encounter.phase === "resolved-win"
       ? `${packet.dice.total}x 已揭露`

@@ -4,8 +4,8 @@ const assert = require("node:assert/strict");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 const StoryCore = ActionCore.NaturalCore;
 const DiceCore = require("../src/core/boss-duel-random.js");
-const preset = require("../data/story/boss-duel-story-preset-v1.js");
-const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v1.js");
+const preset = require("../data/story/boss-duel-story-preset-v16.js");
+const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v10.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
 assert.equal(summaryPreset.signature, preset.signature, "summary and seed preset signatures must match");
@@ -66,5 +66,12 @@ assert([...pushReturnValues].every((value) => value >= 1 && value < 5), "all win
 for (let star = 1; star <= 8; star += 1) {
   const commit = StoryCore.drawUniformPresetStoryCommit(preset, config, star, 96, DiceCore.mulberry32(20260827 + star));
   assert.deepEqual(commit.candidates.map((story) => story.classKey), ["win", "push", "lose"], `${star} star candidates must contain win-big, win-small, and lose in order`);
+  assert(commit.ticketCounts[0] >= Math.ceil(commit.ticketBasis * 0.03), `${star} star win-big tickets must be at least 3%`);
+  assert(commit.ticketCounts[1] >= Math.ceil(commit.ticketBasis * 0.35), `${star} star win tickets must be at least 35%`);
+  assert(commit.ticketCounts[2] > 0, `${star} star lose tickets must remain positive`);
+  assert.equal(commit.selectionPolicy, "FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS_WIN35_BIG3");
+  assert.equal(commit.selectionPolicyVersion, StoryCore.TICKET_SELECTION_POLICY_VERSION);
+  assert(commit.ticketRoll >= 1 && commit.ticketRoll <= commit.ticketBasis);
+  assert.equal(commit.candidates[commit.selectedIndex].seed, commit.selectedStory.seed);
 }
 console.log(JSON.stringify({ status: "ok", checked, exactTargetResiduals, pushReturnValueCount: pushReturnValues.size, residualSides, averageReturnX: averages, elapsedMs: pool.elapsedMs }, null, 2));

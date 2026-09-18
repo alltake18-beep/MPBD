@@ -25,7 +25,9 @@
   const STORY_KEYS = Object.freeze(["win", "push", "lose"]);
   const STORY_LABELS = Object.freeze({ win: "贏多", push: "贏", lose: "輸" });
   const DEFAULT_TICKET_PREFERENCE_PCT = Object.freeze({ win: 1, push: 1, lose: 1 });
+  const DEFAULT_TICKET_MINIMUM_PCT = Object.freeze({ win: 3, push: 35, lose: 0 });
   const DEFAULT_TICKET_BASIS = 10000;
+  const TICKET_SELECTION_POLICY_VERSION = "full-class-uniform-score-ticket-win35-big3-v3";
   const STORIES_PER_CLASS = 10000;
   const ACTION_TRACE_VERSION = "story-action-trace-v2";
   const SUPPRESSION_POLICY_VERSION = "deviation-suppression-v5-lose-story-only";
@@ -961,6 +963,17 @@
     return STORY_KEYS.map((key) => normalized[key] / 100);
   }
 
+  function ticketMinimumCountsByClass(input, ticketBasis) {
+    const source = input && typeof input === "object" ? input : DEFAULT_TICKET_MINIMUM_PCT;
+    const basis = integer(ticketBasis, DEFAULT_TICKET_BASIS, 100, 1000000);
+    const entries = STORY_KEYS.map((key) => {
+      const pct = clamp(finite(source[key], DEFAULT_TICKET_MINIMUM_PCT[key]), 0, 100);
+      return [key, Math.max(1, Math.ceil(basis * pct / 100 - 1e-12))];
+    });
+    const counts = entries.map((entry) => entry[1]);
+    return counts.reduce((sum, value) => sum + value, 0) <= basis ? counts : null;
+  }
+
   function targetScorePoints(story, targetRtpPct = 96) {
     return finite(story?.payoutX, 0) * 100 - finite(targetRtpPct, 96) * finite(story?.spendX, 0);
   }
@@ -971,7 +984,7 @@
     if (!points.some((existing) => existing.every((value, index) => Math.abs(value - normalized[index]) < 1e-9))) points.push(normalized);
   }
 
-  function closestRtpProbabilityPoint(scorePoints, preferred) {
+  function closestRtpProbabilityPoint(scorePoints, preferred, minimumProbabilities = [0, 0, 0]) {
     const endpoints = [];
     for (let index = 0; index < scorePoints.length; index += 1) {
       if (Math.abs(scorePoints[index]) < 1e-9) {
@@ -1006,19 +1019,35 @@
     }));
     const direction = end.map((value, index) => value - start[index]);
     const lengthSquared = direction.reduce((sum, value) => sum + value * value, 0);
-    const position = lengthSquared > 0
-      ? clamp(direction.reduce((sum, value, index) => sum + value * (preferred[index] - start[index]), 0) / lengthSquared, 0, 1)
+    let minimumPosition = 0;
+    let maximumPosition = 1;
+    for (let index = 0; index < direction.length; index += 1) {
+      const minimum = Math.max(0, finite(minimumProbabilities[index], 0));
+      if (Math.abs(direction[index]) < 1e-12) {
+        if (start[index] < minimum - 1e-12) return null;
+        continue;
+      }
+      const boundary = (minimum - start[index]) / direction[index];
+      if (direction[index] > 0) minimumPosition = Math.max(minimumPosition, boundary);
+      else maximumPosition = Math.min(maximumPosition, boundary);
+    }
+    minimumPosition = Math.max(0, minimumPosition);
+    maximumPosition = Math.min(1, maximumPosition);
+    if (minimumPosition > maximumPosition + 1e-12) return null;
+    const projectedPosition = lengthSquared > 0
+      ? direction.reduce((sum, value, index) => sum + value * (preferred[index] - start[index]), 0) / lengthSquared
       : 0;
+    const position = clamp(projectedPosition, minimumPosition, maximumPosition);
     return start.map((value, index) => value + direction[index] * position);
   }
 
-  function integerizeTicketProbabilities(candidates, targetRtpPct, continuous, ticketBasis) {
+  function integerizeTicketProbabilities(candidates, targetRtpPct, continuous, ticketBasis, minimumCounts = [1, 1, 1]) {
     const basis = integer(ticketBasis, DEFAULT_TICKET_BASIS, 100, 1000000);
     const scores = candidates.map((story) => targetScorePoints(story, targetRtpPct));
     const center = Math.round(continuous[0] * basis);
     let best = null;
-    const left = Math.max(0, center - 96);
-    const right = Math.min(basis, center + 96);
+    const left = Math.max(minimumCounts[0] || 1, center - 96);
+    const right = Math.min(basis - (minimumCounts[1] || 1) - (minimumCounts[2] || 1), center + 96);
     for (let first = left; first <= right; first += 1) {
       const denominator = scores[1] - scores[2];
       const idealSecond = Math.abs(denominator) > 1e-12
@@ -1028,7 +1057,7 @@
       for (let offset = -3; offset <= 3; offset += 1) {
         const second = secondCenter + offset;
         const third = basis - first - second;
-        if (second < 0 || third < 0) continue;
+        if (second < (minimumCounts[1] || 1) || third < (minimumCounts[2] || 1)) continue;
         const counts = [first, second, third];
         const probabilities = counts.map((value) => value / basis);
         const weightedSpendX = probabilities.reduce((sum, probability, index) => sum + probability * finite(candidates[index].spendX, 0), 0);
@@ -1046,18 +1075,30 @@
 
   function solveCandidateProbabilities(candidates, targetRtpPct = 96, options = {}) {
     if (!Array.isArray(candidates) || candidates.length !== 3) return null;
+    const candidateKeys = candidates.map((story) => story?.classKey);
+    if (STORY_KEYS.some((key) => candidateKeys.filter((candidateKey) => candidateKey === key).length !== 1)) return null;
     const scorePoints = candidates.map((story) => targetScorePoints(story, targetRtpPct));
     if (!(Math.min(...scorePoints) <= 0 && Math.max(...scorePoints) >= 0) || scorePoints.every((value) => Math.abs(value) < 1e-12)) return null;
-    const preferredSlotProbabilities = ticketPreferenceProbabilities(options.ticketPreferencePct);
-    const continuous = closestRtpProbabilityPoint(scorePoints, preferredSlotProbabilities);
+    const ticketBasis = integer(options.ticketBasis, DEFAULT_TICKET_BASIS, 100, 1000000);
+    const minimumTicketPct = options.minimumTicketPct && typeof options.minimumTicketPct === "object"
+      ? options.minimumTicketPct
+      : DEFAULT_TICKET_MINIMUM_PCT;
+    const minimumCountsInClassOrder = ticketMinimumCountsByClass(minimumTicketPct, ticketBasis);
+    if (!minimumCountsInClassOrder) return null;
+    const minimumCountsByClass = Object.fromEntries(STORY_KEYS.map((key, index) => [key, minimumCountsInClassOrder[index]]));
+    const minimumTicketCounts = candidates.map((story) => minimumCountsByClass[story.classKey]);
+    const minimumSlotProbabilities = minimumTicketCounts.map((count) => count / ticketBasis);
+    const preferredProbabilityList = ticketPreferenceProbabilities(options.ticketPreferencePct);
+    const preferredProbabilities = Object.fromEntries(STORY_KEYS.map((key, index) => [key, preferredProbabilityList[index]]));
+    const preferredSlotProbabilities = candidates.map((story) => preferredProbabilities[story.classKey]);
+    const continuous = closestRtpProbabilityPoint(scorePoints, preferredSlotProbabilities, minimumSlotProbabilities);
     if (!continuous) return null;
-    const integerized = integerizeTicketProbabilities(candidates, targetRtpPct, continuous, options.ticketBasis);
+    const integerized = integerizeTicketProbabilities(candidates, targetRtpPct, continuous, ticketBasis, minimumTicketCounts);
     if (!integerized) return null;
     const probabilities = Object.fromEntries(STORY_KEYS.map((key) => [key, 0]));
     candidates.forEach((story, index) => {
       if (STORY_KEYS.includes(story.classKey)) probabilities[story.classKey] += integerized.probabilities[index];
     });
-    const preferredProbabilities = Object.fromEntries(STORY_KEYS.map((key, index) => [key, preferredSlotProbabilities[index]]));
     const mixDistance = STORY_KEYS.reduce((sum, key) => sum + (probabilities[key] - preferredProbabilities[key]) ** 2, 0);
     const mixDeviationPpMax = Math.max(...STORY_KEYS.map((key) => Math.abs(probabilities[key] - preferredProbabilities[key]) * 100));
     return {
@@ -1065,6 +1106,8 @@
       slotProbabilities: integerized.probabilities,
       ticketCounts: integerized.counts,
       ticketBasis: integerized.counts.reduce((sum, value) => sum + value, 0),
+      minimumTicketPct: Object.fromEntries(STORY_KEYS.map((key) => [key, clamp(finite(minimumTicketPct[key], DEFAULT_TICKET_MINIMUM_PCT[key]), 0, 100)])),
+      minimumTicketCounts,
       scorePoints,
       scoreBalancePoints: integerized.counts.reduce((sum, value, index) => sum + value * scorePoints[index], 0),
       preferredProbabilities,
@@ -1107,29 +1150,43 @@
         const rows = naturalCells[key];
         return replay(rows[Math.floor(rng() * rows.length)]);
       });
-      // 三分類沒有預設占比；等權只用來解決三個候選在同一條 96% 解線上的自由度。
+      // 三分類不指定固定占比；先限制贏多至少 3%、贏至少 35%，
+      // 再以等權中性點決定同一條目標 RTP 解線上的唯一位置。
       const solved = solveCandidateProbabilities(candidates, targetRtpPct, {
         ticketPreferencePct: { win: 1, push: 1, lose: 1 },
+        minimumTicketPct: DEFAULT_TICKET_MINIMUM_PCT,
         ticketBasis
       });
-      if (!solved || solved.ticketCounts.some((count) => count <= 0)) continue;
-      const selectedIndex = weightedIndex(solved.ticketCounts, rng);
+      if (!solved || solved.ticketCounts.some((count, index) => count < solved.minimumTicketCounts[index])) continue;
+      const ticketRoll = Math.floor(rng() * solved.ticketBasis) + 1;
+      let ticketCursor = ticketRoll;
+      let selectedIndex = solved.ticketCounts.length - 1;
+      for (let index = 0; index < solved.ticketCounts.length; index += 1) {
+        ticketCursor -= solved.ticketCounts[index];
+        if (ticketCursor <= 0) {
+          selectedIndex = index;
+          break;
+        }
+      }
       const selected = candidates[selectedIndex];
       return {
         star, attempt, candidateSetsEvaluated: attempt, candidates,
         weights: solved.probabilities, weightedRtpPct: solved.rtpPct, rtpErrorPp: solved.errorPp,
         slotWeights: solved.slotProbabilities, ticketCounts: solved.ticketCounts, ticketBasis: solved.ticketBasis,
+        minimumTicketPct: solved.minimumTicketPct, minimumTicketCounts: solved.minimumTicketCounts,
         scorePoints: solved.scorePoints, scoreBalancePoints: solved.scoreBalancePoints,
         preferredWeights: null, mixDeviationPpMax: null,
         candidateSources: candidates.map(() => "NATURAL"),
+        ticketRoll, selectedIndex,
         selectedClass: selected.classKey, selectedStory: selected,
         committedNetX: selected.netX,
         committedSpendX: selected.spendX,
         committedPayoutX: selected.payoutX,
-        selectionPolicy: "FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS"
+        selectionPolicy: "FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS_WIN35_BIG3",
+        selectionPolicyVersion: TICKET_SELECTION_POLICY_VERSION
       };
     }
-    throw new Error(`${star} 星在 ${maxAttempts} 次完整分類等機率抽取內找不到可配成 ${targetRtpPct}% 的三候選`);
+    throw new Error(`${star} 星在 ${maxAttempts} 次完整分類等機率抽取內找不到可配成 ${targetRtpPct}% 且贏多至少 3%、贏至少 35% 的三候選`);
   }
 
   function diceSumRows(count) {
@@ -1442,7 +1499,7 @@
     STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, SUPPRESSION_STORAGE_KEY, STORY_BET_CONTRACT_VERSION, POOL_SETTLEMENT_VERSION,
     DEFAULT_TARGET_RTP_PCT, MIN_TARGET_RTP_PCT, MAX_TARGET_RTP_PCT, MONEY_SCALE,
     DEFAULT_SUPPRESSION_POLICY: clone(DEFAULT_SUPPRESSION_POLICY), normalizeSuppressionPolicy, validateSuppressionPolicy,
-    DEFAULT_TICKET_PREFERENCE_PCT, DEFAULT_TICKET_BASIS,
+    DEFAULT_TICKET_PREFERENCE_PCT, DEFAULT_TICKET_MINIMUM_PCT, DEFAULT_TICKET_BASIS, TICKET_SELECTION_POLICY_VERSION,
     DEFAULT_BOSS_ROWS: clone(DEFAULT_BOSS_ROWS), DEFAULT_MAGIC_ROWS: clone(DEFAULT_MAGIC_ROWS), DEFAULT_HAND_ROWS: clone(DEFAULT_HAND_ROWS),
     normalizeConfig, normalizeTargetRtpPct, toMoneyUnits, fromMoneyUnits, roundMoney,
     storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,

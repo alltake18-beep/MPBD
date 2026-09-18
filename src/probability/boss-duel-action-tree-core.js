@@ -110,7 +110,7 @@
 
   const DEFAULT_CONFIG = {
     revision: 1,
-    modelId: "natural-story-v4-full-class-ticket",
+    modelId: "natural-story-v5-win35-big3-ticket",
     targetCoreRtpPct: 96,
     tolerancePp: 0.01,
     ticketBasis: TICKET_BASIS,
@@ -159,7 +159,7 @@
       pokerBoostEnabled: true, chainEnabled: false, bossRerollEnabled: true,
       paidDrawEnabled: true, tieRedealEnabled: true, strictNaturalGate: true
     },
-    versions: { policy: "full-class-uniform-score-ticket-v2", settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v12-score-ticket" },
+    versions: { policy: NaturalCore.TICKET_SELECTION_POLICY_VERSION, settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v12-score-ticket" },
     ruleSettings: {
       refreshCostX: 1, deckStopCount: 10,
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
@@ -567,28 +567,40 @@
       });
       const solved = NaturalCore.solveCandidateProbabilities(candidates, config.targetCoreRtpPct, {
         ticketPreferencePct: { win: 1, push: 1, lose: 1 },
+        minimumTicketPct: NaturalCore.DEFAULT_TICKET_MINIMUM_PCT,
         ticketBasis: config.storyPool.ticketBasis
       });
-      if (!solved || solved.ticketCounts.some((ticket) => ticket <= 0)) continue;
-      const indexes = candidates.map((_story, index) => index);
-      const selectedIndex = weightedPick(indexes, (index) => solved.ticketCounts[index], random);
+      if (!solved || solved.ticketCounts.some((ticket, index) => ticket < solved.minimumTicketCounts[index])) continue;
+      const ticketRoll = Math.floor(random() * solved.ticketBasis) + 1;
+      let ticketCursor = ticketRoll;
+      let selectedIndex = solved.ticketCounts.length - 1;
+      for (let index = 0; index < solved.ticketCounts.length; index += 1) {
+        ticketCursor -= solved.ticketCounts[index];
+        if (ticketCursor <= 0) {
+          selectedIndex = index;
+          break;
+        }
+      }
       const selectedStory = candidates[selectedIndex];
       return {
         star, attempt, candidateSetsEvaluated: attempt, candidates,
         weights: solved.probabilities, slotWeights: solved.slotProbabilities,
         ticketCounts: solved.ticketCounts, ticketBasis: solved.ticketBasis,
+        minimumTicketPct: solved.minimumTicketPct, minimumTicketCounts: solved.minimumTicketCounts,
         scorePoints: solved.scorePoints, scoreBalancePoints: solved.scoreBalancePoints,
         weightedRtpPct: solved.rtpPct, rtpErrorPp: solved.errorPp,
         preferredWeights: null, mixDeviationPpMax: null,
         candidateSources: candidates.map(() => "NATURAL"),
+        ticketRoll, selectedIndex,
         selectedClass: selectedStory.classKey, selectedStory,
         committedNetX: selectedStory.netX,
         committedSpendX: selectedStory.spendX,
         committedPayoutX: selectedStory.payoutX,
-        selectionPolicy: "FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS"
+        selectionPolicy: "FULL_CLASS_UNIFORM_THEN_SCORE_TICKETS_WIN35_BIG3",
+        selectionPolicyVersion: NaturalCore.TICKET_SELECTION_POLICY_VERSION
       };
     }
-    throw new Error(`${star} 星在 ${maxAttempts} 次完整分類等機率抽取內找不到可配籤的三候選`);
+    throw new Error(`${star} 星在 ${maxAttempts} 次完整分類等機率抽取內找不到贏多至少 3%、贏至少 35% 的可配籤三候選`);
   }
 
   function behaviorOptionScore(option, behavior) {

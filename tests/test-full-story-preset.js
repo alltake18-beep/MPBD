@@ -3,8 +3,8 @@
 const assert = require("node:assert/strict");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 const StoryCore = ActionCore.NaturalCore;
-const preset = require("../data/story/boss-duel-story-preset-v1.js");
-const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v1.js");
+const preset = require("../data/story/boss-duel-story-preset-v16.js");
+const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v10.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
 assert.equal(StoryCore.presetMatchesOutcomeRules(config, preset), true, "preset signature does not match the current story-generation rules");

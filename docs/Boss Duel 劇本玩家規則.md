@@ -1,4 +1,4 @@
-# Boss Duel 劇本玩家規則 V1
+# Boss Duel 劇本玩家規則
 
 更新日期：2026-09-18
 狀態：已套用正式版；`natural-story-preset-v16` 已重產 240,000 筆並完成全量重播

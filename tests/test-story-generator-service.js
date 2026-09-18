@@ -4,12 +4,14 @@ const assert = require("node:assert/strict");
 const Generator = require("../server/boss-duel-story-generator.js");
 const DiceCore = require("../src/core/boss-duel-random.js");
 const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
-const CurrentPreset = require("../data/story/boss-duel-story-preset-v1.js");
-const CurrentSummaryPreset = require("../data/story/boss-duel-story-summary-preset-v1.js");
+const CurrentPreset = require("../data/story/boss-duel-story-preset-v16.js");
+const CurrentSummaryPreset = require("../data/story/boss-duel-story-summary-preset-v10.js");
 
 async function main() {
   const formalProfile = Generator.createBuildProfile();
-  assert.equal(Generator.SERVICE_VERSION, "boss-duel-story-generator-v1");
+  assert.equal(Generator.SERVICE_VERSION, "boss-duel-story-generator-v2");
+  assert.equal(Generator.PRESET_FILE_NAME, "boss-duel-story-preset-v16.js");
+  assert.equal(Generator.SUMMARY_PRESET_FILE_NAME, "boss-duel-story-summary-preset-v10.js");
   assert.equal(Generator.FORMAL_STORIES_PER_CLASS, 10000);
   assert.equal(Generator.FORMAL_STORIES_PER_STAR, 30000);
   assert.equal(Generator.FORMAL_TOTAL_STORIES, 240000);

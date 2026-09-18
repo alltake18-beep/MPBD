@@ -142,6 +142,98 @@ const solved = StoryCore.solveCandidateProbabilities(candidates, 96);
 assert(solved);
 assert(Math.abs(solved.rtpPct - 96) < 1e-10);
 assert(Object.values(solved.probabilities).every((probability) => probability > 0));
+assert(solved.ticketCounts[0] >= Math.ceil(solved.ticketBasis * 0.03), "win-big must keep at least 3% of score tickets");
+assert(solved.ticketCounts[1] >= Math.ceil(solved.ticketBasis * 0.35), "win must keep at least 35% of score tickets");
+assert(solved.ticketCounts[2] > 0, "lose must keep a positive score ticket count");
+
+const winFloorCandidates = [
+  { id: "W-FLOOR", classKey: "win", sourcePool: "NATURAL", spendX: 4, payoutX: 23.84, netX: 19.84 },
+  { id: "P-FLOOR", classKey: "push", sourcePool: "NATURAL", spendX: 10, payoutX: 14.6, netX: 4.6 },
+  { id: "L-FLOOR", classKey: "lose", sourcePool: "NATURAL", spendX: 10, payoutX: 0, netX: -10 }
+];
+const unconstrainedWinFloor = StoryCore.solveCandidateProbabilities(winFloorCandidates, 96, {
+  ticketBasis: 1000000,
+  minimumTicketPct: { win: 0, push: 0, lose: 0 }
+});
+const constrainedWinFloor = StoryCore.solveCandidateProbabilities(winFloorCandidates, 96, { ticketBasis: 1000000 });
+assert(unconstrainedWinFloor.ticketCounts[1] < 350000, "fixture must begin below the new win-ticket floor");
+assert(constrainedWinFloor.ticketCounts[0] >= 30000);
+assert(constrainedWinFloor.ticketCounts[1] >= 350000);
+assert(constrainedWinFloor.ticketCounts[2] > 0);
+assert(Math.abs(constrainedWinFloor.rtpPct - 96) < 0.00001);
+
+const reorderedWinFloor = StoryCore.solveCandidateProbabilities([
+  winFloorCandidates[2],
+  winFloorCandidates[0],
+  winFloorCandidates[1]
+], 96, { ticketBasis: 1000000 });
+assert(reorderedWinFloor.ticketCounts[0] > 0, "reordered lose candidate must keep positive tickets");
+assert(reorderedWinFloor.ticketCounts[1] >= 30000, "reordered win-big candidate must keep its 3% floor");
+assert(reorderedWinFloor.ticketCounts[2] >= 350000, "reordered win candidate must keep its 35% floor");
+assert.deepEqual(reorderedWinFloor.probabilities, constrainedWinFloor.probabilities, "class probabilities must not depend on candidate array order");
+
+const customPreference = { win: 80, push: 10, lose: 10 };
+const preferredCanonical = StoryCore.solveCandidateProbabilities(candidates, 96, {
+  ticketBasis: 1000000,
+  ticketPreferencePct: customPreference
+});
+const preferredReordered = StoryCore.solveCandidateProbabilities([
+  candidates[2],
+  candidates[0],
+  candidates[1]
+], 96, {
+  ticketBasis: 1000000,
+  ticketPreferencePct: customPreference
+});
+assert.deepEqual(preferredReordered.probabilities, preferredCanonical.probabilities, "custom ticket preference must follow classKey instead of candidate slot order");
+
+const infeasibleTicketFloor = StoryCore.solveCandidateProbabilities([
+  { classKey: "win", spendX: 100, payoutX: 556 },
+  { classKey: "push", spendX: 100, payoutX: 179 },
+  { classKey: "lose", spendX: 100, payoutX: 38.4 }
+], 96, { ticketBasis: 1000000 });
+assert.equal(infeasibleTicketFloor, null, "an infeasible 3%/35% candidate triple must be redrawn as a whole");
+
+const winBigFloor = StoryCore.solveCandidateProbabilities([
+  { classKey: "win", spendX: 100, payoutX: 1096 },
+  { classKey: "push", spendX: 100, payoutX: 100 },
+  { classKey: "lose", spendX: 100, payoutX: 38.4 }
+], 96, { ticketBasis: 1000000 });
+assert.deepEqual(winBigFloor.ticketCounts, [30000, 420000, 550000], "win-big must stop exactly at its 3% floor when the neutral solution would go lower");
+assert(Math.abs(winBigFloor.rtpPct - 96) < 1e-12);
+
+const redrawPool = {
+  naturalCells: {
+    1: {
+      win: [
+        { id: "REJECT-W", classKey: "win", spendX: 100, payoutX: 556 },
+        { id: "ACCEPT-W", classKey: "win", spendX: 10, payoutX: 50 }
+      ],
+      push: [
+        { id: "REJECT-P", classKey: "push", spendX: 100, payoutX: 179 },
+        { id: "ACCEPT-P", classKey: "push", spendX: 10, payoutX: 12 }
+      ],
+      lose: [
+        { id: "REJECT-L", classKey: "lose", spendX: 100, payoutX: 38.4 },
+        { id: "ACCEPT-L", classKey: "lose", spendX: 10, payoutX: 0 }
+      ]
+    }
+  }
+};
+const redrawValues = [0.1, 0.1, 0.1, 0.9, 0.9, 0.9, 0.5];
+let redrawCalls = 0;
+const wholeTripleRedraw = ActionCore.drawFullClassStoryCommit(
+  redrawPool,
+  ActionCore.sanitizeConfig(ActionCore.DEFAULT_CONFIG),
+  1,
+  () => redrawValues[redrawCalls++]
+);
+assert.equal(wholeTripleRedraw.attempt, 2);
+assert.deepEqual(wholeTripleRedraw.candidates.map((story) => story.id), ["ACCEPT-W", "ACCEPT-P", "ACCEPT-L"]);
+assert.deepEqual(wholeTripleRedraw.ticketCounts, [95106, 403725, 501169]);
+assert.equal(wholeTripleRedraw.ticketRoll, 500001);
+assert.equal(wholeTripleRedraw.selectedIndex, 2);
+assert.equal(redrawCalls, 7, "a rejected group must consume three fresh uniform draws before all three candidates are redrawn");
 
 const diceStory = {
   killed: true, netX: 5, spendX: 10, payoutX: 15, originalBossRewardX: 20,

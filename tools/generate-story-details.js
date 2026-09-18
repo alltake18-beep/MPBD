@@ -68,7 +68,7 @@ if (isMainThread) {
 } else {
   const ActionCore = require(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"));
   const StoryCore = ActionCore.NaturalCore;
-  const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v1.js"));
+  const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v16.js"));
   const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
   if (preset.version !== "natural-story-preset-v16" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
     throw new Error("劇本明細只能由現行 natural-story-preset-v16 正式種子產生");

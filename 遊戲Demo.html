@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v107");
+      params.set("v", "frontend-v108");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v107">
+  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v108">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -324,12 +324,12 @@
 
   <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
-  <script src="src/core/boss-duel-random.js?v=frontend-v107"></script>
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v107"></script>
-  <script src="src/core/boss-duel-rules.js?v=frontend-v107"></script>
+  <script src="src/core/boss-duel-random.js?v=frontend-v108"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v108"></script>
+  <script src="src/core/boss-duel-rules.js?v=frontend-v108"></script>
   <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v12"></script>
-  <script src="data/story/boss-duel-story-preset-v1.js?v=story-catalog-v17"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v107"></script>
-  <script src="src/game/boss-duel-demo.js?v=frontend-v107"></script>
+  <script src="data/story/boss-duel-story-preset-v16.js?v=natural-story-preset-v16"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v108"></script>
+  <script src="src/game/boss-duel-demo.js?v=frontend-v108"></script>
 </body>
 </html>
