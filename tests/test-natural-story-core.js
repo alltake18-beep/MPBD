@@ -16,6 +16,7 @@ assert.equal(config.rewardFloorPct, 10);
 assert.equal(config.rewardCeilingMultiple, 10);
 assert.equal(config.playerBadHighRerollPct, 50);
 assert.equal(config.bossBadHighRerollPct, 25);
+assert.equal(Object.hasOwn(config, "refreshCostX"), false, "REROLL BOSS fee is a fixed Bet × 1 contract, not a configurable rule");
 assert(config.magicRows.every((row) => row[2] === row[3]), "magic ticket weights must use one shared value");
 assert.equal(config.magicRows.find((row) => row[0] === "crit")[4], 1);
 assert.equal(StoryCore.normalizeTargetRtpPct(undefined), 96);
@@ -449,5 +450,40 @@ assert.equal(reservedSettlement.preCorrectionPoolCredits, 80);
 assert.equal(reservedSettlement.releasedReservation.encounterId, "B");
 assert.deepEqual(reservedSettlement.reservations.map((row) => row.encounterId), ["A"]);
 assert.equal(reservedSettlement.version, StoryCore.POOL_SETTLEMENT_VERSION);
+
+const rerollReservation = StoryCore.reserveBossReward([], "REROLL-BOSS", diceStory, 20, { targetRtpPct: 96 }).reservations;
+const killedReroll = StoryCore.tryBossReroll([10, 20, 30], 20, {
+  playerCredits: 100, targetRtpPct: 96, bossKilled: true,
+  encounterId: "REROLL-BOSS", reservations: rerollReservation
+});
+assert.equal(killedReroll.success, false);
+assert.equal(killedReroll.failureReason, "BOSS_ALREADY_KILLED");
+assert.equal(killedReroll.chargedFeeCredits, 0);
+assert.deepEqual(killedReroll.balances, [10, 20, 30]);
+assert.deepEqual(killedReroll.reservations, rerollReservation, "a killed Boss must keep its reservation and reject reroll");
+
+const closedReroll = StoryCore.tryBossReroll([10, 20, 30], 20, {
+  playerCredits: 100, targetRtpPct: 96, bossClosed: true,
+  encounterId: "REROLL-BOSS", reservations: rerollReservation
+});
+assert.equal(closedReroll.success, false);
+assert.equal(closedReroll.failureReason, "BOSS_ALREADY_CLOSED");
+assert.equal(closedReroll.chargedFeeCredits, 0);
+assert.deepEqual(closedReroll.reservations, rerollReservation, "a closed Boss must keep its reservation and reject reroll");
+
+const successfulReroll = StoryCore.tryBossReroll([10, 20, 30], 20, {
+  playerCredits: 100, targetRtpPct: 96, costX: 7,
+  encounterId: "REROLL-BOSS", reservations: rerollReservation
+});
+assert.equal(successfulReroll.success, true);
+assert.equal(successfulReroll.costX, 1, "the shared reroll contract must ignore caller overrides and fix the fee at Bet × 1");
+assert.equal(successfulReroll.chargedFeeCredits, 20);
+assert.equal(successfulReroll.poolAccrualCredits, 19.2);
+assert.equal(successfulReroll.remainingPlayerCredits, 80);
+assert.equal(successfulReroll.triggerCommand, "REROLL_BOSS");
+assert.equal(successfulReroll.terminalState, "ABANDON");
+assert.equal(successfulReroll.terminationReason, "REROLL");
+assert.deepEqual(successfulReroll.balances, [10, 39.2, 30]);
+assert.deepEqual(successfulReroll.reservations, [], "a successful reroll must release the old Boss reservation");
 
 console.log("natural-story-core: current-only contract passed");

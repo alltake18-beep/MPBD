@@ -20,6 +20,10 @@ async function main() {
   assert.equal(formalProfile.config.storiesPerStar, 30000);
   assert.equal(formalProfile.minChunkAttempts, 100);
   assert.ok(formalProfile.maxChunkAttempts >= formalProfile.chunkAttempts);
+  const formalPresetValidation = Generator.validatePreset(formalProfile, CurrentPreset, CurrentSummaryPreset);
+  assert.equal(formalPresetValidation.totalStories, 240000, "current formal presets must validate through the generator service");
+  assert.deepEqual(formalPresetValidation.counts[1], { win: 10000, push: 10000, lose: 10000 });
+  assert.deepEqual(formalPresetValidation.counts[8], { win: 10000, push: 10000, lose: 10000 });
 
   const adaptiveState = {
     nextAttempt: 19000,
@@ -113,6 +117,24 @@ async function main() {
   const structural = Generator.validatePreset(smallProfile, built.preset, built.summaryPreset);
   assert.equal(structural.totalStories, 24);
   assert.deepEqual(structural.counts[8], { win: 1, push: 1, lose: 1 });
+
+  const legacySignatureObject = JSON.parse(smallProfile.configSignature);
+  legacySignatureObject.bossRows = smallProfile.config.bossRows;
+  const legacySignature = JSON.stringify(legacySignatureObject);
+  const legacyPreset = { ...built.preset, signature: legacySignature };
+  const legacySummaryPreset = { ...built.summaryPreset, signature: legacySignature };
+  const alternateBirthProfile = Generator.createBuildProfile({
+    ...smallProfile.config,
+    bossRows: smallProfile.config.bossRows.map((row, index) => row.map((value, column) => column === 5 ? (index === 7 ? 1000 : 0) : value))
+  }, {
+    formal: false,
+    storiesPerClass: 1,
+    workerCount: 2,
+    chunkAttempts: 100,
+    maxAttemptsPerStar: 10000
+  });
+  assert.equal(alternateBirthProfile.configSignature, smallProfile.configSignature, "generator signature must ignore online Boss birth tickets");
+  assert.equal(Generator.validatePreset(alternateBirthProfile, legacyPreset, legacySummaryPreset).totalStories, 24, "legacy preset signatures must remain valid after birth-ticket changes");
 
   console.log(JSON.stringify({
     status: "ok",

@@ -17,9 +17,9 @@
 <body>
   <div class="shell">
     <header>
-      <p class="eyebrow">工程唯一現行規格 · 2026-09-18</p>
+      <p class="eyebrow">工程唯一現行規格 · 2026-09-23</p>
       <h1>Boss Duel 後端文件</h1>
-      <div class="badges"><span class="badge">backend-doc-v20</span><span class="badge">suppression-v5 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
+      <div class="badges"><span class="badge">backend-doc-v22</span><span class="badge">suppression-v5 · CONFIGURABLE TABLES</span><span class="badge">240,000 · BET-INDEPENDENT</span></div>
       <div class="grid four" style="margin-top:16px">
         <div class="card"><strong>劇本來源</strong><code>story-player-policy-v1</code> 只依當下資訊固定選路並跑完整隻 Boss；同一劇本以 X 倍數通用所有 Bet。</div>
         <div class="card"><strong>新 Boss 抽取</strong>贏多、贏、輸三個完整分類各抽 1 個；贏多至少 3%、贏至少 35%，再做目標 RTP 分數配籤。</div>
@@ -74,6 +74,7 @@
       </tbody></table></div>
       <div class="note"><strong>一般玩家自動保留：</strong>前端的一般玩家仍使用既有基礎核心加效果牌補位規則；這不等於離線劇本玩家選路。劇本玩家走一般路線時只取 <code>coreCards</code>，效果牌只有在相容候選核心內才會跟著保留。</div>
       <div class="note"><strong>機率工具的劇本玩家：</strong>資金足夠時，牌局操作依抽中的正式劇本執行。獨立退幣會逐筆檢查支付能力：可付入場就開始，免費換牌照做，付不起的付費換牌不執行，並以當下手牌完成 FIGHT／FOLD；下一回合入場付不起時停止該 Boss。最終實際派彩仍依個人劇本水池結算。</div>
+      <div class="note"><strong>機率工具的極端玩家換王規則：</strong>抽中 1 星 Boss 後，在第一次 START 與入場 Bet 扣款前，以固定 50% 機率嘗試 <code>REROLL_BOSS</code>；只有餘額足夠才成功。餘額不足時不扣款、不換王、不關閉舊 Boss，並照常判斷能否 START。這是現行唯一自動換王規則；舊的全星級 <code>refreshProbability</code> 隨機模型不得接入正式機率工具。</div>
       <div class="note"><strong>REDRAW 保留契約：</strong>保留牌不區分系統自動或玩家手選，送出 REDRAW 時全部視為玩家確認，一般情況不得取消。唯一例外是換牌後完整六張已形成皇家同花順、同花順或四條；此時直接改保留優先序最高的完成牌型，即使必須取消先前保留。其他牌型仍必須完整包含全部確認牌。</div>
       <h3>2.3 固定開發順序</h3>
       <div class="steps">
@@ -218,15 +219,18 @@
       <h2>八、暫停、付費換 Boss 與換 BET</h2>
       <div class="table-wrap"><table><thead><tr><th>玩家操作</th><th>舊劇本怎麼結算</th><th>費用／個人劇本水池</th><th>接下來</th></tr></thead><tbody>
         <tr><td>切到另一隻已存在 Boss</td><td>舊 Boss 只 PAUSE，不派彩、不補正、不關閉。</td><td>保留原帳面餘額與原骰獎預留；不因暫停額外入池。</td><td>完整保存 HP、回合、牌堆、操作序號、鎖定 RTP／版本；回來時原樣續玩。</td></tr>
-        <tr><td>尚未 START 就付費換 Boss</td><td>舊劇本尚未開始，沒有自然派彩。</td><td>更換費乘上當下目標 RTP，正向加入目前 BET 桶；不算舊劇本的玩家實際總押。</td><td>抽下一隻動態劇本 Boss。</td></tr>
-        <tr><td>至少完成一回合後付費 REROLL BOSS</td><td>這是明確 ABANDON：關閉舊 Boss，不補正並釋放其預留。</td><td>舊劇本關閉後，更換費再乘新 Boss 建立時目標 RTP，獨立入同桶一次。</td><td>舊 Boss 不可恢復，抽下一隻動態 Boss。</td></tr>
+        <tr><td>尚未 START 就付費換 Boss</td><td>只接受尚未擊殺、尚未關閉的 Boss；成功後舊 Boss 進入 ABANDON，零派彩。舊劇本尚未開始，因此沒有 A、劇本內實付或預留。</td><td>先驗證餘額；成功扣當前 Bet × 1，再以舊 Boss 鎖定 RTP 加入目前 BET 桶。餘額不足時四者都不發生。</td><td>成功才抽下一隻動態劇本 Boss；舊 Boss 仍計入 Boss 與分類樣本。</td></tr>
+        <tr><td>至少完成一回合後付費 REROLL BOSS</td><td>只接受尚未擊殺、尚未關閉的 Boss；成功後明確 ABANDON，舊 Boss 零 Boss 派彩、不補正並釋放其預留。</td><td>先驗證餘額；成功扣當前 Bet × 1，再以舊 Boss 鎖定 RTP 獨立入同桶一次。餘額不足時不扣、不入池、不關閉、不釋放。</td><td>成功後舊 Boss 不可恢復，抽下一隻動態 Boss。</td></tr>
         <tr><td>至少完成一回合後換 BET／打其他 Boss</td><td>舊 Boss 只 PAUSE，不結算；不可用「未擊殺」把它關閉。</td><td>舊桶保留帳面與預留；換 BET 本身沒有更換費。</td><td>切到新 BET，建立或恢復另一隻 Boss；回來仍使用原 BET 與鎖定版本。</td></tr>
         <tr><td>尚未 START 就換 BET</td><td>舊劇本沒有開始，不登記劇本承諾淨結果。</td><td>不收更換費，也不增加水池。</td><td>切到新 BET 並抽下一隻 Boss。</td></tr>
-        <tr><td>固定指定劇本體驗</td><td>劇本被體驗模式鎖定。</td><td>不開放付費更換。</td><td>維持原劇本。</td></tr>
+        <tr><td>固定指定劇本體驗</td><td>尚未擊殺且尚未關閉時，沿用同一套 <code>REROLL_BOSS</code> 契約；成功後舊 Boss 進入 ABANDON 並離開指定劇本。</td><td>同樣扣當前 Bet × 1，依舊 Boss 鎖定 RTP 入桶；餘額不足時原體驗維持不變。</td><td>成功後改抽下一隻動態 Boss。</td></tr>
       </tbody></table></div>
-      <div class="formula greenbox"><strong>更換費、個人劇本水池與玩家實際退幣率</strong><code>更換費 F = REROLL BOSS 費用倍數 × 當下 BET</code><code>支付更換費後：目前同桶餘額 S ← S + F × 鎖定目標 RTP ÷ 100</code><code>玩家實際總押 = Σ 本隻劇本內實際總押 W + Σ Boss 更換費 F</code><code>玩家實際退幣率 = Σ 玩家最終派彩 ÷ 玩家實際總押</code><span class="small">抽劇本與更換費入池使用同一目標 RTP。如果原桶為負，先抵銷負值；如果原桶為正，增加後續可補給玩家的額度。</span></div>
+      <div class="formula greenbox"><strong>更換費、個人劇本水池與玩家實際退幣率</strong><code>更換費 F = 當下 BET × 1</code><code>成功支付後：目前同桶餘額 S ← S + F × 舊 Boss 鎖定目標 RTP ÷ 100</code><code>玩家實際總押 = Σ 劇本內實際總押 W + Σ Boss 更換費 F</code><code>玩家實際退幣率 = Σ 玩家最終派彩 ÷ 玩家實際總押</code><span class="small">更換費使用被換掉 Boss 已鎖定的目標 RTP。如果原桶為負，先抵銷負值；如果原桶為正，增加後續可補給玩家的額度。</span></div>
       <p class="small">更換費 F 是玩家實際投入，報表的玩家實際總押必須計入；但它不屬於被更換舊劇本，也不屬於下一個新劇本。切換 BET 不會把舊桶餘額搬到新桶，三桶持續各自保存。</p>
-      <div class="warning"><strong>命令不可混用：</strong><code>PAUSE</code> 可恢復且保留預留；<code>ABANDON</code>／付費 <code>REROLL_BOSS</code> 不可恢復並釋放預留。兩者必須使用不同 API、冪等鍵與稽核事件。</div>
+      <div class="table-wrap"><table><thead><tr><th>名稱</th><th>類型</th><th>現行語意</th><th>報表</th></tr></thead><tbody><tr><td><code>PAUSE</code></td><td>可恢復狀態</td><td>保存舊 Boss 與預留，不派彩、不關閉。</td><td>不屬於終止原因。</td></tr><tr><td><code>REROLL_BOSS</code></td><td>付費命令</td><td>只綁定尚未擊殺且尚未關閉的 Boss；成功後扣費、入池、關閉舊 Boss 並建立新 Boss。</td><td>成功使舊 Boss 記為 <code>REROLL</code>。</td></tr><tr><td><code>ABANDON</code></td><td>不可恢復狀態</td><td>成功換王後舊 Boss 的狀態；零 Boss 派彩並釋放預留。</td><td>對應終止原因 <code>REROLL</code>。</td></tr><tr><td><code>USER_EXIT</code></td><td>獨立終止原因</td><td>玩家明確結束目前 Boss；不建立新 Boss、不收換王費。</td><td>記為 <code>USER_EXIT</code>。</td></tr></tbody></table></div>
+      <div class="warning"><strong>命令與狀態不可混用：</strong><code>PAUSE</code>、<code>REROLL_BOSS</code>、<code>ABANDON</code>、<code>USER_EXIT</code> 必須使用可區分的 API、冪等鍵與稽核事件。已擊殺、已逃跑、已 USER_EXIT 或已關閉的 Boss 都不得再執行換王。</div>
+      <div class="warning"><strong>靜態 Demo 邊界：</strong><code>frontend-v109</code> 尚未實作多 Boss／跨 Bet 可恢復房間；Demo 的 <code>BET_CHANGE</code> 目前會把舊 Boss 以未擊殺結算並建立新 Boss，不能作為正式 <code>PAUSE</code> 的後端參考。正式服務仍須保存完整房間與預留，不得因切換 Bet 結算、關閉或釋放舊 Boss。</div>
+      <div class="formula violetbox"><strong>統一報表口徑</strong><code>擊殺率 = terminationStats.KILLED ÷ Boss 總數</code><code>KILLED + BOSS_ESCAPED + USER_EXIT + REROLL = Boss 總數</code><code>各星換王率 = 該星 REROLL 數 ÷ 該星 Boss 數</code><code>bossRerollCredits = Σ成功換王實扣費用</code><code>bossRefreshes = terminationStats.REROLL = 成功換王次數</code><span class="small">入場前換王已完成分類抽樣，所以仍算一隻 Boss 與一筆分類樣本，也納入擊殺率分母。四個終止原因互斥；餘額不足的嘗試不增加任何換王欄位。三個 Bet 桶分別保存換王實扣費用與費用 × 舊 Boss 鎖定 RTP 的入池額。</span></div>
     </section>
 
     <section id="examples" class="blue">
@@ -279,6 +283,7 @@
       <h2>十、現行劇本資料與正式產線</h2>
       <h3>10.1 正式發布資料</h3>
       <p>現行正式資料由 <code>boss-plan-v12</code>、<code>arrange-v10</code> 與 <code>natural-story-preset-v16</code> 產生。每個候選種子只自然跑一次；產線持續換新種子直到各結果分類達標，發布時每個「星級 × 結果分類」資料格精確取 10,000 個，不複製、不改寫、不跨分類重用。同一筆以 X 倍數保存，所有 Bet 共用。</p>
+      <div class="note"><strong>出生籤與劇本預置分離：</strong><code>bossRows[*][5]</code> 只控制玩家遇到各星 Boss 的相對機率，不參與劇本內容簽章。調整出生籤時沿用同一份 240,000 筆正式資料，各星贏多／贏／輸仍各 10,000；HP、回合與骰型等會改變 seed 重播結果的欄位仍會使預置失效。</div>
       <div class="note"><strong>本版自然產量：</strong>共掃描 929,024 筆；贏多 108,154（11.6417%）、贏 331,835（35.7187%）、輸 489,035（52.6397%）。正式資料按每星每類各 10,000 截取，不回拉自然比例，也不對 5～6 倍或 1～1.3 倍等子區間設配額。</div>
       <div class="note"><strong>96% 配籤抽樣：</strong>正式 v16 每星隨機 15,000 組三候選，共 120,000 組；依 BOSS 出現籤與「不可連續同星」規則加權後，平均為贏多 12.2511%、贏 36.3677%、輸 51.3812%。這不是固定分類比例，每隻 Boss 仍依當次候選與 3%／35% 下限重新求籤。</div>
       <div class="note"><strong>每日發布版可重複抽取：</strong>營運建立每隻新 Boss 時都從完整分類池獨立放回抽樣，抽中的 seed 不從目錄移除；不同玩家或不同 Boss 可在同一天抽到同一劇本。同一星級內 seed 不得重複；raw seed 可在不同星級出現，正式唯一鍵是 <code>releaseVersion + star + seed</code>。</div>
@@ -294,7 +299,7 @@
       <div class="steps">
         <div>每個正式版本的每星、每種結果分類都必須有 10,000 個可用劇本；全 8 星發布量固定 240,000 個。</div>
         <div>自然生成必須持續到最稀少分類也達標，再各格截取 10,000 個；不能複製、補造或改寫劇本。</div>
-        <div>分類門檻、Boss 參數、魔法機率、規劃版本、索引與稽核資料必須共用同一版本簽章。</div>
+        <div>分類門檻、會影響單星劇本內容的 Boss 參數、魔法機率、規劃版本、索引與稽核資料必須共用同一版本簽章；線上出生籤排除在劇本內容簽章之外。</div>
         <div>完整重播全部 240,000 筆，逐筆檢查同星級 <code>star + seed</code> 唯一、分類、摘要、操作路徑與跨檔 SHA-256；raw seed 不作跨星級全域鍵，任一筆失敗整版不得發布。</div>
         <div>新 Boss 使用新發布版本；進行中的 Boss 維持原發布版、RTP、抑制簽章與完整房間狀態。換日、回滾及滾動部署不得跨版本還原。</div>
       </div>
@@ -320,7 +325,7 @@
         <tr><td>新 Boss 鎖定</td><td>玩家、BET、星級、劇本版本、配籤政策版本、最低占比快照、鎖定目標 RTP、三候選 ID、分數、籤數、理論誤差、中籤整數 K、抽中劇本與唯一請求號。</td><td>版本錯誤或無法配籤時不得留下半筆鎖定。</td></tr>
         <tr><td>第一次 START</td><td>鎖定劇本 ID、START 請求號、實際扣款、鎖定 BET／RTP、劇本預定總押注、劇本預定派彩、有號劇本首次調整、實付入池額、開始前後同桶水池，以及 encounterId 對應的原骰獎預留。</td><td>扣款、劇本首次調整、實付入池、玩家實際總押與預留必須原子完成；失敗時劇本維持未開始。</td></tr>
         <tr><td>CONTINUE／付費 REDRAW</td><td>操作序號、唯一請求號、實際扣款、鎖定 RTP、實付入池額、入池前後餘額；REDRAW 另存同回合／同平手重發段／同換牌序號的預定與實際保留牌 ID、完整抑制簽章、候選序列與接受結果。</td><td>重送同一序號只回傳第一次結果；不能重複扣款、重複入池、重新抽值或前進節點。</td></tr>
-        <tr><td>付費換 Boss</td><td>更換請求號、舊 Boss 狀態、舊劇本結算、更換費扣款與入桶、新 Boss 鎖定。</td><td>五項必須同一交易完成；重送只回第一次結果，任一步失敗就全部回滾。</td></tr>
+        <tr><td>付費換 Boss</td><td>更換請求號、舊 Boss 未擊殺／未關閉檢查、餘額檢查、當前 Bet × 1 實扣、舊 Boss 鎖定 RTP、三桶中的目標桶、更換費入池額、舊 Boss ABANDON／零派彩／預留釋放、新 Boss 鎖定。</td><td>先驗證再於同一交易完成；餘額不足或任一步失敗時不扣款、不入池、不換王、不關閉舊 Boss。重送只回第一次結果。</td></tr>
         <tr><td>PAUSE／換 BET</td><td>換注請求號、舊 Boss 完整房間狀態與預留、新 BET、新 Boss 鎖定或恢復。</td><td>不得結算或釋放舊 Boss 預留；不得搬移三桶餘額。</td></tr>
         <tr><td>結算交易</td><td>鎖定目標 RTP、劇本預定總押／派彩、已落帳劇本首次調整、逐筆實付入池合計、玩家實際總押、實際派彩、本隻預留釋放、同桶其他預留、原骰獎、合法骰面、10%～1,000% 邊界、補正額、個人劇本水池前後與玩家最終派彩。</td><td>結算不得再補記押注差額；斷線後恢復同一 Boss 與同一結算，派彩只能完成一次。</td></tr>
       </tbody></table></div>

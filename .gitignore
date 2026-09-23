@@ -40,7 +40,9 @@ dev-server.mjs
 /src/probability/boss-duel-action-tree-lab.js
 /src/probability/boss-duel-action-tree-worker.js
 /src/probability/styles.css
+/src/probability/boss-duel-excel-clipboard.js
 /tests/test-action-tree-tool-schema.js
+/tests/test-excel-clipboard.js
 
 # OS/editor noise
 .DS_Store

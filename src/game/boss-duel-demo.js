@@ -417,11 +417,12 @@
     syncReplayAuditDom();
   }
 
-  function archiveEncounterAudit(reason) {
+  function archiveEncounterAudit(reason, details = {}) {
     if (!encounter?.replayContract || encounter.auditArchived) return;
     encounter.auditArchived = true;
     replayAuditArchive.push({
       reason,
+      ...details,
       contract: encounter.replayContract,
       suppressionActive: encounter.suppressionActive,
       actionLog: encounter.actionLog,
@@ -2483,16 +2484,16 @@
   }
 
   function openRerollConfirm() {
-    if (!encounter || !["ready", "round-result"].includes(encounter.phase)) return;
+    if (!encounter || !["ready", "round-result"].includes(encounter.phase) || encounter.hpLeft <= 0 || encounter.payoutSettled || encounter.poolSettlement) return;
     els.rerollConfirmCost.textContent = (runtimeConfig.entryCostX * activeBet).toFixed((runtimeConfig.entryCostX * activeBet) % 1 ? 2 : 0);
     els.rerollConfirm.hidden = false;
   }
 
   function rerollBoss() {
-    if (!encounter || !["ready", "round-result"].includes(encounter.phase) || els.rerollConfirm.hidden) return;
+    if (!encounter || !["ready", "round-result"].includes(encounter.phase) || encounter.hpLeft <= 0 || encounter.payoutSettled || encounter.poolSettlement || els.rerollConfirm.hidden) return;
     const leavingFixedStory = encounter.packet.storyRuntimeMode === "FIXED";
     els.rerollConfirm.hidden = true;
-    if (!spend(runtimeConfig.entryCostX, { storySpend: false })) return;
+    if (!spend(runtimeConfig.entryCostX, { storySpend: false, targetRtpPct: encounter.poolTargetRtpPct })) return;
     if (encounter.round > 0 && !encounter.poolSettlement) settleStoryPool(0, false);
     const rerollOperation = beginOperation("REROLL_BOSS");
     completeOperation(rerollOperation, { costX: runtimeConfig.entryCostX, bet: activeBet });
@@ -2504,7 +2505,7 @@
       playerState.index = 0;
     }
     savePlayerState();
-    archiveEncounterAudit("REROLL_BOSS");
+    archiveEncounterAudit("ABANDON", { trigger: "REROLL_BOSS", terminationReason: "REROLL", payoutCredits: 0 });
     spawnBoss(previousStar);
     setMessage(leavingFixedStory ? "已離開指定劇本並支付更換 BOSS 費用，改抽下一隻。" : "已支付更換 BOSS 費用，改抽下一隻。", "");
   }

@@ -34,6 +34,7 @@
   const SUPPRESSION_STORAGE_KEY = "boss-duel:suppression-policy:v5";
   const STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
   const POOL_SETTLEMENT_VERSION = "story-budget-personal-pool-v5-live-wager";
+  const BOSS_REROLL_ACCOUNTING_VERSION = "boss-reroll-accounting-v1";
   const DEFAULT_TARGET_RTP_PCT = 96;
   const MIN_TARGET_RTP_PCT = 80;
   const MAX_TARGET_RTP_PCT = 99;
@@ -266,7 +267,6 @@
         ? finite(carry.rewardFloorMultiple, 0.1) * 100
         : finite(carry.rewardFloorPct ?? story.rewardFloorPct, 10), 0, 100),
       rewardCeilingMultiple: clamp(finite(carry.rewardCeilingMultiple ?? story.rewardCeilingMultiple, 10), 1, 10),
-      refreshCostX: Math.max(0, finite(rules.refreshCostX, 1)),
       deckStopCount: integer(rules.deckStopCount, 10, 1, 54),
       playerBadHighRerollPct: clamp(finite(rules.playerBadHighRerollPct, 50), 0, 100),
       bossBadHighRerollPct: clamp(finite(rules.bossBadHighRerollPct, 25), 0, 100),
@@ -476,11 +476,23 @@
     };
   }
 
+  function storyBossRows(bossRowsInput) {
+    return (Array.isArray(bossRowsInput) ? bossRowsInput : []).map((rowInput) => {
+      const row = Array.isArray(rowInput) ? rowInput.slice() : [];
+      // bossRows[5] 是線上出生籤，只決定玩家遇到哪一星；每星劇本皆獨立固定配額。
+      // 以 null 保留欄位位置，讓新舊簽章正規化可以重複執行而不移動其他欄位。
+      if (row.length > 5) row[5] = null;
+      return row;
+    });
+  }
+
   function presetMatchesOutcomeRules(config, preset) {
     if (!preset?.signature) return false;
     try {
       const runtime = JSON.parse(poolSignature(config));
       const stored = JSON.parse(preset.signature);
+      runtime.bossRows = storyBossRows(runtime.bossRows);
+      stored.bossRows = storyBossRows(stored.bossRows);
       delete runtime.winMinReturnX;
       delete runtime.pushMinReturnX;
       delete stored.winMinReturnX;
@@ -896,7 +908,7 @@
   function poolSignature(config) {
     return JSON.stringify({
       rulesVersion: Rules.VERSION, plannerVersion: StoryPlanner.VERSION,
-      poolSeed: config.poolSeed, bossRows: config.bossRows, magicRows: config.magicRows, handRows: config.handRows,
+      poolSeed: config.poolSeed, bossRows: storyBossRows(config.bossRows), magicRows: config.magicRows, handRows: config.handRows,
       drawFeesX: config.drawFeesX, storiesPerClass: config.storiesPerClass, storiesPerStar: config.storiesPerClass * STORY_KEYS.length,
       actionTraceVersion: ACTION_TRACE_VERSION,
       classificationBasis: "TOTAL_PAYOUT_OVER_TOTAL_SPEND",
@@ -1394,6 +1406,72 @@
     };
   }
 
+  function tryBossReroll(bucketBalancesInput, bet = 1, options = {}) {
+    const balances = Array.isArray(bucketBalancesInput) ? bucketBalancesInput.slice(0, 3) : emptyBucketBalances();
+    while (balances.length < 3) balances.push(0);
+    const wager = Math.max(1e-12, finite(bet, 1));
+    const costX = 1;
+    const requestedFeeCredits = roundMoney(wager * costX);
+    const targetRtpPct = normalizeTargetRtpPct(options.targetRtpPct);
+    const playerCredits = options.playerCredits === undefined
+      ? Infinity
+      : roundMoney(Math.max(0, finite(options.playerCredits, 0)));
+    const bossKilled = Boolean(options.bossKilled);
+    const bossClosed = Boolean(options.bossClosed);
+    const insufficientFunds = playerCredits + 1e-9 < requestedFeeCredits;
+    const success = !bossKilled && !bossClosed && !insufficientFunds;
+    const bucketIndex = bucketIndexForBet(wager);
+    const bucketKey = BET_BUCKETS[bucketIndex].key;
+    if (!success) {
+      return {
+        version: BOSS_REROLL_ACCOUNTING_VERSION,
+        success: false,
+        failureReason: bossKilled ? "BOSS_ALREADY_KILLED" : bossClosed ? "BOSS_ALREADY_CLOSED" : "INSUFFICIENT_FUNDS",
+        triggerCommand: "REROLL_BOSS",
+        terminalState: null,
+        terminationReason: null,
+        bucketIndex,
+        bucketKey,
+        bet: wager,
+        costX,
+        requestedFeeCredits,
+        chargedFeeCredits: 0,
+        actualSpendCredits: 0,
+        actualPayoutCredits: 0,
+        poolAccrualCredits: 0,
+        targetRtpPct,
+        playerCredits,
+        remainingPlayerCredits: playerCredits,
+        releasedReservation: null,
+        reservations: normalizeBossReservations(options.reservations),
+        balances
+      };
+    }
+    const poolAccrualCredits = roundMoney(requestedFeeCredits * targetRtpPct / 100);
+    const posted = addPoolCredits(balances, wager, poolAccrualCredits);
+    const released = releaseBossReward(options.reservations, options.encounterId);
+    return {
+      version: BOSS_REROLL_ACCOUNTING_VERSION,
+      success: true,
+      failureReason: null,
+      triggerCommand: "REROLL_BOSS",
+      terminalState: "ABANDON",
+      terminationReason: "REROLL",
+      ...posted,
+      costX,
+      requestedFeeCredits,
+      chargedFeeCredits: requestedFeeCredits,
+      actualSpendCredits: requestedFeeCredits,
+      actualPayoutCredits: 0,
+      poolAccrualCredits,
+      targetRtpPct,
+      playerCredits,
+      remainingPlayerCredits: playerCredits === Infinity ? Infinity : roundMoney(playerCredits - requestedFeeCredits),
+      releasedReservation: released.released,
+      reservations: released.reservations
+    };
+  }
+
   function postStorySpendToBuckets(startedCommit, bucketBalancesInput, bet = 1, spendCreditsInput = 0, options = {}) {
     const wager = Math.max(1e-12, finite(bet, startedCommit?.bet || 1));
     const targetRtpPct = normalizeTargetRtpPct(options.targetRtpPct ?? startedCommit?.targetRtpPct);
@@ -1496,7 +1574,7 @@
 
   return {
     STORY_KEYS, STORY_LABELS, BET_VALUES, BET_BUCKETS,
-    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, SUPPRESSION_STORAGE_KEY, STORY_BET_CONTRACT_VERSION, POOL_SETTLEMENT_VERSION,
+    STORIES_PER_CLASS, ACTION_TRACE_VERSION, SUPPRESSION_POLICY_VERSION, SUPPRESSION_STORAGE_KEY, STORY_BET_CONTRACT_VERSION, POOL_SETTLEMENT_VERSION, BOSS_REROLL_ACCOUNTING_VERSION,
     DEFAULT_TARGET_RTP_PCT, MIN_TARGET_RTP_PCT, MAX_TARGET_RTP_PCT, MONEY_SCALE,
     DEFAULT_SUPPRESSION_POLICY: clone(DEFAULT_SUPPRESSION_POLICY), normalizeSuppressionPolicy, validateSuppressionPolicy,
     DEFAULT_TICKET_PREFERENCE_PCT, DEFAULT_TICKET_MINIMUM_PCT, DEFAULT_TICKET_BASIS, TICKET_SELECTION_POLICY_VERSION,
@@ -1505,11 +1583,11 @@
     storyClass, materializeStoryForBet, bucketIndexForBet, emptyBucketBalances,
     sortedCardIds, sameCardIds, storyStepAt, plannedRedrawAt, plannedKeepIdsAt, replayContract, executeRuntimeRedraw, resolveRuntimeMagic,
     packStorySummary, unpackStorySummary,
-    simulateNaturalStory, poolSignature, presetMatchesOutcomeRules, buildNaturalStoryPoolFromPreset,
+    simulateNaturalStory, storyBossRows, poolSignature, presetMatchesOutcomeRules, buildNaturalStoryPoolFromPreset,
     targetScorePoints, solveCandidateProbabilities, drawUniformPresetStoryCommit,
     legalDiceOutcomes, correctBossDiceReward,
     normalizeBossReservations, reserveBossReward, releaseBossReward, reservedCreditsForBucket, availablePoolCredits,
-    addPoolCredits, commitStoryToBuckets, postStorySpendToBuckets, settleStartedStory, settleCommittedStory,
+    addPoolCredits, tryBossReroll, commitStoryToBuckets, postStorySpendToBuckets, settleStartedStory, settleCommittedStory,
     clearPoolCache() { poolCache.clear(); }
   };
 });

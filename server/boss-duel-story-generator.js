@@ -550,8 +550,16 @@ function buildPreset(profile, states, generatedAt = new Date().toISOString()) {
 
 function validatePreset(profileInput, preset, summaryPreset, options = {}) {
   const profile = profileInput?.configSignature ? profileInput : createBuildProfile(profileInput, options);
-  assert(preset?.signature === profile.configSignature, "SIGNATURE_MISMATCH", "劇本索引簽章與現行規則不同");
-  assert(summaryPreset?.signature === profile.configSignature, "SIGNATURE_MISMATCH", "劇本摘要簽章與現行規則不同");
+  assert(
+    preset?.signature === profile.configSignature || NaturalCore.presetMatchesOutcomeRules(profile.config, preset),
+    "SIGNATURE_MISMATCH",
+    "劇本索引簽章與現行劇本規則不同"
+  );
+  assert(
+    summaryPreset?.signature === profile.configSignature || NaturalCore.presetMatchesOutcomeRules(profile.config, summaryPreset),
+    "SIGNATURE_MISMATCH",
+    "劇本摘要簽章與現行劇本規則不同"
+  );
   assert(preset.generatorRevision === GENERATOR_REVISION, "SIGNATURE_MISMATCH", "劇本索引產生器版本不同");
   assert(summaryPreset.generatorRevision === GENERATOR_REVISION, "SIGNATURE_MISMATCH", "劇本摘要產生器版本不同");
   const counts = {};

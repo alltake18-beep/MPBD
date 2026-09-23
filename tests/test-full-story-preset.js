@@ -9,7 +9,26 @@ const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v10.
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
 assert.equal(StoryCore.presetMatchesOutcomeRules(config, preset), true, "preset signature does not match the current story-generation rules");
 assert.equal(summaryPreset.signature, preset.signature, "summary and seed preset signatures must match");
-const pool = StoryCore.buildNaturalStoryPoolFromPreset(config, { ...preset, naturalSummaries: summaryPreset.naturalSummaries }, { useCache: false, includePath: false });
+const alternateBirthTickets = [1000, 0, 0, 0, 0, 0, 0, 0];
+const alternateBirthConfig = {
+  ...config,
+  bossRows: config.bossRows.map((row, index) => row.map((value, column) => column === 5 ? alternateBirthTickets[index] : value))
+};
+assert.equal(
+  StoryCore.poolSignature(alternateBirthConfig),
+  StoryCore.poolSignature(config),
+  "Boss birth tickets must not change the formal story-preset signature"
+);
+assert.equal(StoryCore.presetMatchesOutcomeRules(alternateBirthConfig, preset), true, "existing preset must remain valid after birth-ticket changes");
+const hpChangedConfig = {
+  ...config,
+  bossRows: config.bossRows.map((row, index) => row.map((value, column) => index === 0 && column === 1 ? value + 1 : value))
+};
+assert.notEqual(StoryCore.poolSignature(hpChangedConfig), StoryCore.poolSignature(config), "Boss HP must remain part of the story-preset signature");
+assert.equal(StoryCore.presetMatchesOutcomeRules(hpChangedConfig, preset), false, "story-affecting Boss changes must still invalidate the preset");
+const hydratedPreset = { ...preset, naturalSummaries: summaryPreset.naturalSummaries };
+assert.equal(StoryCore.buildNaturalStoryPoolFromPreset(hpChangedConfig, hydratedPreset, { useCache: false }), null);
+const pool = StoryCore.buildNaturalStoryPoolFromPreset(alternateBirthConfig, hydratedPreset, { useCache: false, includePath: false });
 assert(pool, "preset did not hydrate");
 assert.equal(pool.fromPreset, true);
 assert.equal(preset.version, "natural-story-preset-v16");
@@ -17,6 +36,22 @@ assert.equal(summaryPreset.version, "natural-story-summary-preset-v10");
 assert.equal(summaryPreset.format, "compact-summary-v1");
 assert.equal(pool.naturalStories, 240000);
 assert.equal(pool.totalStories, 240000);
+
+const starEightOnlyConfig = ActionCore.sanitizeConfig({
+  ...ActionCore.DEFAULT_CONFIG,
+  bossRows: ActionCore.DEFAULT_CONFIG.bossRows.map((row, index) => row.map((value, column) => column === 5 ? (index === 7 ? 1000 : 0) : value)),
+  simulation: {
+    ...ActionCore.DEFAULT_CONFIG.simulation,
+    playerCount: 1,
+    bossesPerPlayer: 20,
+    playerRoundLimit: 10000,
+    playerBehavior: "OFFICIAL_FUNDED"
+  }
+});
+const starEightOnlyReport = ActionCore.simulateNaturalModel(starEightOnlyConfig, { pool });
+assert.equal(starEightOnlyReport.totals.bosses, 20);
+assert.equal(starEightOnlyReport.starStats.find((row) => row.star === 8).count, 20, "birth tickets must still control which Boss star the player encounters");
+assert.equal(starEightOnlyReport.starStats.filter((row) => row.star !== 8).reduce((sum, row) => sum + row.count, 0), 0);
 
 const storyKeys = StoryCore.STORY_KEYS;
 const globalIds = new Set();
