@@ -371,7 +371,7 @@
       decisionReason: includeDetails ? route.reason : "",
       drawLog: includeDetails ? drawLog.map((row) => ({ ...row, discardedCardIds: row.discardedCardIds.slice() })) : [],
       magicCards: includeDetails ? state.magicCards.map(cloneMagic) : [],
-      coinX: Math.max(0, finite(state.coinX, 0)),
+      coinX: Rules.combineCoinMultiplier(1, state.coinX),
       activeCrit: Math.max(0, finite(damageView.crit, 0)),
       activeBoost: Math.max(0, finite(damageView.boost, 0)),
       activeFlat: Math.max(0, finite(damageView.flat, 0)),
@@ -495,6 +495,7 @@
       handPayoutX: 0,
       bossPayoutX: 0,
       coinPayoutX: 0,
+      globalMultiplier: 1,
       hpLeft: null,
       totalDamage: 0,
       paidDraws: 0,
@@ -701,6 +702,7 @@
         killOpportunityProbability: option.damage >= context.hpBefore ? option.showdownWinProbability : 0,
         bossHpBefore: context.hpBefore,
         bossHpAfter: context.hpAfter,
+        globalMultiplierAfter: context.nextCoinX,
         playerBadHighRerolls: option.playerBadHighRerolls,
         bossBadHighRerolls: option.bossBadHighRerolls,
         totalBetAfter: spendX - tail.spendX,
@@ -733,7 +735,7 @@
       expectedDamage: option.expectedDamage + tail.expectedDamage,
       estimatedKillProbability: directKillProbability + (1 - directKillProbability) * tail.estimatedKillProbability,
       magicSynergy: option.magicSynergyScore + tail.magicSynergy,
-      rewardAtStakeX: Math.max(context.bossRewardX + context.nextCoinX, tail.rewardAtStakeX),
+      rewardAtStakeX: Math.max(context.bossRewardX * context.nextCoinX, tail.rewardAtStakeX),
       jokerDecisionCount: (option.hasJoker ? 1 : 0) + tail.jokerDecisionCount,
       nonJokerDecisionCount: (option.hasJoker ? 0 : 1) + tail.nonJokerDecisionCount,
       pathLength: 1 + outcomePathLength(tail),
@@ -767,17 +769,20 @@
       if (round > roundLimit) {
         const exhausted = emptyOutcome("ROUND_EXHAUSTED");
         exhausted.hpLeft = hpLeft;
+        exhausted.globalMultiplier = bankedCoinX;
         return exhausted;
       }
       if (tieIndex >= 100) {
         const safety = emptyOutcome("TIE_SAFETY_STOP");
         safety.hpLeft = hpLeft;
+        safety.globalMultiplier = bankedCoinX;
         return safety;
       }
       const entrySpendX = tieIndex === 0 ? 1 : 0;
       if (spentSoFar + entrySpendX > maxSpendX + 1e-9) {
         const insufficient = emptyOutcome("INSUFFICIENT_FUNDS");
         insufficient.hpLeft = hpLeft;
+        insufficient.globalMultiplier = bankedCoinX;
         return insufficient;
       }
       const cacheKey = `${round}:${tieIndex}:${hpLeft}:${bankedCoinX}:${mayStop ? 1 : 0}:${spentSoFar}:${realizedPayoutSoFar}`;
@@ -796,7 +801,7 @@
       }
       const options = actionCache.get(actionKey);
       for (const option of options) {
-        const nextCoinX = bankedCoinX + option.coinX;
+        const nextCoinX = Rules.combineCoinMultiplier(bankedCoinX, option.coinX);
         const optionSpendX = entrySpendX + option.drawSpendX;
         if (spentSoFar + optionSpendX > maxSpendX + 1e-9) continue;
         const currentHandPayoutX = option.playerWins && !option.tie ? handPayoutX(option.finalHand) : 0;
@@ -810,9 +815,7 @@
             tail = emptyOutcome("KILLED");
             tail.killed = true;
             tail.hpLeft = 0;
-            tail.bossPayoutX = bossRewardX;
-            tail.coinPayoutX = nextCoinX;
-            tail.payoutX = bossRewardX + nextCoinX;
+            tail.globalMultiplier = nextCoinX;
           } else {
             tail = solve(
               round + 1,
@@ -840,12 +843,13 @@
       if (!best) {
         best = emptyOutcome("INSUFFICIENT_FUNDS");
         best.hpLeft = hpLeft;
+        best.globalMultiplier = bankedCoinX;
       }
       solveCache.set(cacheKey, best);
       return best;
     };
 
-    const outcome = solve(1, 0, initialHp, 0, false);
+    const outcome = solve(1, 0, initialHp, 1, false);
     let cumulativeSpendX = 0;
     for (const step of outcome.path) {
       const entryX = step.tieIndex === 0 ? 1 : 0;
@@ -853,8 +857,22 @@
       step.totalBetBefore = cumulativeSpendX;
       cumulativeSpendX += entryX + drawX;
       step.totalBetAfter = cumulativeSpendX;
+      const progress = Rules.bossStageProgress(input.star, initialHp, step.bossHpAfter);
+      step.unlockedStars = progress.unlockedStars;
+      step.newlyUnlockedStars = progress.unlockedStars - Rules.bossStageProgress(input.star, initialHp, step.bossHpBefore).unlockedStars;
     }
     outcome.hpLeft = outcome.killed ? 0 : finite(outcome.hpLeft, initialHp);
+    const progress = Rules.bossStageProgress(input.star, initialHp, outcome.hpLeft);
+    const stageReward = input.originalDice
+      ? Rules.rewardForUnlockedStars(input.originalDice, progress.unlockedStars)
+      : null;
+    outcome.unlockedStars = progress.unlockedStars;
+    outcome.unlockedBossRewardX = stageReward ? stageReward.total : outcome.killed ? bossRewardX : 0;
+    outcome.baseHandPayoutX = outcome.handPayoutX;
+    outcome.bossPayoutX = outcome.unlockedBossRewardX;
+    outcome.globalMultiplier = Rules.combineCoinMultiplier(1, outcome.globalMultiplier);
+    outcome.coinPayoutX = (outcome.handPayoutX + outcome.bossPayoutX) * (outcome.globalMultiplier - 1);
+    outcome.payoutX = outcome.handPayoutX + outcome.bossPayoutX + outcome.coinPayoutX;
     outcome.rounds = includePath
       ? outcome.path.reduce((max, step) => Math.max(max, step.round), 0)
       : Math.max(0, finite(outcome.rounds, 0));
@@ -871,12 +889,12 @@
     };
     outcome.behavior = "每回合依固定等級與魔法啟動排序選定一條互斥路線；不預看後續牌、不讀最終分類且不執行停損";
     outcome.playerPolicyVersion = PLAYER_POLICY_VERSION;
-    outcome.plannerVersion = "boss-plan-v12";
+    outcome.plannerVersion = "boss-plan-v13";
     return outcome;
   }
 
   return {
-    VERSION: "boss-plan-v12",
+    VERSION: "boss-plan-v13",
     PLAYER_POLICY_VERSION,
     planBossStory,
     enumerateRoundActions,

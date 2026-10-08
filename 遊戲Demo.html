@@ -12,12 +12,12 @@
   <script>
     if (location.protocol === "file:") {
       const params = new URLSearchParams(location.search);
-      params.set("v", "frontend-v109");
+      params.set("v", "frontend-v110");
       location.replace(`http://127.0.0.1:4173/${encodeURIComponent("遊戲Demo.html")}?${params}`);
     }
   </script>
   <link rel="icon" type="image/png" href="assets/mobile/ui-supplied/star.png">
-  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v109">
+  <link rel="stylesheet" href="src/game/boss-duel-demo.css?v=frontend-v110">
 </head>
 <body>
   <main class="game-shell phase-ready booting" id="gameShell">
@@ -32,11 +32,12 @@
       <div id="bossHud" class="boss-hud" hidden>
         <div class="boss-name-row">
           <span id="bossStars" class="boss-stars" aria-label="BOSS 星級載入中"></span>
+          <span id="stageProgress" class="stage-progress" aria-live="polite">0 / 0 ★</span>
           <img id="bossNameArt" class="boss-name-art" alt="" hidden>
           <h1 id="bossName" class="sr-only">BOSS</h1>
         </div>
         <div class="hp-readout"><span>HP</span><strong id="hpText">27 / 27</strong></div>
-        <div class="hp-track"><div id="hpFill" class="hp-fill"></div></div>
+        <div class="hp-track"><div id="hpFill" class="hp-fill"></div><div id="hpMilestones" class="hp-milestones" aria-hidden="true"></div></div>
       </div>
 
       <button id="menuButton" class="round-icon menu-button" type="button" aria-label="開啟選單" aria-expanded="false"><i></i><i></i><i></i></button>
@@ -78,7 +79,7 @@
       </div>
 
       <div id="coinBonusPanel" class="coin-bonus-panel" hidden aria-live="polite">
-        <span>COIN BONUS</span><strong id="coinBonusValue">+0X</strong>
+        <span>FINAL MULTIPLIER</span><strong id="coinBonusValue">×1</strong>
       </div>
     </section>
 
@@ -87,12 +88,13 @@
 
       <div id="prestartPanel" class="prestart-panel">
         <div class="tutorial-label">TUTORIAL</div>
-        <p>Hunt Bosses with cards for bounties!<br>Switch stakes and opponents between rounds!</p>
+        <p>Unlock stars to earn rewards!<br>Reroll a Boss for free before you start.</p>
         <p>The higher the Boss star level,<br>the higher the bounty!</p>
         <strong>Let's start the challenge!</strong>
         <div class="bet-selector">
           <b>BET</b>
           <div><button id="betDown" type="button" aria-label="降低押注">◀</button><span id="prestartBet">1</span><button id="betUp" type="button" aria-label="提高押注">▶</button></div>
+          <small id="betLimitHint">BET MAX —</small>
         </div>
       </div>
 
@@ -135,8 +137,8 @@
     <section id="rerollConfirm" class="reroll-confirm" hidden aria-label="重抽 BOSS 確認">
       <div class="reroll-confirm-card">
         <div class="reroll-alert">!</div>
-        <p>Pay <strong id="rerollConfirmCost">1</strong> to Redraw BOSS</p>
-        <small>This ends the current Boss and clears its temporary bonuses.</small>
+        <p><strong id="rerollConfirmCost">FREE</strong> REROLL BOSS</p>
+        <small>Draw another random Boss before the battle starts.</small>
         <div class="reroll-confirm-actions">
           <button id="rerollCancel" type="button" class="confirm-cancel">CANCEL</button>
           <button id="rerollAccept" type="button" class="confirm-accept">CONFIRM</button>
@@ -168,8 +170,8 @@
           <article class="tutorial-page" data-tutorial-page="2" hidden>
             <div class="tutorial-visual"><div class="tutorial-composite-p3"><img src="assets/mobile/ui-supplied/tutorial-p3b.png" alt="Magic cards"><img src="assets/mobile/ui-supplied/tutorial-p3.png" alt="Player hand and poker hand type"></div></div>
             <div class="tutorial-copy">
-              <h3 data-copy-en="KILL FIRST. REVEAL DICE AFTER." data-copy-zh="先擊殺，再揭骰">KILL FIRST. REVEAL DICE AFTER.</h3>
-              <p data-copy-en="The dice promise is locked on START. Dice are revealed only after BOSS HP reaches zero." data-copy-zh="START 時鎖定骰型；只有 BOSS HP 歸零後才揭曉骰面。">The dice promise is locked on START. Dice are revealed only after BOSS HP reaches zero.</p>
+              <h3 data-copy-en="UNLOCK STARS. KEEP YOUR REWARDS." data-copy-zh="解鎖星星，保留獎勵">UNLOCK STARS. KEEP YOUR REWARDS.</h3>
+              <p data-copy-en="Each HP milestone unlocks a star, starting with normal dice. Keep unlocked rewards even if the Boss escapes." data-copy-zh="血量每達成一段就解鎖一顆星，先解鎖普通骰；未擊殺也能領取已解鎖獎勵。">Each HP milestone unlocks a star, starting with normal dice. Keep unlocked rewards even if the Boss escapes.</p>
             </div>
           </article>
           <article class="tutorial-page" data-tutorial-page="3" hidden>
@@ -182,7 +184,7 @@
             </div>
             <div class="tutorial-copy">
               <h3 data-copy-en="BUILD YOUR BONUS. CLAIM THE TREASURE." data-copy-zh="累積加成，贏取寶箱獎勵">BUILD YOUR BONUS. CLAIM THE TREASURE.</h3>
-              <p data-copy-en="Magic Cards can add damage or coin rewards. Damage values are revealed only when hands are compared." data-copy-zh="魔法卡可增加傷害或金幣獎勵；傷害加成與倍率只在比牌時揭露。">Magic Cards can add damage or coin rewards. Damage values are revealed only when hands are compared.</p>
+              <p data-copy-en="Gold multiplies the final score by up to 5. Keep the highest multiplier; ×1 shatters. Damage magic reveals its value in battle." data-copy-zh="金幣卡讓最終得分乘上最高 5 倍，保留本隻最高倍率；×1 沒有加成並碎掉。傷害魔法在比牌時揭露。">Gold multiplies the final score by up to 5. Keep the highest multiplier; ×1 shatters. Damage magic reveals its value in battle.</p>
             </div>
           </article>
         </div>
@@ -324,12 +326,12 @@
 
   <script src="assets/vendor/pixi.min.js?v=release-final-v16"></script>
   <script src="assets/vendor/pixi-spine.js?v=release-final-v16"></script>
-  <script src="src/core/boss-duel-random.js?v=frontend-v109"></script>
-  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v109"></script>
-  <script src="src/core/boss-duel-rules.js?v=frontend-v109"></script>
-  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v12"></script>
-  <script src="data/story/boss-duel-story-preset-v16.js?v=natural-story-preset-v16"></script>
-  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v109"></script>
-  <script src="src/game/boss-duel-demo.js?v=frontend-v109"></script>
+  <script src="src/core/boss-duel-random.js?v=frontend-v110"></script>
+  <script src="src/core/boss-duel-poker-arrangement-core.js?v=frontend-v110"></script>
+  <script src="src/core/boss-duel-rules.js?v=frontend-v110"></script>
+  <script src="src/core/boss-duel-story-planner.js?v=boss-plan-v13"></script>
+  <script src="data/story/boss-duel-story-preset-v17.js?v=natural-story-preset-v17"></script>
+  <script src="src/core/boss-duel-natural-story-core.js?v=frontend-v110"></script>
+  <script src="src/game/boss-duel-demo.js?v=frontend-v110"></script>
 </body>
 </html>

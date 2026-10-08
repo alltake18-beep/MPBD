@@ -8,7 +8,7 @@ const Planner = require("../src/core/boss-duel-story-planner.js");
 const Rules = require("../src/core/boss-duel-rules.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-assert.equal(Planner.VERSION, "boss-plan-v12");
+assert.equal(Planner.VERSION, "boss-plan-v13");
 assert.equal(Planner.PLAYER_POLICY_VERSION, "story-player-policy-v1");
 
 const policyCard = (rank, suit, id, magicEffects) => ({ rank, suit, id, baseId: id, joker: false, magicEffects });

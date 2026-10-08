@@ -12,7 +12,7 @@ const config = StoryCore.normalizeConfig({
 function replay(story) {
   let hpLeft = story.hp;
   let spendX = 0;
-  let coinX = 0;
+  let globalMultiplier = 1;
   let rounds = 0;
   let killed = false;
   for (let round = 1; round <= story.rounds && !killed; round += 1) {
@@ -31,7 +31,7 @@ function replay(story) {
         bossBadHighRerollPct: config.bossBadHighRerollPct,
         initialRerollLimit: config.initialRerollLimit
       });
-      coinX += state.coinX;
+      globalMultiplier = Rules.combineCoinMultiplier(globalMultiplier, state.coinX);
       const step = story.path.find((row) => row.round === round && row.tieIndex === tieIndex);
       assert(step, `missing path step for round ${round}, tie ${tieIndex}`);
       Rules.applyRecommendedKeepCards(state, step.initialKeepCardIds);
@@ -66,7 +66,12 @@ function replay(story) {
     }
     assert(closed, "tie replay safety exceeded");
   }
-  const payoutX = (killed ? story.originalDice.total : 0) + (killed ? coinX : 0) + story.payoutParts.hand;
+  const { unlockedStars } = Rules.bossStageProgress(story.star, story.hp, hpLeft);
+  const stageReward = Rules.rewardForUnlockedStars(story.originalDice, unlockedStars).total;
+  const payoutX = (stageReward + story.payoutParts.hand) * globalMultiplier;
+  assert.equal(unlockedStars, story.unlockedStars);
+  assert.equal(globalMultiplier, story.globalMultiplier);
+  assert.equal(stageReward, story.originalBossRewardX);
   assert.equal(rounds, story.rounds);
   assert.equal(hpLeft, story.hpLeft);
   assert.equal(killed, story.killed);

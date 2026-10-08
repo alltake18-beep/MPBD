@@ -172,14 +172,52 @@ assert.equal(normalMagic.values.find((row) => row.kind === "crit").final, 5, "no
 assert.ok(normalMagic.values.every((row) => row.sourceTable === "NORMAL"));
 
 const contract = NaturalCore.replayContract(story, config);
-assert.equal(contract.version, "story-action-trace-v2");
+assert.equal(contract.version, "story-action-trace-v3-stage-assistance");
 assert.equal(contract.storySeed, story.seed);
 assert.equal(contract.originalStoryClass, "lose");
 assert.equal(contract.rulesVersion, Rules.VERSION);
-assert.equal(contract.plannerVersion, "boss-plan-v12");
+assert.equal(contract.plannerVersion, "boss-plan-v13");
 assert.equal(contract.suppressionPolicyVersion, NaturalCore.SUPPRESSION_POLICY_VERSION);
 assert.equal(contract.suppressionPolicy.magic.mode, "SEPARATE_TABLE");
 assert.equal(contract.suppressionPolicySignature, JSON.stringify(contract.suppressionPolicy));
+
+const assistancePolicy = NaturalCore.normalizeSuppressionPolicy({
+  redraw: { maxCandidates: 1, assistanceMaxCandidates: 3, improvedAcceptPct: 0 }
+});
+const assistanceBudget = NaturalCore.assistanceBudgetForBoss([100, 0, 0], [], 1, story);
+assert.equal(assistanceBudget.eligible, true);
+const runAssistance = (actionSequence, budget = assistanceBudget) => {
+  const state = createState();
+  Rules.applyRecommendedKeepCards(state, []);
+  return NaturalCore.executeRuntimeRedraw(state, {
+    story, round: step.round, tieIndex: step.tieIndex,
+    drawNumber: step.drawLog.length + 1,
+    actionSequence, discardedIndexes: state.discardIndexes,
+    suppressionPolicy: assistancePolicy, suppressionActive: true,
+    assistanceBudget: budget
+  });
+};
+let retriedAssistance = null;
+for (let actionSequence = 20; actionSequence < 120 && !retriedAssistance; actionSequence += 1) {
+  const audit = runAssistance(actionSequence);
+  if (audit.candidates.length > 1) retriedAssistance = audit;
+}
+assert(retriedAssistance, "funded inverse suppression must be capable of retrying a same/lower candidate even when suppression maxCandidates is 1");
+assert.equal(retriedAssistance.mode, "ASSISTANCE");
+assert.equal(retriedAssistance.assistanceActive, true);
+assert.equal(retriedAssistance.suppressionActive, false);
+assert.deepEqual(retriedAssistance, runAssistance(retriedAssistance.actionSequence));
+for (const candidate of retriedAssistance.candidates) {
+  assert.equal(candidate.acceptPct, candidate.improved ? 100 : 0);
+  if (!candidate.accepted) assert.equal(candidate.improved, false);
+}
+assert.equal(retriedAssistance.candidates.at(-1).accepted, true);
+assert.equal(runAssistance(20, { ...assistanceBudget, availableCredits: -1 }).assistanceActive, false);
+const assistedMagic = NaturalCore.resolveRuntimeMagic(magicState, {
+  story, actionSequence: 4, suppressionActive: true, assistanceActive: true, suppressionPolicy: customPolicy
+});
+assert.equal(assistedMagic.suppressionActive, false);
+assert.ok(assistedMagic.values.every((row) => row.sourceTable === "NORMAL"), "assisted combat must not apply negative damage suppression");
 
 console.log(JSON.stringify({
   status: "ok",

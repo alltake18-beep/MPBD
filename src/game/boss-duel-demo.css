@@ -140,6 +140,18 @@ button { color: inherit; }
 .boss-name-text { margin: 0; color: #ffc94a; font-size: 15px; line-height: 18px; text-shadow: 0 2px #681900,0 0 3px #ffb629; }
 .boss-stars { position: absolute; top: 50px; left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 0; height: 23px; }
 .boss-star-slot { position: relative; display: block; width: 24px; height: 23px; }
+.boss-star-slot.locked { opacity: .65; filter: grayscale(1); background: rgba(9,15,34,.75); border-radius: 50%; }
+.boss-star-slot.unlocked { opacity: 1; filter: drop-shadow(0 0 5px #ffd868); }
+.boss-star-slot.newly-unlocked { animation: stage-star-unlock .65s ease-out both; }
+.stage-progress { position: absolute; top: 76px; left: 0; right: 0; color: #ffdc7c; font: 800 11px/1.2 Arial,sans-serif; text-align: center; text-shadow: 0 2px 2px #160800; }
+.hp-milestones { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; pointer-events: none; }
+.hp-milestones i { position: absolute; top: 0; bottom: 0; width: 1px; background: #ffecbb90; box-shadow: 0 0 1px #000; }
+#betLimitHint { display: block; margin-top: 4px; color: #ffdf8c; font-size: 10px; }
+@keyframes stage-star-unlock { 0% { transform: scale(.65); filter: brightness(3); } 45% { transform: scale(1.55); filter: brightness(2); } 100% { transform: scale(1); } }
+.magic-reveal-card.coin-shatter { animation: coin-neutral-shatter .48s .14s ease-in both; }
+.magic-reveal.turbo .magic-reveal-card.coin-shatter { animation-duration: .16s; animation-delay: .05s; }
+.magic-reveal-card.coin-shatter::after { content: "×1"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font: 900 48px Arial,sans-serif; text-shadow: 0 3px 6px #000; }
+@keyframes coin-neutral-shatter { 0%,20% { opacity: 1; transform: none; filter: brightness(1.6); clip-path: polygon(0 0,100% 0,100% 100%,0 100%); } 45% { transform: rotate(-5deg) scale(1.08); clip-path: polygon(0 0,46% 0,43% 34%,67% 22%,60% 59%,100% 47%,100% 100%,47% 100%,54% 67%,24% 81%,30% 44%,0 55%); } 100% { opacity: 0; transform: translateY(65px) rotate(12deg) scale(.85); filter: blur(3px); clip-path: polygon(0 0,40% 0,20% 35%,72% 18%,49% 68%,100% 44%,100% 100%,40% 100%,62% 74%,15% 90%,18% 37%,0 50%); } }
 .boss-star-slot img { position: absolute; inset: 0; display: block; width: 24px; height: 23px; object-fit: contain; filter: drop-shadow(0 1px 1px #6d2a54); }
 .boss-star-slot.premium .yellow-star { opacity: 0; }
 .boss-star-slot .rainbow-star { opacity: 1; filter: drop-shadow(0 0 4px #ff63f4) drop-shadow(0 1px 1px #6d2a54); }
@@ -349,7 +361,8 @@ button { color: inherit; }
 .combat-message.win,.combat-message.lose { padding: 3px 10px; border-radius: 10px; background: rgba(28,4,4,.72); color: #ffe786; font-size: 8px; text-shadow: 0 1px #000; }
 .combat-message.lose { color: #ffb29f; }
 .phase-compare-reveal .combat-message,.phase-compare-result .combat-message,.phase-tie-result .combat-message { display: none; }
-.phase-round-result .combat-message,.phase-resolved-loss .combat-message { display: none; }
+.phase-round-result .combat-message { display: none; }
+.phase-resolved-loss .combat-message { display: block; width: 88%; font-size: 12px; line-height: 1.5; }
 .cards-cleared.phase-round-result .boss-hand-spine-stage { z-index: 6; }
 
 .hand-zone { position: absolute; z-index: 7; top: 102px; left: 50%; width: 348px; height: 125px; transform: translateX(-50%); }

@@ -3,8 +3,9 @@
 const assert = require("node:assert/strict");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 const StoryCore = ActionCore.NaturalCore;
-const preset = require("../data/story/boss-duel-story-preset-v16.js");
-const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v10.js");
+const Rules = require("../src/core/boss-duel-rules.js");
+const preset = require("../data/story/boss-duel-story-preset-v17.js");
+const summaryPreset = require("../data/story/boss-duel-story-summary-preset-v11.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
 assert.equal(StoryCore.presetMatchesOutcomeRules(config, preset), true, "preset signature does not match the current story-generation rules");
@@ -31,8 +32,8 @@ assert.equal(StoryCore.buildNaturalStoryPoolFromPreset(hpChangedConfig, hydrated
 const pool = StoryCore.buildNaturalStoryPoolFromPreset(alternateBirthConfig, hydratedPreset, { useCache: false, includePath: false });
 assert(pool, "preset did not hydrate");
 assert.equal(pool.fromPreset, true);
-assert.equal(preset.version, "natural-story-preset-v16");
-assert.equal(summaryPreset.version, "natural-story-summary-preset-v10");
+assert.equal(preset.version, "natural-story-preset-v17");
+assert.equal(summaryPreset.version, "natural-story-summary-preset-v11");
 assert.equal(summaryPreset.format, "compact-summary-v1");
 assert.equal(pool.naturalStories, 240000);
 assert.equal(pool.totalStories, 240000);
@@ -56,6 +57,8 @@ assert.equal(starEightOnlyReport.starStats.filter((row) => row.star !== 8).reduc
 const storyKeys = StoryCore.STORY_KEYS;
 const globalIds = new Set();
 let checked = 0;
+let partialRewardStories = 0;
+let boostedRewardStories = 0;
 for (let star = 1; star <= 8; star += 1) {
   let starCount = 0;
   for (const classKey of storyKeys) {
@@ -68,6 +71,15 @@ for (let star = 1; star <= 8; star += 1) {
       assert.ok(Math.abs(story.returnX - story.payoutX / story.spendX) < 1e-12);
       assert.ok(Math.abs(story.netX - (story.payoutX - story.spendX)) < 1e-12);
       assert.equal(StoryCore.storyClass(story.returnX, config), classKey);
+      const unlockedStars = Rules.bossStageProgress(star, story.hp, story.hpLeft).unlockedStars;
+      const baseRewardX = Rules.rewardForUnlockedStars(story.originalDice, unlockedStars).total;
+      assert.equal(story.unlockedStars, unlockedStars);
+      assert.equal(story.unlockedBossRewardX, baseRewardX);
+      assert.equal(story.payoutParts.boss, baseRewardX);
+      assert(story.globalMultiplier >= 1 && story.globalMultiplier <= 5);
+      assert.equal(story.payoutX, (baseRewardX + story.payoutParts.hand) * story.globalMultiplier);
+      if (!story.killed && baseRewardX > 0) partialRewardStories += 1;
+      if (story.globalMultiplier > 1 && story.payoutX > 0) boostedRewardStories += 1;
       assert(!globalIds.has(`N-${star}-${story.seed}`), "duplicate natural story seed within star");
       globalIds.add(`N-${star}-${story.seed}`);
       checked += 1;
@@ -77,6 +89,8 @@ for (let star = 1; star <= 8; star += 1) {
 }
 
 assert.equal(checked, 240000);
+assert(partialRewardStories > 0, "the new formal release must include non-killed Bosses with earned stage rewards");
+assert(boostedRewardStories > 0, "the new formal release must include coin multipliers applied to final scores");
 assert.equal(StoryCore.storyClass(5, config), "win");
 assert.equal(StoryCore.storyClass(4.999999, config), "push");
 assert.equal(StoryCore.storyClass(1, config), "push");
@@ -86,6 +100,8 @@ assert.equal(StoryCore.storyClass(1.5, config), "push");
 console.log(JSON.stringify({
   status: "ok",
   checked,
+  partialRewardStories,
+  boostedRewardStories,
   naturalStories: pool.naturalStories,
   cells: 24,
   storiesPerClass: 10000,

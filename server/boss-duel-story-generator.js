@@ -5,8 +5,8 @@
  *
  * 這個檔案只負責協調現行遊戲核心，不重寫理牌或玩家策略：
  * - src/core/boss-duel-random.js：固定亂數與 seed 衍生
- * - src/core/boss-duel-rules.js：rules-v11
- * - src/core/boss-duel-story-planner.js：boss-plan-v12
+ * - src/core/boss-duel-rules.js：rules-v12
+ * - src/core/boss-duel-story-planner.js：boss-plan-v13
  * - src/core/boss-duel-natural-story-core.js：模擬、分類、摘要與重播
  *
  * CLI：
@@ -32,10 +32,10 @@ const StoryPlanner = require("../src/core/boss-duel-story-planner.js");
 const NaturalCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionTreeCore = require("../src/probability/boss-duel-action-tree-core.js");
 
-const SERVICE_VERSION = "boss-duel-story-generator-v2";
-const GENERATOR_REVISION = "boss-plan-v12-arrange-v10-action-trace-v2-suppression-v5-runtime-quota10000-threshold5-production-v6";
-const PRESET_VERSION = "natural-story-preset-v16";
-const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v10";
+const SERVICE_VERSION = "boss-duel-story-generator-v3";
+const GENERATOR_REVISION = "boss-plan-v13-arrange-v10-stage-rewards-coin-max5-assistance-v6-production-v7";
+const PRESET_VERSION = "natural-story-preset-v17";
+const SUMMARY_PRESET_VERSION = "natural-story-summary-preset-v11";
 const PRESET_FILE_NAME = `boss-duel-story-preset-${PRESET_VERSION.match(/v\d+$/)[0]}.js`;
 const SUMMARY_PRESET_FILE_NAME = `boss-duel-story-summary-preset-${SUMMARY_PRESET_VERSION.match(/v\d+$/)[0]}.js`;
 const ARRANGEMENT_VERSION = "arrange-v10";
@@ -44,10 +44,10 @@ const FORMAL_STORIES_PER_STAR = 30000;
 const FORMAL_TOTAL_STORIES = 240000;
 const CLASS_KEYS = Object.freeze(["win", "push", "lose"]);
 const SUPPORTED_BETS = Object.freeze((NaturalCore.BET_VALUES || []).slice());
-const EXPECTED_RULES_VERSION = "rules-v11";
-const EXPECTED_PLANNER_VERSION = "boss-plan-v12";
-const EXPECTED_ACTION_TRACE_VERSION = "story-action-trace-v2";
-const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v5-lose-story-only";
+const EXPECTED_RULES_VERSION = "rules-v12";
+const EXPECTED_PLANNER_VERSION = "boss-plan-v13";
+const EXPECTED_ACTION_TRACE_VERSION = "story-action-trace-v3-stage-assistance";
+const EXPECTED_SUPPRESSION_VERSION = "deviation-suppression-v6-pool-assistance";
 const EXPECTED_STORY_BET_CONTRACT_VERSION = "story-bet-scaling-v1";
 const UINT32_MAX = 0xffffffff;
 

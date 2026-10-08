@@ -5,10 +5,17 @@ const fsp = require("node:fs/promises");
 const path = require("node:path");
 const { once } = require("node:events");
 const { spawnSync } = require("node:child_process");
+const os = require("node:os");
+const StoryCore = require("../src/core/boss-duel-natural-story-core.js");
+const StoryPlanner = require("../src/core/boss-duel-story-planner.js");
 
 const root = path.resolve(__dirname, "..");
-const outputDir = path.join(root, "outputs", "01a0475c-013b-77b1-8bad-bb0725d62606");
-const packageDir = path.join(outputDir, "workbook-package-v10");
+const outputDir = path.resolve(process.env.BOSS_DUEL_EXPORT_DIR || path.join(os.tmpdir(), "boss-duel-story-export-v17"));
+const outputRelative = path.relative(root, outputDir);
+if (!outputRelative || (outputRelative !== ".." && !outputRelative.startsWith(`..${path.sep}`) && !path.isAbsolute(outputRelative))) {
+  throw new Error("Excel 匯出必須寫入 Repository 外；請設定 BOSS_DUEL_EXPORT_DIR");
+}
+const packageDir = path.join(outputDir, "workbook-package-v17");
 const previewDir = path.join(outputDir, "Boss Duel 劇本玩家劇本 240000 預覽");
 const outputPath = path.join(outputDir, "Boss Duel 劇本玩家劇本 240000.xlsx");
 const classKeys = ["win", "push", "lose"];
@@ -21,7 +28,8 @@ const suitCode = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
 const headers = [
   "排序", "劇本 ID", "種子", "分類", "擊殺", "總押 x", "總派彩 x", "遊戲淨結果 x", "分類倍率",
   "BOSS HP", "剩餘 HP", "回合", "操作合計", "初始／自動／劇本保留", "劇本換牌操作", "各回合結果與雙方手牌",
-  "完整重播稽核 JSON", "重播契約"
+  "完整重播稽核 JSON", "重播契約", "解鎖星數", "完整原骰獎 x", "已解鎖 Boss 獎 x",
+  "牌型基礎獎 x", "全局倍率", "金幣倍率增益 x"
 ];
 
 function clean(value) {
@@ -62,22 +70,38 @@ function rowValues(story, index) {
   }).join(" ") || "無換牌");
   const resultSummary = perRound(story, (round) => {
     const magic = (round.magicCards || []).map((card) => `${card.key}:${card.value}${card.target ? `→${card.target}` : ""}`).join(",") || "無";
-    return `${handLabel[round.finalHand] || round.finalHand}〔${(round.finalCards || []).join(" ")}〕 ${round.action}/${round.result} 傷${round.damage || 0} HP${round.bossHpBefore ?? "—"}→${round.bossHpAfter ?? "—"}｜BOSS ${handLabel[round.bossHand] || round.bossHand}〔${(round.bossCards || []).join(" ")}〕｜魔法:${magic}`;
+    return `${handLabel[round.finalHand] || round.finalHand}〔${(round.finalCards || []).join(" ")}〕 ${round.action}/${round.result} 傷${round.damage || 0} HP${round.bossHpBefore ?? "—"}→${round.bossHpAfter ?? "—"}｜星:${round.unlockedStars ?? 0}/${story.star}｜全局×${round.globalMultiplierAfter ?? 1}｜BOSS ${handLabel[round.bossHand] || round.bossHand}〔${(round.bossCards || []).join(" ")}〕｜魔法:${magic}`;
   });
   const fullReplayAudit = JSON.stringify({
     actions: story.actions,
     terminationReason: story.terminationReason,
     magicCounts: story.magicCounts,
     decisionMetrics: story.decisionMetrics,
+    originalDice: story.originalDice,
+    originalBossRewardX: story.originalBossRewardX,
+    unlockedBossRewardX: story.unlockedBossRewardX,
+    baseHandPayoutX: story.baseHandPayoutX,
+    unlockedStars: story.unlockedStars,
+    globalMultiplier: story.globalMultiplier,
+    payoutParts: story.payoutParts,
+    replayContract: story.replayContract,
     path: story.path
   });
   if (fullReplayAudit.length > 32767) throw new Error(`${story.id} 完整稽核超過 Excel 單格上限`);
-  const replayContract = `seed=${story.seed}／${story.plannerVersion || "boss-plan-v12"}／story-action-trace-v2／deviation-suppression-v5-lose-story-only`;
+  if (!(story.globalMultiplier >= 1 && story.globalMultiplier <= 5) || !Number.isInteger(story.unlockedStars)
+    || ![story.unlockedBossRewardX, story.baseHandPayoutX, story.payoutParts?.coin].every(Number.isFinite)
+    || story.replayContract?.version !== StoryCore.ACTION_TRACE_VERSION) throw new Error(`${story.id} 缺少新版階段、倍率或重播契約欄位`);
+  const expectedPayoutX = (story.unlockedBossRewardX + story.baseHandPayoutX) * story.globalMultiplier;
+  if (Math.abs(expectedPayoutX - story.payoutX) > 1e-9 || Math.abs(story.payoutParts.coin - (story.unlockedBossRewardX + story.baseHandPayoutX) * (story.globalMultiplier - 1)) > 1e-9) {
+    throw new Error(`${story.id} 階段獎／全局倍率派彩不一致`);
+  }
+  const replayContract = `seed=${story.seed}／${story.plannerVersion || StoryPlanner.VERSION}／${StoryCore.ACTION_TRACE_VERSION}／${StoryCore.SUPPRESSION_POLICY_VERSION}／${StoryCore.POOL_SETTLEMENT_VERSION}`;
   return [
     index + 1, story.id, story.seed, classLabel[story.classKey], story.killed ? "是" : "否",
     story.spendX, story.payoutX, story.netX, story.payoutX / Math.max(story.spendX, Number.EPSILON),
     story.hp, story.hpLeft, story.rounds, actionSummary, keepSummary, plannedOperations, resultSummary,
-    fullReplayAudit, replayContract
+    fullReplayAudit, replayContract, story.unlockedStars, story.originalDice.total, story.unlockedBossRewardX,
+    story.baseHandPayoutX, story.globalMultiplier, story.payoutParts.coin
   ];
 }
 
@@ -117,7 +141,7 @@ function updateStats(stats, story) {
   stats.redrawStories += Number(story.actions?.totalDraws || 0) > 0 ? 1 : 0;
 }
 
-const sheetPrefix = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:R30004"/><sheetViews><sheetView workbookViewId="0"><pane xSplit="4" ySplit="4" topLeftCell="E5" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="10" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="12" width="11" customWidth="1"/><col min="13" max="16" width="42" customWidth="1"/><col min="17" max="17" width="80" customWidth="1"/><col min="18" max="18" width="48" customWidth="1"/></cols><sheetData>`;
+const sheetPrefix = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><dimension ref="A1:X30004"/><sheetViews><sheetView workbookViewId="0"><pane xSplit="4" ySplit="4" topLeftCell="E5" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols><col min="1" max="1" width="10" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/><col min="3" max="12" width="11" customWidth="1"/><col min="13" max="16" width="42" customWidth="1"/><col min="17" max="17" width="80" customWidth="1"/><col min="18" max="18" width="48" customWidth="1"/><col min="19" max="24" width="14" customWidth="1"/></cols><sheetData>`;
 
 async function buildStarSheet(star) {
   const file = path.join(packageDir, "xl", "worksheets", `sheet${star + 1}.xml`);
@@ -129,13 +153,13 @@ async function buildStarSheet(star) {
   await write(stream, `<row r="4" ht="40" customHeight="1">${headers.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   let outputIndex = 0;
   for (const classKey of classKeys) {
-    const inputFile = path.join(root, "reports", "story-detail-parts-v10", `star-${star}-${classKey}.json`);
+    const inputFile = path.join(outputDir, "story-detail-parts-v17", `star-${star}-${classKey}.json`);
     const stories = JSON.parse(await fsp.readFile(inputFile, "utf8"));
     if (stories.length !== 10000) throw new Error(`${star} 星 ${classKey} 不是 10,000 筆`);
     stories.sort((left, right) => Number(right.netX) - Number(left.netX) || Number(left.seed) - Number(right.seed));
     for (const story of stories) {
       const returnX = Number(story.payoutX) / Math.max(Number(story.spendX), Number.EPSILON);
-      const replayClass = returnX >= 5 ? "win" : returnX >= 1 ? "push" : "lose";
+      const replayClass = StoryCore.storyClass(returnX);
       if (story.classKey !== classKey || replayClass !== classKey) throw new Error(`${story.id} 分類重播不一致`);
       const values = rowValues(story, outputIndex);
       const row = outputIndex + 5;
@@ -145,7 +169,7 @@ async function buildStarSheet(star) {
         const reference = ref(column, row);
         if (column === 8) cells.push(formulaCell(reference, `G${row}-F${row}`, values[7], 7));
         else if (column === 9) cells.push(formulaCell(reference, `IFERROR(G${row}/F${row},0)`, values[8], 7));
-        else if ([1, 3, 6, 7, 10, 11, 12].includes(column)) cells.push(numberCell(reference, values[column - 1], [6, 7].includes(column) ? 7 : 0));
+        else if ([1, 3, 6, 7, 10, 11, 12].includes(column) || column >= 19) cells.push(numberCell(reference, values[column - 1], [6, 7, 20, 21, 22, 23, 24].includes(column) ? 7 : 0));
         else cells.push(stringCell(reference, values[column - 1], column === 4 ? classStyle : 0));
       }
       await write(stream, `<row r="${row}">${cells.join("")}</row>`);
@@ -154,7 +178,7 @@ async function buildStarSheet(star) {
     }
   }
   if (outputIndex !== 30000 || classKeys.some((key) => stats.classCounts[key] !== 10000)) throw new Error(`${star} 星明細數量不正確`);
-  await write(stream, `</sheetData><mergeCells count="2"><mergeCell ref="A1:R1"/><mergeCell ref="A2:R2"/></mergeCells><autoFilter ref="A4:R30004"/><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/></worksheet>`);
+  await write(stream, `</sheetData><mergeCells count="2"><mergeCell ref="A1:X1"/><mergeCell ref="A2:X2"/></mergeCells><autoFilter ref="A4:X30004"/><pageMargins left="0.3" right="0.3" top="0.5" bottom="0.5" header="0.2" footer="0.2"/></worksheet>`);
   stream.end();
   await once(stream, "finish");
   return stats;
@@ -177,7 +201,7 @@ async function buildSummarySheet(statsRows) {
   }, { count: 0, kills: 0, classCounts: { win: 0, push: 0, lose: 0 }, spend: 0, payout: 0, returnX: 0, net: 0, redrawStories: 0 });
   const rows = [];
   rows.push(`<row r="1" ht="34" customHeight="1">${stringCell("A1", "Boss Duel｜劇本玩家劇本總覽（8 星 × 30,000 局）", 1)}</row>`);
-  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v109／action-tree-v68／boss-plan-v12／arrange-v10／natural-story-preset-v16；24 個結果資料格各 10,000；同一 X 倍數劇本通用所有 Bet。", 2)}</row>`);
+  rows.push(`<row r="2">${stringCell("A2", "版本：frontend-v110／action-tree-v69／boss-plan-v13／arrange-v10／natural-story-preset-v17；24 格各10,000；分段星獎加牌型獎後乘金幣最高倍率1～5。此為基準劇本，線上水池支援／補正另需操作與帳務快照。", 2)}</row>`);
   const summaryHeaders = ["星級", "劇本數", "擊殺", "擊殺率", "贏多", "贏", "輸", "平均總押", "平均總派彩", "平均倍率", "平均淨結果", "有換牌劇本", "完整稽核", "重播契約"];
   rows.push(`<row r="4" ht="40" customHeight="1">${summaryHeaders.map((value, index) => stringCell(ref(index + 1, 4), value, 3)).join("")}</row>`);
   statsRows.forEach((stats, index) => rows.push(summaryRowXml(stats, index + 5)));
@@ -271,7 +295,11 @@ async function run() {
   process.stdout.write(JSON.stringify({ phase: "package-ready", ...qa }, null, 2));
 }
 
-run().catch((error) => {
-  process.stderr.write(error.stack || error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  run().catch((error) => {
+    process.stderr.write(error.stack || error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { rowValues, headers: headers.slice() };

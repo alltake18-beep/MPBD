@@ -8,7 +8,7 @@ const StoryCore = require("../src/core/boss-duel-natural-story-core.js");
 const ActionCore = require("../src/probability/boss-duel-action-tree-core.js");
 
 const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-assert.equal(Rules.VERSION, "rules-v11");
+assert.equal(Rules.VERSION, "rules-v12");
 assert.equal(config.storiesPerClass, 10000);
 assert.equal(config.storiesPerStar, 30000);
 assert.equal(8 * config.storiesPerStar, 240000);
@@ -16,9 +16,15 @@ assert.equal(config.rewardFloorPct, 10);
 assert.equal(config.rewardCeilingMultiple, 10);
 assert.equal(config.playerBadHighRerollPct, 50);
 assert.equal(config.bossBadHighRerollPct, 25);
-assert.equal(Object.hasOwn(config, "refreshCostX"), false, "REROLL BOSS fee is a fixed Bet × 1 contract, not a configurable rule");
+assert.equal(Object.hasOwn(config, "refreshCostX"), false, "free pre-START REROLL BOSS is a fixed contract, not a configurable fee");
 assert(config.magicRows.every((row) => row[2] === row[3]), "magic ticket weights must use one shared value");
 assert.equal(config.magicRows.find((row) => row[0] === "crit")[4], 1);
+for (const key of ["threeBoost", "straightBoost", "coin"]) {
+  assert.deepEqual(config.magicRows.find((row) => row[0] === key).slice(4, 6), [1, 5], `${key} must use the shared ×1 through ×5 outcomes`);
+}
+for (const key of ["fourBoost", "flushBoost", "fullHouseBoost"]) {
+  assert.deepEqual(config.magicRows.find((row) => row[0] === key).slice(4, 6), [1, 3], `${key} must retain its existing multiplier range`);
+}
 assert.equal(StoryCore.normalizeTargetRtpPct(undefined), 96);
 assert.equal(StoryCore.normalizeTargetRtpPct(79), 80);
 assert.equal(StoryCore.normalizeTargetRtpPct(100), 99);
@@ -114,8 +120,9 @@ assert.deepEqual(new Set(pairPlan.extraCards.map(Arrangement.cardId)), new Set([
 
 const fullClassification = StoryCore.simulateNaturalStory(config, 1, 12345, { includePath: false });
 const packedClassification = StoryCore.packStorySummary(fullClassification);
+assert.equal(packedClassification.length, 31, "stage and global multiplier metadata are part of the formal compact summary");
 const unpackedClassification = StoryCore.unpackStorySummary(packedClassification, 1, fullClassification.classKey);
-for (const key of ["seed", "star", "classKey", "hp", "hpLeft", "roundLimit", "rounds", "killed", "spendX", "payoutX", "originalBossRewardX", "diceStateIndex"]) {
+for (const key of ["seed", "star", "classKey", "hp", "hpLeft", "roundLimit", "rounds", "killed", "spendX", "payoutX", "originalBossRewardX", "diceStateIndex", "globalMultiplier", "unlockedStars", "unlockedBossRewardX", "baseHandPayoutX"]) {
   assert.deepEqual(unpackedClassification[key], fullClassification[key], `compact summary round-trip must preserve ${key}`);
 }
 assert.deepEqual(unpackedClassification.originalDice, fullClassification.originalDice, "compact summary round-trip must preserve the original dice");
@@ -255,8 +262,9 @@ assert.equal(decrease.deltaCredits, -10);
 assert(decrease.correctedRewardX >= 10);
 
 const minimumWhenUnaffordable = StoryCore.correctBossDiceReward(diceStory, -10, 1, rewardBounds, DiceCore.mulberry32(4));
-assert.equal(minimumWhenUnaffordable.correctedRewardX, 2, "when no legal reward is affordable, use the minimum legal bounded dice result");
-assert.equal(minimumWhenUnaffordable.deltaCredits, -18);
+assert.equal(minimumWhenUnaffordable.correctedRewardX, 5, "when no legal reward is affordable, preserve earlier stars and use ×1 for the final multiplier die");
+assert.equal(minimumWhenUnaffordable.deltaCredits, -15);
+assert.deepEqual(minimumWhenUnaffordable.dice.normalFaces, diceStory.originalDice.normalFaces, "pool correction must preserve all previously unlocked ordinary stars");
 
 const cashflowStory = { ...diceStory, spendX: 100, payoutX: 80, netX: -20 };
 const settlement = StoryCore.settleCommittedStory(
@@ -313,8 +321,8 @@ assert.equal(paidRedrawSettlement.spendDeltaCredits, 2);
 assert.equal(paidRedrawSettlement.storyOpeningAdjustmentCredits, 7.04);
 assert.equal(paidRedrawSettlement.actualSpendTargetAccrualCredits, 2.88, "all successful story wagers post at locked RTP");
 assert.equal(paidRedrawSettlement.targetAccrualCredits, 9.92);
-assert.equal(paidRedrawSettlement.correction.correctedRewardX, 9, "the dice reward consumes the largest legal amount that fits the available budget");
-assert.equal(paidRedrawSettlement.endingPoolCredits, 0.92);
+assert.equal(paidRedrawSettlement.correction.correctedRewardX, 8, "the final star cannot spend 9 credits when preserving earlier stars permits only even totals");
+assert.equal(paidRedrawSettlement.endingPoolCredits, 1.92);
 
 const shortSpendSettlement = StoryCore.settleCommittedStory(
   { selectedStory: { ...fourStarEightXStory, spendX: 3 } }, [0, 0, 0], 1,
@@ -325,20 +333,21 @@ assert.equal(shortSpendSettlement.spendDeltaCredits, -2);
 assert.equal(shortSpendSettlement.storyOpeningAdjustmentCredits, 5.12);
 assert.equal(shortSpendSettlement.actualSpendTargetAccrualCredits, 0.96);
 assert.equal(shortSpendSettlement.targetAccrualCredits, 6.08);
-assert(shortSpendSettlement.correction.correctedRewardX <= 6.08, "a killed Boss may only use a legal dice reward within the adjusted pool");
+assert.equal(shortSpendSettlement.correction.correctedRewardX, 8, "the minimum legal final-star result must preserve previously earned stars even when their budget is insufficient");
+assert.equal(shortSpendSettlement.endingPoolCredits, -1.92, "unfunded earned obligations remain as pool debt rather than being removed");
 
 const longSpendNoKillSettlement = StoryCore.settleCommittedStory(
   { selectedStory: fourStarEightXStory }, [0, 0, 0], 1,
-  { actualSpendCredits: 3, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
+  { actualSpendCredits: 3, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false, actualBossRewardX: 0, actualUnlockedStars: 0 }
 );
 assert.equal(longSpendNoKillSettlement.storyOpeningAdjustmentCredits, 7.04);
 assert.equal(longSpendNoKillSettlement.actualSpendTargetAccrualCredits, 2.88);
-assert.equal(longSpendNoKillSettlement.correction.applied, false, "a surviving Boss has no dice reward to correct");
+assert.equal(longSpendNoKillSettlement.correction.applied, false, "a surviving Boss with no unlocked star has no dice reward to correct");
 assert.equal(longSpendNoKillSettlement.endingPoolCredits, 9.92, "unused adjusted budget carries to the next Boss");
 
 const shortSpendNoKillSettlement = StoryCore.settleCommittedStory(
   { selectedStory: { ...fourStarEightXStory, spendX: 3 } }, [0, 0, 0], 1,
-  { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
+  { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false, actualBossRewardX: 0, actualUnlockedStars: 0 }
 );
 assert.equal(shortSpendNoKillSettlement.storyOpeningAdjustmentCredits, 5.12);
 assert.equal(shortSpendNoKillSettlement.actualSpendTargetAccrualCredits, 0.96);
@@ -368,18 +377,18 @@ const oneDieStory = (spendX, payoutX, originalBossRewardX, killed = true) => ({
     total: Math.max(1, originalBossRewardX || 1)
   }
 });
-const winMoreDeviation = StoryCore.settleCommittedStory(
+const winDeviation = StoryCore.settleCommittedStory(
   { selectedStory: oneDieStory(2, 7, 4) }, [0, 0, 0], 1,
   { actualSpendCredits: 4, organicPayoutCredits: 7, targetRtpPct: 96, rng: DiceCore.mulberry32(31) }
 );
-assert.equal(winMoreDeviation.storyOpeningAdjustmentCredits, 5.08);
-assert.equal(winMoreDeviation.actualSpendTargetAccrualCredits, 3.84);
-assert.equal(winMoreDeviation.actualPayoutCredits, 8, "win story extra spend should allow dice 5 plus fixed coin 3");
-assert.equal(winMoreDeviation.endingPoolCredits, 0.92);
+assert.equal(winDeviation.storyOpeningAdjustmentCredits, 5.08);
+assert.equal(winDeviation.actualSpendTargetAccrualCredits, 3.84);
+assert.equal(winDeviation.actualPayoutCredits, 8, "win story extra spend should allow dice 5 plus fixed hand reward 3");
+assert.equal(winDeviation.endingPoolCredits, 0.92);
 
 const winNoKillDeviation = StoryCore.settleCommittedStory(
   { selectedStory: oneDieStory(2, 4, 4) }, [0, 0, 0], 1,
-  { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false }
+  { actualSpendCredits: 1, organicPayoutCredits: 0, targetRtpPct: 96, actualKilled: false, actualBossRewardX: 0, actualUnlockedStars: 0 }
 );
 assert.equal(winNoKillDeviation.actualPayoutCredits, 0);
 assert.equal(winNoKillDeviation.endingPoolCredits, 3.04, "a deviated un-killed win story must leave its live balance in the bucket");
@@ -471,19 +480,27 @@ assert.equal(closedReroll.failureReason, "BOSS_ALREADY_CLOSED");
 assert.equal(closedReroll.chargedFeeCredits, 0);
 assert.deepEqual(closedReroll.reservations, rerollReservation, "a closed Boss must keep its reservation and reject reroll");
 
-const successfulReroll = StoryCore.tryBossReroll([10, 20, 30], 20, {
-  playerCredits: 100, targetRtpPct: 96, costX: 7,
+const startedReroll = StoryCore.tryBossReroll([10, 20, 30], 20, {
+  playerCredits: 100, targetRtpPct: 96, bossStarted: true,
   encounterId: "REROLL-BOSS", reservations: rerollReservation
 });
+assert.equal(startedReroll.success, false);
+assert.equal(startedReroll.failureReason, "BOSS_ALREADY_STARTED");
+assert.deepEqual(startedReroll.reservations, rerollReservation, "free reroll may not discard a started Boss's progress or reservation");
+const successfulReroll = StoryCore.tryBossReroll([10, 20, 30], 20, {
+  playerCredits: 0, targetRtpPct: 96, costX: 7,
+  encounterId: "UNSTARTED-BOSS", reservations: rerollReservation
+});
 assert.equal(successfulReroll.success, true);
-assert.equal(successfulReroll.costX, 1, "the shared reroll contract must ignore caller overrides and fix the fee at Bet × 1");
-assert.equal(successfulReroll.chargedFeeCredits, 20);
-assert.equal(successfulReroll.poolAccrualCredits, 19.2);
-assert.equal(successfulReroll.remainingPlayerCredits, 80);
+assert.equal(successfulReroll.costX, 0, "the shared reroll contract must ignore caller fee overrides and remain free");
+assert.equal(successfulReroll.chargedFeeCredits, 0);
+assert.equal(successfulReroll.poolAccrualCredits, 0);
+assert.equal(successfulReroll.remainingPlayerCredits, 0, "free preview reroll remains available even without credits");
 assert.equal(successfulReroll.triggerCommand, "REROLL_BOSS");
 assert.equal(successfulReroll.terminalState, "ABANDON");
 assert.equal(successfulReroll.terminationReason, "REROLL");
-assert.deepEqual(successfulReroll.balances, [10, 39.2, 30]);
-assert.deepEqual(successfulReroll.reservations, [], "a successful reroll must release the old Boss reservation");
+assert.deepEqual(successfulReroll.balances, [10, 20, 30]);
+assert.equal(successfulReroll.releasedReservation, null, "an unstarted preview has no reward reservation");
+assert.deepEqual(successfulReroll.reservations, rerollReservation, "free preview reroll must preserve other active Boss reservations");
 
 console.log("natural-story-core: current-only contract passed");

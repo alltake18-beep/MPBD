@@ -3,6 +3,7 @@
 const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
+const vm = require("node:vm");
 
 const root = path.resolve(__dirname, "..");
 const html = fs.readFileSync(path.join(root, "遊戲Demo.html"), "utf8");
@@ -10,6 +11,7 @@ const css = fs.readFileSync(path.join(root, "src", "game", "boss-duel-demo.css")
 const js = fs.readFileSync(path.join(root, "src", "game", "boss-duel-demo.js"), "utf8");
 const DiceCore = require(path.join(root, "src", "core", "boss-duel-random.js"));
 const Rules = require(path.join(root, "src", "core", "boss-duel-rules.js"));
+const NaturalCore = require(path.join(root, "src", "core", "boss-duel-natural-story-core.js"));
 const sourceBetween = (source, startMarker, endMarker) => {
   const start = source.indexOf(startMarker);
   const end = source.indexOf(endMarker, start);
@@ -99,12 +101,99 @@ const continueRoundBody = sourceBetween(js, "function continueRound(", "function
 assert(dealRoundBody.includes("totalBetX += runtimeConfig.entryCostX"), "first round entry fee must enter the Boss encounter Total Bet");
 assert(continueRoundBody.includes("totalBetX += runtimeConfig.entryCostX") && !continueRoundBody.includes("totalBetX = runtimeConfig.entryCostX"), "CONTINUE must accumulate the next round entry fee on the same Boss encounter");
 assert(!js.includes('const displayedTotalBet = encounter.phase === "round-result" ? 0 : totalBet') && js.includes("els.betValue.textContent = totalBet"), "every phase must display the same-Boss accumulated TOTAL BET without a round-result reset");
-assert(html.includes('id="coinBonusPanel"') && html.includes('id="coinBonusValue"') && css.includes(".coin-bonus-panel") && js.includes("revealedCoinBonusX") && js.includes('if (card.key === "coin") encounter.revealedCoinBonusX +=') && js.includes("encounter.revealedCoinBonusX = bankedCoinBonusX"), "drawn coin cards must reveal and retain a cumulative same-Boss bonus panel without replacing the next round magic slots");
+assert(html.includes('id="coinBonusPanel"') && html.includes('id="coinBonusValue"') && css.includes(".coin-bonus-panel") && js.includes("revealedCoinBonusX") && js.includes('if (card.key === "coin") encounter.revealedCoinBonusX = Rules.combineCoinMultiplier') && js.includes("encounter.revealedCoinBonusX = bankedCoinBonusX"), "drawn coin cards must retain the highest same-Boss global multiplier without replacing the next round magic slots");
 
-const payoutWrites = [...js.matchAll(/session\.credits \+=/g)];
-assert.strictEqual(payoutWrites.length, 1, "credits may only be awarded once in the frontend flow");
-const payoutFunctionIndex = js.indexOf("function settlePrizePayout(");
-assert(payoutFunctionIndex >= 0 && payoutWrites[0].index > payoutFunctionIndex, "credits must be awarded by settlePrizePayout");
+const payoutWrites = [...js.matchAll(/session\.credits = NaturalCore\.roundMoney\(session\.credits \+ payout\)/g)];
+assert.strictEqual(payoutWrites.length, 1, "all partial and kill rewards must share one credit writer");
+const payoutFunctionIndex = js.indexOf("function creditEncounterPayout(");
+assert(payoutFunctionIndex >= 0 && payoutWrites[0].index > payoutFunctionIndex, "credits must be awarded by the shared creditEncounterPayout guard");
+const creditBody = sourceBetween(js, "function creditEncounterPayout(", "function settlePartialReward(");
+assert(creditBody.indexOf("if (encounter.payoutSettled) return;") < creditBody.indexOf("session.credits =") && creditBody.indexOf("encounter.payoutSettled = true") < creditBody.indexOf("session.credits ="), "both partial and full reward crediting must reject duplicate settlement before changing the wallet");
+const creditLedger = { payoutX: 0 };
+const creditContext = {
+  encounter: { payoutSettled: false }, session: { credits: 100, payout: 0 }, playerState: { payoutX: 0 },
+  NaturalCore: { roundMoney: (value) => Math.round(value * 10000) / 10000 },
+  activeBetLedger: () => creditLedger, savePlayerState: () => {}
+};
+vm.runInNewContext(`${creditBody}\ncreditEncounterPayout(12); creditEncounterPayout(12);`, creditContext);
+assert.equal(creditContext.session.credits, 112, "repeated terminal reward callbacks must credit the player's wallet only once");
+assert.equal(creditContext.session.payout, 12);
+assert.equal(creditContext.playerState.payoutX, 12);
+assert.equal(creditLedger.payoutX, 12, "the matching Bet ledger must be credited exactly once with the wallet");
+let exitHandler;
+const exitContext = {
+  ...creditContext,
+  encounter: { round: 1, phase: "prize-reveal", payoutSettled: false, poolSettlement: { actualPayoutCredits: 8 } },
+  session: { credits: 100, payout: 0 }, playerState: { payoutX: 0 },
+  activeBetLedger: () => exitLedger,
+  els: { exitButton: { addEventListener: (_type, handler) => { exitHandler = handler; } } },
+  window: { confirm: () => true }, currentLocale: "en",
+  archiveEncounterAudit: () => {}, location: { assign: () => {} },
+  settlePartialReward: () => { throw new Error("an already-settled kill reward must never be recalculated as a partial reward"); }
+};
+const exitLedger = { payoutX: 0 };
+const exitBody = sourceBetween(js, 'els.exitButton.addEventListener("click", () => {', 'els.deckStackButton.addEventListener("click", () => {');
+assert(exitBody, "the explicit exit flow must be reviewable");
+vm.runInNewContext(`${creditBody}\n${exitBody}`, exitContext);
+exitHandler();
+exitHandler();
+assert.equal(exitContext.session.credits, 108, "exiting during prize reveal must credit the already-debited pool reward once");
+assert.equal(exitContext.session.payout, 8);
+assert.equal(exitContext.playerState.payoutX, 8);
+assert.equal(exitLedger.payoutX, 8);
+const partialBody = sourceBetween(js, "function settlePartialReward(", "function dealRound(");
+assert(partialBody, "the partial/early-exit settlement flow must be available");
+for (const [hpLeft, expectedKilled, expectedPayout] of [[20, false, 6], [0, true, 15]]) {
+  const settlementCalls = [];
+  const partialLedger = { payoutX: 0 };
+  const partialContext = {
+    ...creditContext,
+    encounter: { round: 1, hpLeft, payoutSettled: false, packet: { star: 4 } },
+    session: { credits: 100, payout: 0 }, playerState: { payoutX: 0 },
+    activeBetLedger: () => partialLedger,
+    organicEncounterPayoutCredits: () => 12,
+    settleStoryPool: (organic, killed) => {
+      settlementCalls.push({ organic, killed });
+      return { actualPayoutCredits: expectedPayout };
+    },
+    stageReward: () => ({ unlockedStars: hpLeft > 0 ? 2 : 4 }), addHistory: () => {}
+  };
+  vm.runInNewContext(`${creditBody}\n${partialBody}\nsettlePartialReward(); settlePartialReward();`, partialContext);
+  assert.deepEqual(settlementCalls, [{ organic: 12, killed: expectedKilled }], "early exit must select full kill correction only when actual Boss HP has reached zero");
+  assert.equal(partialContext.session.credits, 100 + expectedPayout, "early exit must credit the shared settlement result exactly once");
+  assert.equal(partialContext.session.payout, expectedPayout);
+  assert.equal(partialContext.playerState.payoutX, expectedPayout);
+  assert.equal(partialLedger.payoutX, expectedPayout);
+}
+const betStory = Object.freeze({ id: "S4-audit", star: 4, seed: 39, classKey: "push", spendX: 4, payoutX: 12, originalBossRewardX: 8 });
+const betPacket = { star: 4, naturalStorySeed: betStory.seed, storyRecord: betStory };
+const betContracts = [NaturalCore.materializeStoryForBet(betStory, 1)];
+const betOperations = [];
+const betContext = {
+  encounter: { phase: "ready", round: 0, packet: betPacket, replayContract: { storyBetContract: betContracts[0] } },
+  session: { credits: 10000 }, activeBet: 1, betSteps: NaturalCore.BET_VALUES,
+  NaturalCore, STORY_BET_CONTRACT_VERSION: NaturalCore.STORY_BET_CONTRACT_VERSION,
+  beginOperation: (type) => ({ type }),
+  completeOperation: (operation, detail) => {
+    betContracts.push(betContext.encounter.replayContract.storyBetContract);
+    betOperations.push({ type: operation.type, previousBet: detail.previousBet, nextBet: detail.nextBet });
+  },
+  savePlayerState: () => {}, render: () => {}, setMessage: () => {},
+  spawnBoss: () => { throw new Error("changing a pre-START Bet must preserve the selected Boss and story"); }
+};
+const betBody = sourceBetween(js, "function changeBet(", "function recommendationText(");
+const betMaterializerBody = sourceBetween(js, "function storyCreditsForBet(", "const originalCardArt =");
+assert(betBody && betMaterializerBody, "the live pre-START Bet flow and shared materializer must be available");
+vm.runInNewContext(`${betMaterializerBody}\n${betBody}\nchangeBet(1); changeBet(1);`, betContext);
+assert.deepEqual(betContracts.map((contract) => contract.bet), [1, 2, 5], "the replay contract must track each successful pre-START Bet before its operation is recorded");
+assert.deepEqual(betContracts.map((contract) => contract.totalSpendCredits), [4, 8, 20]);
+assert.deepEqual(betContracts.map((contract) => contract.totalPayoutCredits), [12, 24, 60]);
+assert.deepEqual(betContracts.map((contract) => contract.seed), [39, 39, 39], "Bet changes must never alter the locked story seed");
+assert.deepEqual(betOperations, [{ type: "BET_CHANGE", previousBet: 1, nextBet: 2 }, { type: "BET_CHANGE", previousBet: 2, nextBet: 5 }]);
+assert.strictEqual(betContext.encounter.packet, betPacket);
+assert.strictEqual(betContext.encounter.packet.storyRecord, betStory);
+assert.equal(betContext.encounter.packet.naturalStorySeed, 39);
+assert.equal(betContext.session.credits, 10000, "pre-START Bet changes must not charge the wallet");
 assert(js.includes("if (!encounter || encounter.payoutSettled) return;"), "payout requires a duplicate-settlement guard");
 assert(js.includes('!["resolved-win", "resolved-loss"].includes(encounter.phase)'), "NEXT BOSS requires a resolved-state guard");
 assert(js.includes("|| els.rerollConfirm.hidden) return;"), "REROLL confirmation requires a duplicate-click guard");
@@ -116,7 +205,7 @@ for (const selector of [".compare-fx", ".combat-projectile", ".combat-impact", "
 
 assert(css.includes("assets/mobile/original-card-open-2.png"), "magic reveal must use the original card frame");
 assert(js.includes("magic-bind-copy"), "bound magic must identify its target hand card");
-assert(js.includes('coinBanked ? "BANKED"') && js.includes('freeUsed ? "USED"'), "coin and free-redraw magic require explicit status semantics");
+assert(js.includes('card.key === "coin" && card.value === 1 ? "BROKEN"') && js.includes('coinBanked ? `×${card.value}`') && js.includes('freeUsed ? "USED"'), "×1 coin must be broken, larger coin values must show global multipliers, and free-redraw magic must retain used status");
 assert(js.includes("normal-dice-group") && js.includes("multiplier-dice-group"), "normal and multiplier dice must be separate visual groups");
 assert(css.includes("assets/mobile/treasure-static/chest-1-2.png") && css.includes("assets/mobile/treasure-static/chest-7-8.png"), "treasure fallback must use the supplied open-chest art for every star tier");
 assert(js.includes("activeTreasureSpine.scale.set(0.65)"), "treasure Spine must retain the full HUD-scale chest size");
@@ -181,7 +270,7 @@ assert(js.includes("ATTACK_SOURCE_BOUNDS") && js.includes("x: -541, y: -960.64, 
 assert(js.includes("function auditBossAnimationCoverage(key)") && js.includes('get("qa") !== "1"') && js.includes("[0, .25, .5, .75, 1]") && js.includes("maximumCriticalVisible") && js.includes("window.__bossPhaseAudit"), "QA mode must sample both Boss layers and critical hand/arm/card visibility at five points per phase without adding production-state work");
 assert(js.includes('els.gameShell.style.top = `${viewportTop + safeArea.top}px`') && /body\s*\{[^}]*position:\s*fixed;[^}]*inset:\s*0;[^}]*display:\s*block;/.test(css), "390×695 game canvas must stay top-aligned inside the mobile safe area");
 assert(!css.includes(".phase-boss-dialogue .combat-message") && !css.includes(".phase-boss-victory-dialogue .combat-message"), "Boss speech must never cover the table after compare or damage");
-assert(css.includes(".phase-round-result .combat-message,.phase-resolved-loss .combat-message { display: none; }"), "round result must keep the former speech area hidden");
+assert(css.includes(".phase-round-result .combat-message { display: none; }") && css.includes(".phase-resolved-loss .combat-message { display: block;"), "normal round result hides speech while a finished challenge displays its partial reward");
 assert(html.includes('location.protocol === "file:"') && html.includes("http://127.0.0.1:4173/"), "file-opened Demo must redirect to the local server so Boss Spine assets can load");
 assert(js.includes('data-effect-toggle=') && js.includes('aria-expanded=') && css.includes('.playing-card.effect-expanded'), "bound damage values must expand on tap without being covered by neighboring cards");
 assert(js.includes('data-magic-preview=') && js.includes("openMagicPreview(Number(card.dataset.magicPreview))") && js.includes("if (event.target === els.magicPreview) closeMagicPreview()"), "left mini magic cards must reopen supplied big-card art and close from the backdrop without game-state writes");
@@ -233,7 +322,7 @@ assert(js.includes("void mountRewardDiceSpines()") && js.includes('setAnimation(
 assert(js.includes("function diePipsMarkup(face)") && css.includes(".die-pips") && css.includes(".die.spine-ready.rolling .die-fallback,.die.spine-ready.revealed .die-fallback { display: grid; }"), "normal dice must retain readable DOM pips throughout each independent roll so a blank Spine canvas can never hide the result");
 assert(html.includes('id="rewardTotalBlock"') && html.includes("TOTAL WIN") && !html.includes('id="rewardPrompt"') && !html.includes('id="rewardEquation"') && !html.includes('id="rewardDetail"') && !html.includes('id="rewardContinue"') && js.includes("els.rewardTotalBlock.hidden = false") && js.includes("prizeTimer = setTimeout(advanceBoss"), "kill reward must show only dice and the final TOTAL WIN, then advance automatically");
 assert(html.includes('id="rewardIntro"') && html.includes("REVEAL YOUR LUCK!") && html.includes('id="rewardTouch"') && css.includes("conic-gradient(from 8deg") && js.includes('classList.add("revealing")') && js.includes("els.rewardIntro.hidden = true") && js.includes("els.rewardTouch.hidden = true"), "the kill flow must match the official reveal cadence: gold/rainbow stars and TOUCH before reveal, then hide the prompt once dice begin opening");
-assert(js.includes("const totalRewardX = dice.total + encounter.coinBonusX") && js.indexOf("setRewardTotal(totalRewardX)") < js.indexOf("settlePrizePayout(totalRewardX)"), "the single displayed TOTAL WIN must still include both locked dice and banked coin-card rewards before payout");
+assert(js.includes("(stageReward().dice.total + encounter.handPayoutX) * encounter.coinBonusX * activeBet") && js.includes("const totalRewardX = encounter.poolSettlement.actualPayoutCredits / activeBet") && js.indexOf("setRewardTotal(totalRewardX)") < js.indexOf("settlePrizePayout(totalRewardX)"), "TOTAL WIN must apply the global multiplier to hand and unlocked-star rewards, then show the shared settled payout before crediting");
 assert(!js.includes('state.normalFaces.join(" + ")') && !js.includes('state.multiplierFaces.join(" + ")'), "reward display must not expose live subtotals before every independent die has settled");
 assert(css.includes(".cards-cleared #playerCards") && css.includes(".cards-cleared .boss-cards") && css.includes(".cards-cleared .magic-row") && css.includes(".phase-attack.cards-cleared #playerCards") && css.includes(".combat-fx.attack-normal .combat-fx-cards"), "both hands and magic cards must exit before attack, never flash back on attack render, and stay cleared through CONTINUE");
 const bossVictoryBody = sourceBetween(js, "function beginBossVictoryDialogue(", "function fold(");
@@ -247,23 +336,23 @@ assert(js.includes("每次換牌完成都重新依實際保留牌與 Joker 邏�
 assert(/function advanceBoss\(\)[\s\S]*?const previousStar = encounter\.packet\.star;[\s\S]*?spawnBoss\(previousStar\);/.test(js), "normal Boss advance must avoid repeating the previous star");
 assert(js.includes("isTurbo() ? 260 : 760"), "each round-start magic card must advance at the official Demo pace without delaying the playable hand");
 assert((html.match(/data-tutorial-page=/g) || []).length === 4 && html.includes('class="tutorial-visual tutorial-preview"') && html.includes('id="tutorialBossCharacter"') && html.includes('id="tutorialTreasureReward"') && !html.includes("tutorial-p1.png") && !html.includes("tutorial-p4.png"), "the four-page tutorial must use live current-rule previews instead of obsolete multi-kill artwork");
-assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.includes("Within a limited number of rounds, defeat the BOSS to earn a Kill Reward!") && html.includes("KEEP FIVE. REDRAW THE REST.") && html.includes("KILL FIRST. REVEAL DICE AFTER."), "every supplied tutorial page must retain its visible instruction copy");
+assert((html.match(/class="tutorial-copy"/g) || []).length === 4 && html.includes("KEEP FIVE. REDRAW THE REST.") && html.includes("UNLOCK STARS. KEEP YOUR REWARDS.") && html.includes("Keep unlocked rewards even if the Boss escapes.") && html.includes("Keep the highest multiplier; ×1 shatters."), "tutorial copy must explain partial star rewards and the highest final-score multiplier, including neutral ×1 shattering");
 assert(css.includes("width: min(366px,calc(100vw - 20px))") && css.includes("height: 584px") && css.includes("grid-template-rows: 252px auto") && css.includes(".tutorial-page .tutorial-preview { position: relative; width: 288px; max-width: 100%; height: 244px") && css.includes(".tutorial-bonus-preview { width: 306px; max-width: 100%; height: 218px"), "tutorial proportions must reserve dedicated live-preview and copy areas without clipping narrow screens");
 assert(css.includes("round-panel.png") && html.includes("round-word.png") && css.includes("round-numbers.png"), "the supplied ROUND panel, word, and number sheet must replace system text");
 assert(/\.round-ribbon\s*\{[^}]*width:\s*84px;[^}]*height:\s*59px;[^}]*transform:\s*none;/.test(css), "the top-left ROUND panel must use the original 84x59 reference size without the oversized 2x transform");
-assert(html.includes("src/core/boss-duel-poker-arrangement-core.js?v=frontend-v109") && html.includes("src/core/boss-duel-rules.js?v=frontend-v109") && html.includes("src/core/boss-duel-natural-story-core.js?v=frontend-v109") && html.includes("src/game/boss-duel-demo.js?v=frontend-v109") && html.includes("src/game/boss-duel-demo.css?v=frontend-v109"), "Demo code, shared arrangement, and live story assets must share the v109 cache key");
+assert(html.includes("src/core/boss-duel-poker-arrangement-core.js?v=frontend-v110") && html.includes("src/core/boss-duel-rules.js?v=frontend-v110") && html.includes("src/core/boss-duel-natural-story-core.js?v=frontend-v110") && html.includes("src/game/boss-duel-demo.js?v=frontend-v110") && html.includes("src/game/boss-duel-demo.css?v=frontend-v110"), "Demo code, shared arrangement, and live story assets must share the v110 cache key");
 assert(js.includes("STORY_BET_CONTRACT_VERSION = NaturalCore.STORY_BET_CONTRACT_VERSION") && js.includes("NaturalCore.materializeStoryForBet") && js.includes("storyBetContract"), "game must use the shared X-multiplier story contract across every Bet and expose it in replay audit");
 assert(js.includes('els.betButton.setAttribute("aria-label", hand ? localeText("fold")') && js.includes('els.compareButton.setAttribute("aria-label", localeText("fight"))') && js.includes('els.entryButton.setAttribute("aria-label", roundResult ? localeText("continueRound")') && /els\.languageButton\.addEventListener\("click", \(\) => \{[\s\S]*?applyLocale\([\s\S]*?render\(\);/.test(js), "image-based primary actions must retain state-aware accessible names after state or locale changes");
 assert(js.includes("NaturalCore.drawUniformPresetStoryCommit") && js.includes("ticketBasis: 1000000") && !js.includes("ticketCandidateTournamentSize"), "normal Demo play must draw one candidate uniformly from each full class pool and score-ticket only those three candidates");
 assert(js.includes("贏多籤至少 3%、贏籤至少 35%、輸籤大於 0") && js.includes("不成立就三筆一起重抽"), "Demo audit copy must expose the current minimum ticket shares and whole-group redraw rule");
 assert(js.includes("function storyTicketSelectionAudit(") && js.includes("ticketSelection: storyTicketSelectionAudit") && js.includes("ticketRoll: Number(commit.ticketRoll)"), "replay audit must preserve the ticket policy, candidates, minimums, and winning integer K");
-assert(html.includes("src/core/boss-duel-story-planner.js?v=boss-plan-v12") && html.includes("data/story/boss-duel-story-preset-v16.js?v=natural-story-preset-v16"), "Demo must load the planner and current validated 240,000-story seed preset");
+assert(html.includes("src/core/boss-duel-story-planner.js?v=boss-plan-v13") && html.includes("data/story/boss-duel-story-preset-v17.js?v=natural-story-preset-v17"), "Demo must load the planner and current validated 240,000-story seed preset");
 assert(js.includes("executeRuntimeRedraw") && js.includes("plannedKeepIds") && js.includes("actualKeepIds") && js.includes("suppressionActive"), "Demo must compare each successful redraw with the planned action and persist suppression state");
 assert(js.includes("drawCostX(encounter.draws)") && js.includes("plannedRecordMissing: Boolean(redrawAudit?.plannedRecordMissing)"), "free redraw must advance the fee tier and missing planned redraws must remain visible in the operation audit");
 assert(js.includes("suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy") && js.includes("SUPPRESSION_STORAGE_KEY"), "game redraw and showdown must use the versioned suppression policy selected by the tool");
 assert(js.includes("window.getBossDuelReplayAudit") && js.includes("actionLog") && js.includes("replayContract") && js.includes("bossInstanceId") && js.includes("requestId") && js.includes("bossCardIds"), "backend-facing replay audit must expose unique ordered operations, both initial hands, and the exact replay contract");
 assert(js.includes('qaParams.get("storyMode") !== "1"') && js.includes("NaturalCore.simulateNaturalStory") && js.includes("naturalStorySeed: story.seed"), "a tool-selected story must still load its exact classified Natural seed into the Demo");
-assert(js.includes("STORY_REWARD_FLOOR_PCT = 10") && js.includes("STORY_REWARD_CEILING_MULTIPLE = 10") && js.includes("amount * targetRtpPct / 100"), "normal Demo play must accrue an out-of-story Boss reroll at the locked target RTP and enforce 10%-to-1000% reward bounds");
+assert(js.includes("STORY_REWARD_FLOOR_PCT = 10") && js.includes("STORY_REWARD_CEILING_MULTIPLE = 10") && js.includes("NaturalCore.postStorySpendToBuckets"), "paid play must accrue at the locked target RTP and retain the legal final-star correction bounds");
 assert(js.includes("NaturalCore.commitStoryToBuckets") && js.includes("plannedSpendCredits: encounter.packet.storyCommit.selectedStory.spendX * activeBet") && js.includes("storyBudgetCredits: encounter.packet.storyCommit.selectedStory.payoutX * activeBet") && js.includes("storyOpeningAdjustmentCredits"), "first START must post planned payout minus planned spend at locked RTP exactly once");
 assert((js.match(/spend\(runtimeConfig\.entryCostX, \{ entrySpend: true \}\)/g) || []).length >= 2 && js.includes("NaturalCore.postStorySpendToBuckets") && js.includes("encounter.storySpendCredits += amount") && js.includes("posted.actualSpendTargetAccrualCredits"), "entry, continue, and paid redraw costs must post live at the locked RTP");
 assert(!js.includes("storySpendDeltaTargetAccrualCredits") && js.includes("plannedSpendCredits: encounter.storyPlannedSpendCredits"), "story settlement must not repost an actual-minus-planned spend adjustment");
@@ -273,21 +362,20 @@ assert(js.includes("Rules.createNaturalRound") && js.includes("1201 + tieIndex *
 assert(js.includes('qaParams.get("qaAudit") !== "1" || remainingStoryDraws === null') && js.includes("劇本節奏：照自動保留再換") && js.includes("? 120 : HAND_SECONDS"), "story rhythm must remain available to QA audit without exposing the backend plan to ordinary players");
 assert(js.includes('buttonMarkup("text-fold.png", "FOLD", "")') && !js.includes('buttonMarkup("text-fold.png", "FOLD", "GIVE UP")'), "the fold control must use one consistent FOLD label");
 assert(css.includes('.menu-button::after,.deck-stack::after') && css.includes('width: max(44px,100%)') && css.includes('.phase-ready.has-started #rerollButton') && css.includes('height: 44px'), "small menu, deck, and reroll controls must expose at least a 44px touch target");
-assert(js.includes("let storyExperience = loadStoryExperience(runtimeConfig)") && js.includes("if (leavingFixedStory) storyExperience = null"), "paid reroll from a fixed story must leave the selected story before spawning the next dynamic Boss");
-assert(js.includes("els.rerollButton.hidden = !(ready || roundResult)") && !js.includes('packet.storyRuntimeMode === "FIXED" || !(ready || roundResult)'), "REROLL BOSS must be visible before play and between rounds in fixed and dynamic stories");
+assert(js.includes("let storyExperience = loadStoryExperience(runtimeConfig)") && js.includes("if (leavingFixedStory) storyExperience = null"), "free preview reroll from a fixed story must leave the selected story before spawning the next dynamic Boss");
+assert(js.includes("els.rerollButton.hidden = !ready"), "REROLL BOSS must be visible only before START in fixed and dynamic stories");
 const rerollBody = sourceBetween(js, "function rerollBoss(", "function changeBet(");
-const lockedRtpRerollSpend = 'spend(runtimeConfig.entryCostX, { storySpend: false, targetRtpPct: encounter.poolTargetRtpPct })';
-assert(rerollBody.includes(lockedRtpRerollSpend) && js.includes("entryCostX: 1"), "REROLL BOSS must charge the player current Bet × 1 at the old Boss locked RTP");
-assert(rerollBody.indexOf(lockedRtpRerollSpend) < rerollBody.indexOf("settleStoryPool(0, false)"), "an unaffordable Boss reroll must not settle or abandon the current story");
-assert(rerollBody.includes("encounter.hpLeft <= 0") && rerollBody.includes("encounter.payoutSettled") && rerollBody.includes("encounter.poolSettlement"), "REROLL BOSS must be rejected after the current Boss is killed or closed");
-assert(rerollBody.includes('archiveEncounterAudit("ABANDON", { trigger: "REROLL_BOSS", terminationReason: "REROLL", payoutCredits: 0 })'), "a successful Boss reroll must archive the old Boss as zero-payout ABANDON/REROLL");
-assert(/else if \(NaturalCore && options\.poolAccrual !== false\)[^]*?addPoolCredits\(playerState\.storyBucketBalances, activeBet, amount \* targetRtpPct \/ 100\)/.test(js), "REROLL BOSS spend must accrue target RTP to the active personal story Bet bucket");
+assert(rerollBody.includes("costX: 0") && !rerollBody.includes("spend(") && !rerollBody.includes("settleStoryPool("), "free preview reroll must neither charge, accrue, nor settle a story");
+assert(rerollBody.includes('encounter.phase !== "ready"') && rerollBody.includes("encounter.round !== 0") && rerollBody.includes("encounter.payoutSettled") && rerollBody.includes("encounter.poolSettlement"), "free REROLL BOSS must reject started, killed, or closed challenges");
+assert(rerollBody.includes('archiveEncounterAudit("PREVIEW_REROLL"') && rerollBody.includes("previewOnly: true") && rerollBody.includes("spawnBoss(previousStar)"), "free REROLL must archive a preview and spawn another random Boss instead of directly selecting one");
+assert(js.includes("NaturalCore.betLimitForAssets(session.credits, encounter.packet.star)") && dealRoundBody.includes("activeBet > betLimit.maxBet") && js.includes("BET MAX ${assetBetLimit.maxBet}"), "asset-based Bet limits must be checked at START and displayed with the current star's measured average cost");
+assert(js.includes("Rules.bossStageProgress(packet.star, packet.hp, encounter.hpLeft)") && js.includes("Rules.rewardForUnlockedStars(encounter.packet.dice, progress.unlockedStars)") && js.includes('index < progress.unlockedStars') && js.includes("function settlePartialReward()"), "each Boss must unlock its own star-count HP stages and preserve partial rewards");
 assert(js.includes('.filter((key) => hasBoundMagicEffect(card, key))') && js.includes('Object.prototype.hasOwnProperty.call(card.magicEffects, key)') && js.includes("數值於比牌結算揭露"), "a bound damage card must render without exposing its hidden value before showdown");
 assert(js.includes("publicBaseDamage") && js.includes("魔法值比牌時揭露") && !js.includes("現有傷害 ${result.damage}"), "hand phase must show only base hand damage and must not leak magic values through the total");
 assert.deepEqual(Rules.magicDisplay({ key: "crit", label: "CRITICAL", type: "DMG", value: 5 }), { type: "DMG", label: "CRITICAL" });
 assert.deepEqual(Rules.magicDisplay({ key: "flatDamage", label: "FIXED DMG", type: "DMG", value: 6 }), { type: "DMG", label: "FIXED DMG" });
 assert.equal(Rules.magicDisplay({ key: "threeBoost", label: "THREE OF A KIND", type: "DMG", value: 3 }).label, "THREE OF A KIND");
-assert.equal(Rules.magicDisplay({ key: "coin", label: "GOLD", type: "GOLD", value: 6 }).label, "+6x", "coin is the only card that exposes its amount at reveal");
+assert.equal(Rules.magicDisplay({ key: "coin", label: "GOLD", type: "GOLD", value: 5 }).label, "×5", "coin reveal must display the final-score multiplier");
 assert(js.includes('source: "NATURAL"'), "story experience must use the Natural-only catalog");
 assert(!html.includes("機率工具") && !html.includes("action-tree-v"), "public Demo must not expose the internal probability tool");
 assert(html.includes('id="modelInfoButton"') && html.includes('title="MODEL" hidden') && js.includes('els.modelInfoButton.hidden = qaParams.get("qaAudit") !== "1"'), "model diagnostics must stay hidden outside explicit QA audit mode");

@@ -30,15 +30,15 @@
     [0, 1, 3, 4, 5], [0, 2, 3, 4, 5], [1, 2, 3, 4, 5]
   ];
   const MAGIC_TABLE = [
-    { key: "threeBoost", label: "THREE OF A KIND", tickets: 50, min: 1, max: 3, target: "three", type: "DMG" },
+    { key: "threeBoost", label: "THREE OF A KIND", tickets: 50, min: 1, max: 5, target: "three", type: "DMG" },
     { key: "fourBoost", label: "FOUR OF A KIND", tickets: 75, min: 1, max: 3, target: "four", type: "DMG" },
-    { key: "straightBoost", label: "STRAIGHT", tickets: 125, min: 1, max: 3, target: "straight", type: "DMG" },
+    { key: "straightBoost", label: "STRAIGHT", tickets: 125, min: 1, max: 5, target: "straight", type: "DMG" },
     { key: "flushBoost", label: "FLUSH", tickets: 175, min: 1, max: 3, target: "flush", type: "DMG" },
     { key: "fullHouseBoost", label: "FULL HOUSE", tickets: 175, min: 1, max: 3, target: "fullHouse", type: "DMG" },
     { key: "joker", label: "JOKER", tickets: 50, min: 1, max: 1, target: "joker", type: "JOKER" },
     { key: "crit", label: "CRITICAL", tickets: 100, min: 1, max: 5, target: "crit", type: "DMG" },
     { key: "flatDamage", label: "FIXED DMG", tickets: 175, min: 3, max: 6, target: "flat", type: "DMG" },
-    { key: "coin", label: "GOLD", tickets: 25, min: 3, max: 6, target: "coin", type: "GOLD" },
+    { key: "coin", label: "GOLD", tickets: 25, min: 1, max: 5, target: "coin", type: "GOLD" },
     { key: "freeDraw", label: "FREE REDRAW", tickets: 50, min: 1, max: 1, target: "freeDraw", type: "DRAW" }
   ];
 
@@ -84,7 +84,9 @@
     const revealDamageValue = options.revealDamageValue === true;
     if (card.key === "joker") return "隨機一張手牌變成 JOKER，可代替任意牌。";
     if (card.key === "freeDraw") return "本回合第一次 REDRAW 免費。";
-    if (card.key === "coin") return `擊敗目前 BOSS 時，骰子獎勵再加 ${card.value}x。`;
+    if (card.key === "coin") return Number(card.value) === 1
+      ? "最終得分 ×1，沒有加成；金幣卡碎裂。"
+      : `目前 BOSS 最終得分乘以 ${card.value}；保留本場最高倍率。`;
     if (card.key === "flatDamage") return revealDamageValue
       ? `綁定牌進入最佳五張，本次追加 ${card.value} 固定傷害。`
       : "綁定牌進入最佳五張時生效；固定傷害到比牌結算才揭露。";
@@ -875,7 +877,7 @@
       userTouched: false, lockPriority: planView.priority, lockTendency: planView.tendency,
       lockedCardIds: new Set(planView.cards.map(cardId)), arrangementPlan,
       noTieStory: false,
-      coinX: magicCards.filter((card) => card.key === "coin").reduce((sum, card) => sum + card.value, 0),
+      coinX: magicCards.filter((card) => card.key === "coin").reduce((multiplier, card) => combineCoinMultiplier(multiplier, card.value), 1),
       playerBadHighRerolls: deal.playerRerolls,
       bossBadHighRerolls: deal.bossRerolls
     };
@@ -1037,14 +1039,47 @@
     const revealDamageValue = options.revealDamageValue === true;
     if (card.key === "joker") return { type: "JOKER", label: "WILD CARD" };
     if (card.key === "freeDraw") return { type: "DRAW", label: "FREE" };
-    if (card.key === "coin") return { type: "GOLD", label: `+${card.value}x` };
+    if (card.key === "coin") return { type: "GOLD", label: `×${card.value}` };
     if (card.key === "flatDamage") return { type: "DMG", label: revealDamageValue ? `+${card.value}` : "FIXED DMG" };
     if (card.key === "crit") return { type: "DMG", label: revealDamageValue ? `CRITICAL ${card.value}X` : "CRITICAL" };
     return { type: card.type || "DMG", label: revealDamageValue ? `${card.label} ${card.value}X` : card.label };
   }
 
+  function bossStageProgress(starInput, initialHpInput, hpLeftInput) {
+    const star = Math.max(1, Math.min(8, Math.trunc(Number(starInput) || 1)));
+    const initialHp = Math.max(1, Number(initialHpInput) || 1);
+    const hpLeftNumber = Number(hpLeftInput);
+    const hpLeft = Number.isFinite(hpLeftNumber) ? Math.max(0, Math.min(initialHp, hpLeftNumber)) : initialHp;
+    const damage = initialHp - hpLeft;
+    const unlockedStars = Math.min(star, Math.floor(damage * star / initialHp + 1e-10));
+    const thresholds = Array.from({ length: star }, (_value, index) => initialHp * (star - index - 1) / star);
+    return { star, initialHp, hpLeft, damage, unlockedStars, thresholds };
+  }
+
+  function rewardForUnlockedStars(dice, unlockedStarsInput) {
+    const unlockedStars = Math.max(0, Math.trunc(Number(unlockedStarsInput) || 0));
+    const normalFaces = (dice?.normalFaces || []).slice(0, unlockedStars);
+    const multiplierFaces = (dice?.multiplierFaces || []).slice(0, Math.max(0, unlockedStars - (dice?.normalFaces || []).length));
+    const normalSum = normalFaces.reduce((sum, value) => sum + Number(value || 0), 0);
+    const multiplierSum = multiplierFaces.reduce((sum, value) => sum + Number(value || 0), 0);
+    return {
+      normalDice: normalFaces.length,
+      multiplierDice: multiplierFaces.length,
+      normalFaces,
+      multiplierFaces,
+      normalSum,
+      multiplierSum,
+      total: normalSum * (multiplierFaces.length ? multiplierSum : 1)
+    };
+  }
+
+  function combineCoinMultiplier(currentInput, nextInput) {
+    const normalize = (value) => Math.max(1, Math.min(5, Math.trunc(Number(value) || 1)));
+    return Math.max(normalize(currentInput), normalize(nextInput));
+  }
+
   return {
-    VERSION: "rules-v11",
+    VERSION: "rules-v12",
     HANDS, SUIT_GLYPHS, cardId, cardLabel, hasAttachedEffect, evaluateBest, compareEval,
     autoLockPlan: sharedAutoLockPlan,
     recommendedDiscardIndexes: sharedRecommendedDiscardIndexes,
@@ -1053,6 +1088,7 @@
     reconcileLockAfterRedraw: sharedReconcileLockAfterRedraw,
     createNaturalRound, redraw, cloneRuntimeRoundState, applyRuntimeReplacements,
     compare, damageBreakdown, computeDamage,
-    drawMagicCardsFromTable, magicDisplay, magicDescription
+    drawMagicCardsFromTable, magicDisplay, magicDescription,
+    bossStageProgress, rewardForUnlockedStars, combineCoinMultiplier
   };
 });

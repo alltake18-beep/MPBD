@@ -25,7 +25,7 @@
   const TREE_KEYS = ["win", "push", "lose"];
   const TREE_LABELS = { win: "贏多", push: "贏", lose: "輸" };
   const SPEND_FACTORS = { win: 0.90, push: 1.00, lose: 1.18 };
-  const STORAGE_KEY = "boss-duel:action-tree-carry:config:v2";
+  const STORAGE_KEY = "boss-duel:action-tree-carry:config:v3";
   const CHANNEL_NAME = "boss-duel:action-tree-carry:hot-update:v1";
   // 三個統計玩家使用 10,000 基點；劇本配籤另讀 storyPool.ticketBasis。
   const TICKET_BASIS = 10000;
@@ -53,11 +53,11 @@
   ];
 
   const DEFAULT_MAGIC_ROWS = [
-    ["threeBoost", "三條傷害", 50, 50, 1, 3, "three", 1], ["fourBoost", "四條傷害", 75, 75, 1, 3, "four", 1],
-    ["straightBoost", "順子傷害", 125, 125, 1, 3, "straight", 1], ["flushBoost", "同花傷害", 175, 175, 1, 3, "flush", 1],
+    ["threeBoost", "三條傷害", 50, 50, 1, 5, "three", 1], ["fourBoost", "四條傷害", 75, 75, 1, 3, "four", 1],
+    ["straightBoost", "順子傷害", 125, 125, 1, 5, "straight", 1], ["flushBoost", "同花傷害", 175, 175, 1, 3, "flush", 1],
     ["fullHouseBoost", "葫蘆傷害", 175, 175, 1, 3, "fullHouse", 1], ["joker", "Joker", 50, 50, 1, 1, "joker", 1],
     ["crit", "暴擊", 100, 100, 1, 5, "crit", 1], ["flatDamage", "固傷", 175, 175, 3, 6, "flat", 1],
-    ["coin", "金幣", 25, 25, 3, 6, "coin", 1], ["freeDraw", "免費換牌", 50, 50, 1, 1, "freeDraw", 1]
+    ["coin", "最終分數倍率", 25, 25, 1, 5, "coin", 1], ["freeDraw", "免費換牌", 50, 50, 1, 1, "freeDraw", 1]
   ];
 
   const DEFAULT_HAND_ROWS = [
@@ -109,7 +109,7 @@
 
   const DEFAULT_CONFIG = {
     revision: 1,
-    modelId: "natural-story-v6-reroll-accounting",
+    modelId: "natural-story-v7-stage-assistance",
     targetCoreRtpPct: 96,
     tolerancePp: 0.01,
     ticketBasis: TICKET_BASIS,
@@ -158,7 +158,7 @@
       pokerBoostEnabled: true, chainEnabled: false, bossRerollEnabled: true,
       paidDrawEnabled: true, tieRedealEnabled: true, strictNaturalGate: true
     },
-    versions: { policy: NaturalCore.TICKET_SELECTION_POLICY_VERSION, settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v12-score-ticket" },
+    versions: { policy: NaturalCore.TICKET_SELECTION_POLICY_VERSION, settlement: NaturalCore.POOL_SETTLEMENT_VERSION, bossTable: "boss-table-v1", storyPool: "natural-240000-boss-plan-v13-score-ticket" },
     ruleSettings: {
       deckStopCount: 10,
       playerBadHighRerollPct: 50, bossBadHighRerollPct: 25, initialRerollLimit: 50,
@@ -322,6 +322,10 @@
       normalized[4] = finite(normalized[4], fallback?.[4] || 0);
       normalized[5] = finite(normalized[5], fallback?.[5] || 0);
       if (normalized[0] === "crit") normalized[4] = Math.max(1, normalized[4]);
+      if (normalized[0] === "coin") {
+        normalized[4] = integer(normalized[4], 1, 1, 5);
+        normalized[5] = integer(normalized[5], 5, normalized[4], 5);
+      }
       normalized[5] = Math.max(normalized[4], normalized[5]);
       normalized[7] = 1;
       return normalized;
@@ -743,7 +747,11 @@
     let handPayoutX = 0;
     let bossPayoutX = 0;
     let coinPayoutX = 0;
-    let bankedCoinX = 0;
+    let globalMultiplier = 1;
+    let assistanceActive = false;
+    let assistedRedraws = 0;
+    const postSpend = typeof options.onSpend === "function" ? options.onSpend : () => {};
+    const assistanceBudget = typeof options.assistanceBudget === "function" ? options.assistanceBudget : () => null;
     let totalDamage = 0;
     let suppressionActive = false;
     let deviationCount = 0;
@@ -773,6 +781,7 @@
     let bestHandRank = 0;
 
     while (round <= lockedStory.roundLimit && tieIndex < 100 && !killed) {
+      assistanceActive = false;
       const state = runtimeRoundForStory(lockedStory, naturalConfig, round, tieIndex);
       const startHand = state.playerEval.key;
       const usesSimpleHumanDecision = behavior === "OFFICIAL_FUNDED" || behavior === "EXTREME";
@@ -788,6 +797,8 @@
       }
       const totalBetBefore = spendX;
       spendX += entrySpendX;
+      globalMultiplier = Rules.combineCoinMultiplier(globalMultiplier, state.coinX);
+      if (entrySpendX > 0) postSpend(entrySpendX, "ENTRY");
       Rules.applyRecommendedKeepCards(state, selected.initialKeepCardIds || []);
       const drawLog = [];
       let roundPaidDraws = 0;
@@ -815,6 +826,7 @@
           paidDraws += 1;
           roundDrawSpendX += feeX;
           spendX += feeX;
+          if (feeX > 0) postSpend(feeX, "REDRAW");
         }
         actionSequence += 1;
         const audit = NaturalCore.executeRuntimeRedraw(state, {
@@ -825,9 +837,12 @@
           actionSequence,
           discardedIndexes: discarded,
           suppressionActive,
+          assistanceBudget: assistanceBudget(globalMultiplier, handPayoutX),
           suppressionPolicy: naturalConfig.suppressionPolicy
         });
         suppressionActive = audit.suppressionActive;
+        assistanceActive = assistanceActive || Boolean(audit.assistanceActive);
+        assistedRedraws += audit.assistanceActive ? 1 : 0;
         deviationCount += audit.deviated ? 1 : 0;
         redrawAudits.push(audit);
         totalDraws += 1;
@@ -839,7 +854,9 @@
           plannedKeepCardIds: audit.plannedKeepIds.slice(),
           acceptedCardIds: audit.acceptedCardIds.slice(),
           deviated: audit.deviated,
-          suppressionActive: audit.suppressionActive
+          suppressionActive: audit.suppressionActive,
+          assistanceActive,
+          assistanceBudget: audit.assistanceBudget
         });
         if (usesSimpleHumanDecision && !(behavior === "OFFICIAL_FUNDED" && COMPLETE_BEHAVIOR_HAND_KEYS.has(state.playerEval.key))) {
           const nextDecision = chooseBehaviorKeepDecision(state, behavior);
@@ -847,7 +864,6 @@
         }
       }
 
-      bankedCoinX += Math.max(0, finite(state.coinX, 0));
       const action = behavior === "EXTREME" || state.playerEval.key !== "high" ? "FIGHT" : "FOLD";
       actionSequence += 1;
       let result = "FOLD";
@@ -867,6 +883,7 @@
             story: lockedStory,
             actionSequence,
             suppressionActive,
+            assistanceActive,
             suppressionPolicy: naturalConfig.suppressionPolicy
           });
           damage = Math.max(0, finite(magicAudit.breakdown.total, 0));
@@ -876,8 +893,6 @@
           if (hpLeft <= 0) {
             killed = true;
             result = "KILLED";
-            bossPayoutX = Math.max(0, finite(lockedStory.originalDice?.total, 0));
-            coinPayoutX = bankedCoinX;
             terminationReason = "KILLED";
           } else result = "WIN";
         } else {
@@ -912,13 +927,18 @@
         manualAdjustment: Boolean(selected.manualAdjustment), changedCards: Math.max(0, finite(selected.changedCards, 0)),
         playerBadHighRerolls: Math.max(0, finite(state.playerBadHighRerolls, 0)),
         bossBadHighRerolls: Math.max(0, finite(state.bossBadHighRerolls, 0)),
-        totalBetBefore, totalBetAfter: spendX, suppressionActive
+        totalBetBefore, totalBetAfter: spendX, suppressionActive, assistanceActive,
+        unlockedStars: Rules.bossStageProgress(lockedStory.star, lockedStory.hp, hpLeft).unlockedStars,
+        globalMultiplier
       });
 
       if (result === "TIE") tieIndex += 1;
       else { round += 1; tieIndex = 0; }
     }
 
+    const unlockedStars = Rules.bossStageProgress(lockedStory.star, lockedStory.hp, hpLeft).unlockedStars;
+    bossPayoutX = Rules.rewardForUnlockedStars(lockedStory.originalDice, unlockedStars).total;
+    coinPayoutX = (handPayoutX + bossPayoutX) * (globalMultiplier - 1);
     const payoutX = handPayoutX + bossPayoutX + coinPayoutX;
     const rounds = path.reduce((maximum, step) => Math.max(maximum, step.round), 0);
     return {
@@ -934,6 +954,7 @@
       rtpPct: payoutX / Math.max(spendX, 1e-12) * 100,
       payoutParts: { boss: bossPayoutX, hand: handPayoutX, coin: coinPayoutX, chain: 0 },
       originalBossRewardX: bossPayoutX,
+      globalMultiplier, unlockedStars, baseHandPayoutX: handPayoutX, unlockedBossRewardX: bossPayoutX,
       actions: { fights, folds, ties, playerRoundWins, playerRoundLosses, totalDraws, paidDraws, freeDraws, manualAdjustments, changedCards },
       terminationReason,
       totalDamage,
@@ -948,6 +969,8 @@
       storyMoments: { ...(lockedStory.storyMoments || {}), bestHandRank, bestHandKey },
       path,
       suppressionActive,
+      assistanceActive: assistedRedraws > 0,
+      assistedRedraws,
       deviationCount,
       redrawAudits
     };
@@ -959,93 +982,6 @@
     return behavior === "EXTREME"
       && Number(star) === 1
       && finite(randomValue, 1) < EXTREME_ONE_STAR_PRE_ENTRY_REROLL_RATE;
-  }
-
-  function preEntryRerollStory(lockedStory) {
-    return {
-      id: lockedStory?.id || "",
-      star: integer(lockedStory?.star, 1, 1, 8),
-      seed: lockedStory?.seed,
-      classKey: lockedStory?.classKey || "lose",
-      classLabel: lockedStory?.classLabel || TREE_LABELS[lockedStory?.classKey] || "輸",
-      killed: false,
-      rounds: 0,
-      spendX: 0,
-      payoutX: 0,
-      netX: 0,
-      returnX: 0,
-      rtpPct: 0,
-      payoutParts: { boss: 0, hand: 0, coin: 0, chain: 0 },
-      originalBossRewardX: 0,
-      originalDice: null,
-      actions: {
-        fights: 0, folds: 0, ties: 0, playerRoundWins: 0, playerRoundLosses: 0,
-        totalDraws: 0, paidDraws: 0, freeDraws: 0, manualAdjustments: 0, changedCards: 0
-      },
-      terminationReason: "REROLL",
-      totalDamage: 0,
-      playerBadHighRerolls: 0,
-      bossBadHighRerolls: 0,
-      handCounts: {},
-      playerStartHandCounts: {},
-      playerFinalHandCounts: {},
-      bossHandCounts: {},
-      magicCounts: {},
-      magicMoments: {},
-      storyMoments: { bestHandRank: 0, bestHandKey: "high" },
-      path: [],
-      suppressionActive: false,
-      deviationCount: 0,
-      redrawAudits: []
-    };
-  }
-
-  function preEntryRerollSettlement(accounting) {
-    const poolAccrualCredits = finite(accounting.poolAccrualCredits, 0);
-    return {
-      version: accounting.version,
-      bucketIndex: accounting.bucketIndex,
-      bucketKey: accounting.bucketKey,
-      incomingPoolCredits: accounting.incomingPoolCredits,
-      targetRtpPct: accounting.targetRtpPct,
-      plannedSpendCredits: 0,
-      storyBudgetCredits: 0,
-      plannedSpendTargetAccrualCredits: 0,
-      storyOpeningAdjustmentCredits: 0,
-      actualSpendTargetAccrualCredits: poolAccrualCredits,
-      spendDeltaCredits: accounting.actualSpendCredits,
-      targetAccrualCredits: poolAccrualCredits,
-      commitNetCredits: poolAccrualCredits,
-      afterSpendCredits: accounting.endingPoolCredits,
-      afterCommitCredits: accounting.incomingPoolCredits,
-      organicPayoutCredits: 0,
-      fixedPayoutCredits: 0,
-      originalBossRewardCredits: 0,
-      correctedBossRewardCredits: 0,
-      availableBossPoolCredits: accounting.endingPoolCredits,
-      organicActualNetCredits: -accounting.actualSpendCredits,
-      preCorrectionBookCredits: accounting.endingPoolCredits,
-      otherReservedCredits: 0,
-      preCorrectionPoolCredits: accounting.endingPoolCredits,
-      actualNetCredits: -accounting.actualSpendCredits,
-      endingPoolCredits: accounting.endingPoolCredits,
-      endingAvailableCredits: accounting.endingPoolCredits,
-      balances: accounting.balances,
-      releasedReservation: accounting.releasedReservation,
-      reservations: accounting.reservations,
-      correction: {
-        applied: false,
-        reason: "NOT_KILLED",
-        deltaCredits: 0,
-        deltaX: 0,
-        requestedAbsCredits: 0,
-        appliedAbsCredits: 0,
-        unappliedAbsCredits: 0,
-        limitedByCap: false
-      },
-      actualPayoutCredits: 0,
-      actualSpendCredits: accounting.actualSpendCredits
-    };
   }
 
   function simulateFullClassNaturalPopulation(config, options = {}) {
@@ -1063,7 +999,7 @@
     const starStats = Array.from({ length: 8 }, (_, index) => ({ star: index + 1, count: 0, spend: 0, payout: 0, kills: 0, refreshes: 0, bossRerollCredits: 0, corrections: 0 }));
     const classStats = Object.fromEntries(TREE_KEYS.map((key) => [key, { key, label: TREE_LABELS[key], count: 0, spend: 0, payout: 0, kills: 0, refreshes: 0, bossRerollCredits: 0, corrections: 0 }]));
     const totals = {
-      bosses: 0, spend: 0, payout: 0, kills: 0, bossRefreshes: 0, bossRerollCredits: 0,
+      bosses: 0, spend: 0, payout: 0, kills: 0, bossRefreshes: 0, bossRerollCredits: 0, previewRerolls: 0,
       corrections: 0, correctionCredits: 0, ticketErrorPpMax: 0,
       terminationStats: { KILLED: 0, BOSS_ESCAPED: 0, USER_EXIT: 0, REROLL: 0 }
     };
@@ -1076,80 +1012,78 @@
       let bankroll = cashoutStartCredits;
       let cashoutSuccess = false;
       let bankrupt = false;
-      for (let bossIndex = 0; cashoutMode || (bossIndex < config.simulation.bossesPerPlayer && rounds < config.simulation.playerRoundLimit); bossIndex += 1) {
+      for (let bossIndex = 0; cashoutMode || bossIndex < config.simulation.bossesPerPlayer; bossIndex += 1) {
         if (cashoutMode) {
           cashoutSuccess = bankroll >= cashoutTargetCredits;
           if (cashoutSuccess) break;
         }
         const enabledRows = config.bossRows.filter((row) => finite(row[5], 0) > 0);
+        if (cashoutMode && !enabledRows.some((row) => NaturalCore.betLimitForAssets(bankroll, row[0]).maxBet > 0)) {
+          bankrupt = true;
+          break;
+        }
         const starRows = enabledRows.length > 1 ? enabledRows.filter((row) => Number(row[0]) !== previousStar) : enabledRows;
-        const bossRow = weightedPick(starRows.length ? starRows : enabledRows, (row) => finite(row[5], 0), random);
-        const star = integer(bossRow?.[0], 1, 1, 8);
+        let bossRow = weightedPick(starRows.length ? starRows : enabledRows, (row) => finite(row[5], 0), random);
+        let star = integer(bossRow?.[0], 1, 1, 8);
+        // 免費預覽不是一次挑戰；只開一星時不做無意義的反覆重抽。
+        if (enabledRows.length > 1 && shouldPreEntryBossReroll(config.simulation.playerBehavior, star, random())) {
+          const previewRows = enabledRows.filter((row) => Number(row[0]) !== star);
+          bossRow = weightedPick(previewRows, (row) => finite(row[5], 0), random);
+          star = integer(bossRow?.[0], 1, 1, 8);
+          totals.previewRerolls += 1;
+        }
+        if (cashoutMode) {
+          let affordabilityAttempts = 0;
+          while (NaturalCore.betLimitForAssets(bankroll, star).maxBet <= 0) {
+            if (++affordabilityAttempts > 1000) throw new Error("免費預覽在 1,000 次隨機換王後仍未找到可承擔 Boss");
+            const previewRows = enabledRows.filter((row) => Number(row[0]) !== star);
+            bossRow = weightedPick(previewRows, (row) => finite(row[5], 0), random);
+            star = integer(bossRow?.[0], 1, 1, 8);
+            totals.previewRerolls += 1;
+          }
+        }
         previousStar = star;
-        const bet = simulationBet(config, playerIndex, bossIndex, random);
+        const requestedBet = simulationBet(config, playerIndex, bossIndex, random);
+        const bet = cashoutMode
+          ? Math.min(requestedBet, NaturalCore.betLimitForAssets(bankroll, star).maxBet)
+          : requestedBet;
         if (cashoutMode && bankroll + 1e-9 < bet) {
           bankrupt = true;
           break;
         }
         const commit = drawFullClassStoryCommit(pool, config, star, random);
         const lockedSummary = commit.selectedStory;
-        const wantsPreEntryReroll = config.simulation.playerBehavior === "EXTREME"
-          && star === 1
-          && shouldPreEntryBossReroll(config.simulation.playerBehavior, star, random());
-        if (wantsPreEntryReroll) {
-          const rerollAccounting = NaturalCore.tryBossReroll(bucketBalances, bet, {
-            targetRtpPct: config.targetCoreRtpPct,
-            playerCredits: cashoutMode ? bankroll : undefined,
-            bossKilled: false
-          });
-          if (rerollAccounting.success) {
-            const rerollSpendCredits = rerollAccounting.actualSpendCredits;
-            const settlement = preEntryRerollSettlement(rerollAccounting);
-            const story = preEntryRerollStory(lockedSummary);
-            bucketBalances = settlement.balances;
-            spend += rerollSpendCredits;
-            bankroll = cashoutMode ? rerollAccounting.remainingPlayerCredits : bankroll;
-            bosses += 1;
-            bossRefreshes += 1;
-            bossRerollCredits += rerollSpendCredits;
-            totals.bosses += 1;
-            totals.spend += rerollSpendCredits;
-            totals.bossRefreshes += 1;
-            totals.bossRerollCredits += rerollSpendCredits;
-            totals.terminationStats.REROLL += 1;
-            totals.ticketErrorPpMax = Math.max(totals.ticketErrorPpMax, commit.rtpErrorPp);
-            const starRow = starStats[star - 1];
-            starRow.count += 1;
-            starRow.spend += rerollSpendCredits;
-            starRow.refreshes += 1;
-            starRow.bossRerollCredits += rerollSpendCredits;
-            const classRow = classStats[commit.selectedClass];
-            classRow.count += 1;
-            classRow.spend += rerollSpendCredits;
-            classRow.refreshes += 1;
-            classRow.bossRerollCredits += rerollSpendCredits;
-            if (recordStories) records.push({
-              player: playerIndex + 1,
-              bossIndex: bossIndex + 1,
-              star,
-              bet,
-              classKey: commit.selectedClass,
-              commit,
-              settlement,
-              story,
-              started: false,
-              bossKilledAtDecision: false,
-              triggerCommand: "REROLL_BOSS",
-              terminalState: "ABANDON",
-              terminationReason: "REROLL",
-              spendSources: { entryCredits: 0, redrawCredits: 0, bossRerollCredits: rerollSpendCredits },
-              suppressionActive: false,
-              deviationCount: 0,
-              redrawAudits: []
-            });
-            continue;
+        const encounterId = `simulation:${playerIndex}:${bossIndex}`;
+        let startedCommit = null;
+        let liveReservations = [];
+        let postedSpendCredits = 0;
+        let postedPoolAccrualCredits = 0;
+        let entrySpendCredits = 0;
+        let redrawSpendCredits = 0;
+        const liveSpendEvents = [];
+        const postSpend = (costX, source) => {
+          const cost = NaturalCore.roundMoney(costX * bet);
+          if (!(cost > 0)) return;
+          if (!startedCommit) {
+            startedCommit = NaturalCore.commitStoryToBuckets(commit, bucketBalances, bet, { targetRtpPct: config.targetCoreRtpPct });
+            bucketBalances = startedCommit.balances;
           }
-        }
+          const posted = NaturalCore.postStorySpendToBuckets(startedCommit, bucketBalances, bet, cost);
+          bucketBalances = posted.balances;
+          postedSpendCredits = NaturalCore.roundMoney(postedSpendCredits + cost);
+          postedPoolAccrualCredits = NaturalCore.roundMoney(postedPoolAccrualCredits + posted.actualSpendTargetAccrualCredits);
+          if (source === "ENTRY") entrySpendCredits += cost;
+          else redrawSpendCredits += cost;
+          liveSpendEvents.push({ source, credits: cost, poolAccrualCredits: posted.actualSpendTargetAccrualCredits, balance: posted.endingPoolCredits });
+        };
+        const assistanceBudget = (globalMultiplier, earnedHandPayoutX) => {
+          liveReservations = NaturalCore.updateBossRewardReservation(liveReservations, encounterId, lockedSummary, bet, {
+            globalMultiplier, earnedHandPayoutX, targetRtpPct: config.targetCoreRtpPct
+          }).reservations;
+          return NaturalCore.assistanceBudgetForBoss(bucketBalances, liveReservations, bet, lockedSummary, {
+            encounterId, globalMultiplier, earnedHandPayoutX
+          });
+        };
         let story = lockedSummary;
         const maxSpendX = cashoutMode ? bankroll / Math.max(bet, 1e-12) : Infinity;
         if (config.simulation.playerBehavior === "SMART" && cashoutMode && lockedSummary.spendX > maxSpendX + 1e-9) {
@@ -1163,22 +1097,36 @@
           if (!runtimeStoryCache.has(cacheKey)) {
             runtimeStoryCache.set(cacheKey, NaturalCore.simulateNaturalStory(naturalConfig, lockedSummary.star, lockedSummary.seed, { includePath: true }));
           }
-          story = simulateBehaviorStory(runtimeStoryCache.get(cacheKey), naturalConfig, config.simulation.playerBehavior, { maxSpendX });
-        } else story = { ...lockedSummary, suppressionActive: false, deviationCount: 0, redrawAudits: [] };
+          story = simulateBehaviorStory(runtimeStoryCache.get(cacheKey), naturalConfig, config.simulation.playerBehavior, { maxSpendX, onSpend: postSpend, assistanceBudget });
+        } else {
+          const cacheKey = `${lockedSummary.star}:${lockedSummary.seed}`;
+          if (!runtimeStoryCache.has(cacheKey)) runtimeStoryCache.set(cacheKey, NaturalCore.simulateNaturalStory(naturalConfig, lockedSummary.star, lockedSummary.seed, { includePath: true }));
+          story = { ...runtimeStoryCache.get(cacheKey), suppressionActive: false, deviationCount: 0, redrawAudits: [] };
+        }
+        if (config.simulation.playerBehavior === "SMART") {
+          for (const step of story.path || []) {
+            if (!step.tieIndex) postSpend(1, "ENTRY");
+            for (const draw of step.drawLog || []) if (!draw.free && draw.feeX > 0) postSpend(draw.feeX, "REDRAW");
+          }
+        }
         const storyCredits = materializeStoryCredits(story, bet);
         const actualSpendCredits = storyCredits.spendCredits;
         const organicPayoutCredits = storyCredits.payoutCredits;
-        const entrySpendCredits = Math.min(actualSpendCredits, story.rounds * bet);
-        const redrawSpendCredits = Math.max(0, actualSpendCredits - entrySpendCredits);
-        const settlement = NaturalCore.settleCommittedStory(commit, bucketBalances, bet, {
+        if (Math.abs(postedSpendCredits - actualSpendCredits) > 1e-6) throw new Error("逐筆入池實付與劇本實付不一致");
+        const settlement = NaturalCore.settleStartedStory(commit, startedCommit, bucketBalances, bet, {
           actualSpendCredits,
+          actualSpendTargetAccrualCredits: postedPoolAccrualCredits,
           plannedSpendCredits: commit.selectedStory.spendX * bet,
           storyBudgetCredits: commit.selectedStory.payoutX * bet,
           organicPayoutCredits,
           targetRtpPct: config.targetCoreRtpPct,
           actualKilled: story.killed,
           actualBossRewardX: finite(story.originalBossRewardX, 0),
+          actualGlobalMultiplier: story.globalMultiplier,
+          actualUnlockedStars: story.unlockedStars,
           actualDice: story.originalDice,
+          reservations: liveReservations,
+          encounterId,
           rewardFloorPct: config.carry.rewardFloorMultiple * 100,
           rewardCeilingMultiple: config.carry.rewardCeilingMultiple,
           rng: random
@@ -1224,6 +1172,8 @@
           },
           // 劇本玩家忠實執行抽中劇本；其餘模式依行為操作並保存偏離與抑制稽核。
           suppressionActive: Boolean(story.suppressionActive),
+          assistanceActive: Boolean(story.assistanceActive),
+          liveSpendEvents,
           deviationCount: Math.max(0, finite(story.deviationCount, 0)),
           redrawAudits: story.redrawAudits || []
         });
@@ -1338,6 +1288,7 @@
       gross: 0, organicPayout: 0, net: 0, bonus: 0, deduction: 0, deviations: 0,
       bosses: 0, kills: 0, aborts: 0, rounds: 0, draws: 0, compares: 0, folds: 0, ties: 0,
       playerWins: 0, playerLosses: 0, freeDraws: 0, paidDraws: 0, bossRefreshes: 0,
+      previewRerolls: raw.totals.previewRerolls, partialRewardBosses: 0, unlockedStars: 0,
       damage: 0, playerBadHighRerolls: 0, bossBadHighRerolls: 0,
       bossGross: 0, handGross: 0, magicGross: 0, chainGross: 0,
       bossRewardXSum: 0, bossRewardCount: 0, jokerDraws: 0,
@@ -1402,8 +1353,8 @@
       carryBucket.spendCredits += spend;
       carryBucket.totalWagerCredits += spend;
       carryBucket.storyOpeningAdjustmentCredits += record.settlement.storyOpeningAdjustmentCredits;
-      carryBucket.entryBetPoolCredits += NaturalCore.roundMoney(entrySpend * config.targetCoreRtpPct / 100);
-      carryBucket.redrawPoolCredits += NaturalCore.roundMoney(drawSpend * config.targetCoreRtpPct / 100);
+      carryBucket.entryBetPoolCredits += record.liveSpendEvents.filter((event) => event.source === "ENTRY").reduce((sum, event) => sum + event.poolAccrualCredits, 0);
+      carryBucket.redrawPoolCredits += record.liveSpendEvents.filter((event) => event.source === "REDRAW").reduce((sum, event) => sum + event.poolAccrualCredits, 0);
       carryBucket.bossRerollCredits += bossRerollSpend;
       carryBucket.bossRerollPoolCredits += NaturalCore.roundMoney(bossRerollSpend * config.targetCoreRtpPct / 100);
       carryBucket.storyPayoutCredits += record.settlement.storyBudgetCredits;
@@ -1423,11 +1374,15 @@
       totals.gross += committedPayout; totals.organicPayout += organicPayout; totals.net += actualPayout;
       totals.bonus += Math.max(0, correction); totals.deduction += Math.max(0, -correction);
       totals.bosses += 1; totals.kills += story.killed ? 1 : 0; totals.rounds += story.rounds; totals.draws += story.actions.totalDraws;
+      totals.partialRewardBosses += !story.killed && story.originalBossRewardX > 0 ? 1 : 0;
+      totals.unlockedStars += Math.max(0, finite(story.unlockedStars, 0));
       totals.compares += story.actions.fights; totals.folds += story.actions.folds; totals.ties += story.actions.ties;
       totals.playerWins += story.actions.playerRoundWins || 0; totals.playerLosses += story.actions.playerRoundLosses || 0;
       totals.freeDraws += story.actions.freeDraws; totals.paidDraws += story.actions.paidDraws;
       totals.damage += story.totalDamage; totals.playerBadHighRerolls += story.playerBadHighRerolls; totals.bossBadHighRerolls += story.bossBadHighRerolls;
-      totals.bossGross += actualBossRewardX * bet; totals.handGross += story.payoutParts.hand * bet; totals.magicGross += story.payoutParts.coin * bet;
+      const multiplier = Math.max(1, finite(story.globalMultiplier, 1));
+      const actualCoinUpliftX = (actualBossRewardX + story.payoutParts.hand) * (multiplier - 1);
+      totals.bossGross += actualBossRewardX * bet; totals.handGross += story.payoutParts.hand * bet; totals.magicGross += actualCoinUpliftX * bet;
       totals.bossRewardXSum += story.killed ? actualBossRewardX : 0; totals.bossRewardCount += story.killed ? 1 : 0;
       totals.jokerDraws += story.magicCounts.joker || 0; totals.corrections += record.settlement.correction.applied ? 1 : 0;
       totals.maxStoryGrossX = Math.max(totals.maxStoryGrossX, story.payoutX);
@@ -1447,7 +1402,7 @@
         if (!magicByKey[key]) return;
         magicByKey[key].draws += count; magicByKey[key].effective += count;
         magicByKey[key].killRounds += story.killed ? count : 0;
-        if (key === "coin") magicByKey[key].grossAttributed += story.payoutParts.coin * bet;
+        if (key === "coin") magicByKey[key].grossAttributed += actualCoinUpliftX * bet;
       });
 
       const ss = starStats[record.star - 1];
@@ -1640,6 +1595,8 @@
       totalBosses: records.length,
       loseStoryBosses: records.filter((record) => record.classKey === "lose").length,
       suppressedBosses: records.filter((record) => record.suppressionActive).length,
+      assistedBosses: records.filter((record) => record.assistanceActive).length,
+      assistedRedraws: records.reduce((sum, record) => sum + (record.story.assistedRedraws || 0), 0),
       byClass: TREE_KEYS.map((key) => {
         const rows = records.filter((record) => record.classKey === key);
         const suppressed = rows.filter((record) => record.suppressionActive).length;
@@ -1751,7 +1708,7 @@
         const original = Math.max(0, finite(story.originalBossRewardX, 0));
         if (!story.killed || original <= 0) { noReward += 1; return; }
         killed += 1;
-        const outcomes = NaturalCore.legalDiceOutcomes(integer(story.originalDice?.normalDice, 1, 1, 8), integer(story.originalDice?.multiplierDice, 0, 0, 8));
+        const outcomes = NaturalCore.finalStarDiceOutcomes(story.originalDice);
         const minimum = original * config.carry.rewardFloorMultiple;
         const maximum = original * config.carry.rewardCeilingMultiple;
         const upCap = maximum - original;
@@ -1781,7 +1738,7 @@
       candidateStoriesDrawn: ticketHealth.candidateSetsTried * 3,
       commits: records.length, starts: startedRecords.length, settlements: startedRecords.length,
       rerolls: terminationStats.REROLL, pending: 0,
-      note: "入場前 REROLL 計入 Boss 與分類樣本但不 START；已 START 樣本才進入劇本結算。"
+      note: "未 START 的免費隨機換王只計預覽次數；正式 Boss 與分類樣本從成功 START 起算。"
     };
     const ticketSamples = records.slice(0, 100).map((record) => ({
       player: record.player,
@@ -1866,7 +1823,7 @@
         compareActions: totals.compares, foldActions: totals.folds, tieRounds: totals.ties,
         playerWins: totals.playerWins, playerLosses: totals.playerLosses,
         freeDrawActions: totals.freeDraws, paidDrawActions: totals.paidDraws, drawSpendX: totals.drawSpend,
-        bossRefreshes: totals.bossRefreshes, bossRerollCredits: totals.bossRerollCredits,
+        bossRefreshes: totals.bossRefreshes, bossRerollCredits: totals.bossRerollCredits, previewRerolls: raw.totals.previewRerolls,
         playerBadHighRerolls: totals.playerBadHighRerolls, bossBadHighRerolls: totals.bossBadHighRerolls,
         terminationStats: { ...terminationStats }
       },
@@ -1890,7 +1847,7 @@
     EXTREME_ONE_STAR_PRE_ENTRY_REROLL_RATE,
     DEFAULT_CONFIG: clone(DEFAULT_CONFIG), clone, sanitizeConfig, mixedRtpPct, solveStarTickets,
     solveAllStars, naturalityStatus, storyDeviation, settleCarry, materializeStoryCredits,
-    drawFullClassStoryCommit, chooseBehaviorKeepDecision, behaviorDrawLimit, shouldPreEntryBossReroll, maximumBossRewardX, simulate: simulateNaturalModel, simulateNaturalModel, simulateIndependentCashout,
+    drawFullClassStoryCommit, chooseBehaviorKeepDecision, behaviorDrawLimit, shouldPreEntryBossReroll, maximumBossRewardX, simulateBehaviorStory, simulateFullClassNaturalPopulation, simulate: simulateNaturalModel, simulateNaturalModel, simulateIndependentCashout,
     NaturalCore
   };
   root.BossDuelActionTreeCore = publicApi;

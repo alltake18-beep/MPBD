@@ -6,7 +6,12 @@ const fs = require("fs");
 const path = require("path");
 
 const root = path.join(__dirname, "..");
-const outputDir = path.join(root, "reports", "story-detail-parts-v10");
+const exportDir = path.resolve(process.env.BOSS_DUEL_EXPORT_DIR || path.join(os.tmpdir(), "boss-duel-story-export-v17"));
+const outputDir = path.join(exportDir, "story-detail-parts-v17");
+const outputRelative = path.relative(root, outputDir);
+if (!outputRelative || (outputRelative !== ".." && !outputRelative.startsWith(`..${path.sep}`) && !path.isAbsolute(outputRelative))) {
+  throw new Error("劇本明細與 Excel 匯出必須寫入 Repository 外；請設定 BOSS_DUEL_EXPORT_DIR");
+}
 const classKeys = ["win", "push", "lose"];
 const requestedWorkerCount = Math.max(1, Number(process.env.BOSS_DUEL_WORKERS || 0) || (os.cpus().length - 1));
 const workerCount = Math.min(19, requestedWorkerCount);
@@ -66,12 +71,12 @@ if (isMainThread) {
     process.exitCode = 1;
   });
 } else {
-  const ActionCore = require(path.join(root, "src", "probability", "boss-duel-action-tree-core.js"));
-  const StoryCore = ActionCore.NaturalCore;
-  const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v16.js"));
-  const config = StoryCore.normalizeConfig(ActionCore.DEFAULT_CONFIG);
-  if (preset.version !== "natural-story-preset-v16" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
-    throw new Error("劇本明細只能由現行 natural-story-preset-v16 正式種子產生");
+  const StoryGenerator = require(path.join(root, "server", "boss-duel-story-generator.js"));
+  const StoryCore = require(path.join(root, "src", "core", "boss-duel-natural-story-core.js"));
+  const preset = require(path.join(root, "data", "story", "boss-duel-story-preset-v17.js"));
+  const config = StoryGenerator.currentConfig();
+  if (preset.version !== "natural-story-preset-v17" || !StoryCore.presetMatchesOutcomeRules(config, preset)) {
+    throw new Error("劇本明細只能由現行 natural-story-preset-v17 正式種子產生");
   }
   const seeds = preset.natural?.[workerData.star]?.[workerData.classKey] || [];
   if (seeds.length !== config.storiesPerClass) {
@@ -84,10 +89,18 @@ if (isMainThread) {
     star: story.star,
     classKey: story.classKey,
     plannerVersion: story.plannerVersion,
+    replayContract: { ...StoryCore.replayContract(story, config), releaseVersion: preset.releaseVersion || preset.version },
     killed: story.killed,
     spendX: story.spendX,
     payoutX: story.payoutX,
     netX: story.netX,
+    payoutParts: story.payoutParts,
+    originalDice: story.originalDice,
+    originalBossRewardX: story.originalBossRewardX,
+    unlockedBossRewardX: story.unlockedBossRewardX,
+    baseHandPayoutX: story.baseHandPayoutX,
+    globalMultiplier: story.globalMultiplier,
+    unlockedStars: story.unlockedStars,
     hp: story.hp,
     hpLeft: story.hpLeft,
     rounds: story.rounds,
@@ -131,11 +144,14 @@ if (isMainThread) {
       expectedDamage: round.expectedDamage,
       hasJoker: round.hasJoker,
       bossHpBefore: round.bossHpBefore,
-      bossHpAfter: round.bossHpAfter
+      bossHpAfter: round.bossHpAfter,
+      unlockedStars: round.unlockedStars,
+      newlyUnlockedStars: round.newlyUnlockedStars,
+      globalMultiplierAfter: round.globalMultiplierAfter
     }))
   });
   const stories = seeds.map((seed) => {
-    const story = StoryCore.simulateNaturalStory(config, workerData.star, seed, { includePath: true });
+    const story = StoryGenerator.generateStory(config, workerData.star, seed, { includePath: true });
     if (story.classKey !== workerData.classKey) throw new Error(`${workerData.star} 星 ${seed} 分類重播不一致`);
     return workbookStory(story);
   });

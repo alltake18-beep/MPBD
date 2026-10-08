@@ -6,7 +6,7 @@
   const NaturalCore = window.BossDuelNaturalStoryCore;
   const StoryPreset = window.BossDuelStoryPresetV1;
   const els = Object.fromEntries([...document.querySelectorAll("[id]")].map((element) => [element.id, element]));
-  const PLAYER_STATE_KEY = "boss-duel:demo-player-v2";
+  const PLAYER_STATE_KEY = "boss-duel:demo-player-v3-stage-rewards";
   const TUTORIAL_SKIP_KEY = "BossDuelTutorialSkip";
   const TUTORIAL_SESSION_KEY = "boss-duel:tutorial-shown";
   const AUDIO_KEY = "boss-duel:audio-enabled";
@@ -345,6 +345,12 @@
       tieIndex: target.tieRedeals || 0,
       drawNumber: target.draws,
       hpLeft: target.hpLeft,
+      unlockedStars: target.unlockedStars || 0,
+      globalMultiplier: target.coinBonusX || 1,
+      handPayoutX: target.handPayoutX || 0,
+      assistanceActive: Boolean(target.assistanceActive),
+      payoutSettled: Boolean(target.payoutSettled),
+      actualPayoutCredits: target.poolSettlement?.actualPayoutCredits ?? null,
       keepCardIds: state
         ? NaturalCore.sortedCardIds(state.playerCards.filter((_card, index) => !state.discardIndexes.has(index)))
         : [],
@@ -1474,12 +1480,15 @@
       activeBet,
       {
         actualSpendCredits: actualSpend,
+        actualSpendTargetAccrualCredits: encounter.storySpendTargetAccrualCredits,
         targetRtpPct: encounter.poolTargetRtpPct,
         plannedSpendCredits: encounter.storyPlannedSpendCredits,
         storyBudgetCredits: encounter.storyBudgetCredits,
         organicPayoutCredits: organicPayout,
         actualKilled: killed,
-        actualBossRewardX: originalDice.total,
+        actualBossRewardX: stageReward().dice.total,
+        actualGlobalMultiplier: encounter.coinBonusX,
+        actualUnlockedStars: stageReward().unlockedStars,
         actualDice: originalDice,
         rewardFloorPct: STORY_REWARD_FLOOR_PCT,
         rewardCeilingMultiple: STORY_REWARD_CEILING_MULTIPLE,
@@ -1559,8 +1568,11 @@
       storySpendTargetAccrualCredits: 0,
       storyTargetAccrualCredits: 0,
       poolTargetRtpPct: runtimeConfig.targetRtp * 100,
-      coinBonusX: 0,
-      revealedCoinBonusX: 0,
+      coinBonusX: 1,
+      revealedCoinBonusX: 1,
+      handPayoutX: 0,
+      unlockedStars: 0,
+      assistanceActive: false,
       revealedMagicIndexes: new Set(),
       phase: "ready",
       presentation: null,
@@ -1661,8 +1673,41 @@
     return true;
   }
 
+  function stageReward() {
+    const progress = Rules.bossStageProgress(encounter.packet.star, encounter.packet.hp, encounter.hpLeft);
+    return { ...progress, dice: Rules.rewardForUnlockedStars(encounter.packet.dice, progress.unlockedStars) };
+  }
+
+  function organicEncounterPayoutCredits() {
+    return NaturalCore.roundMoney((stageReward().dice.total + encounter.handPayoutX) * encounter.coinBonusX * activeBet);
+  }
+
+  function creditEncounterPayout(payout) {
+    if (encounter.payoutSettled) return;
+    encounter.payoutSettled = true;
+    session.credits = NaturalCore.roundMoney(session.credits + payout);
+    session.payout = NaturalCore.roundMoney(session.payout + payout);
+    playerState.payoutX = NaturalCore.roundMoney(playerState.payoutX + payout);
+    activeBetLedger().payoutX = NaturalCore.roundMoney(activeBetLedger().payoutX + payout);
+    savePlayerState();
+  }
+
+  function settlePartialReward() {
+    if (!encounter || encounter.round === 0 || encounter.payoutSettled) return 0;
+    const result = settleStoryPool(organicEncounterPayoutCredits(), encounter.hpLeft <= 0);
+    const payout = result?.actualPayoutCredits || 0;
+    creditEncounterPayout(payout);
+    if (payout > 0) addHistory("STAGE REWARD", `${stageReward().unlockedStars}/${encounter.packet.star} ★ · ${payout} CREDITS`, "win");
+    return payout;
+  }
+
   function dealRound() {
     if (!encounter || encounter.phase !== "ready") return;
+    const betLimit = NaturalCore.betLimitForAssets(session.credits, encounter.packet.star);
+    if (activeBet > betLimit.maxBet) {
+      setMessage(`本星平均花費 ${betLimit.averageSpendX.toFixed(2)}× Bet；目前資產可用 Bet 上限 ${betLimit.maxBet}。`, "lose");
+      return;
+    }
     if (!spend(runtimeConfig.entryCostX, { entrySpend: true })) return;
     const startOperation = beginOperation("START");
     session.hasStarted = true;
@@ -1745,7 +1790,7 @@
     els.magicPreviewIcon.textContent = copy.icon;
     els.magicPreviewValue.textContent = copy.display.type;
     els.magicPreviewHand.textContent = copy.display.label;
-    const copyArt = MAGIC_COPY_PATHS[card.key];
+    const copyArt = ["coin", "threeBoost", "straightBoost"].includes(card.key) ? null : MAGIC_COPY_PATHS[card.key];
     els.magicPreviewDetail.innerHTML = copyArt
       ? `<img class="magic-detail-art" src="${copyArt}" alt="${copy.description}">${magicBindingCopy(card)}`
       : `<strong>${copy.display.label}</strong><br>${copy.description}${magicBindingCopy(card)}`;
@@ -1786,7 +1831,7 @@
     }
     if (!encounter.revealedMagicIndexes.has(magicRevealIndex)) {
       encounter.revealedMagicIndexes.add(magicRevealIndex);
-      if (card.key === "coin") encounter.revealedCoinBonusX += Math.max(0, Number(card.value) || 0);
+      if (card.key === "coin") encounter.revealedCoinBonusX = Rules.combineCoinMultiplier(encounter.revealedCoinBonusX, card.value);
     }
     const copy = magicRevealCopy(card);
     els.magicReveal.dataset.stage = "reveal";
@@ -1795,14 +1840,14 @@
     void els.magicRevealCard.offsetWidth;
     els.magicRevealCard.style.animation = "";
     const artVariables = magicArtVariables(card.key);
-    els.magicRevealCard.className = `magic-reveal-card reveal-${card.key}${artVariables ? " has-card-art" : ""}`;
+    els.magicRevealCard.className = `magic-reveal-card reveal-${card.key}${artVariables ? " has-card-art" : ""}${card.key === "coin" && card.value === 1 ? " coin-shatter" : ""}`;
     els.magicRevealCard.style.cssText = artVariables;
     els.magicRevealStep.textContent = `MAGIC ${magicRevealIndex + 1} / ${cards.length}`;
     els.magicRevealIcon.textContent = copy.icon;
     els.magicRevealValue.textContent = copy.display.type;
     els.magicRevealHand.textContent = copy.display.label;
     const bindingCopy = magicBindingCopy(card);
-    const copyArt = MAGIC_COPY_PATHS[card.key];
+    const copyArt = ["coin", "threeBoost", "straightBoost"].includes(card.key) ? null : MAGIC_COPY_PATHS[card.key];
     els.magicRevealDetail.innerHTML = copyArt
       ? `<img class="magic-detail-art" src="${copyArt}" alt="${copy.description}">${bindingCopy}`
       : `<strong>${copy.display.label}</strong><br>${copy.description}${bindingCopy}`;
@@ -1899,9 +1944,15 @@
           actionSequence: redrawOperation.sequence,
           discardedIndexes: discarded,
           suppressionActive: encounter.suppressionActive,
+          assistanceBudget: NaturalCore.assistanceBudgetForBoss(playerState.storyBucketBalances, [], activeBet, encounter.packet.storyRecord, {
+            encounterId: encounter.bossInstanceId,
+            globalMultiplier: encounter.coinBonusX,
+            earnedHandPayoutX: encounter.handPayoutX
+          }),
           suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy
         });
         encounter.suppressionActive = redrawAudit.suppressionActive;
+        encounter.assistanceActive = encounter.assistanceActive || redrawAudit.assistanceActive;
       } else Rules.redraw(encounter.presentation, discarded);
       completeOperation(redrawOperation, {
         costX,
@@ -1932,9 +1983,9 @@
     stopCountdown();
     if (encounter) encounter.compareOutcome = "";
     if (encounter.round >= encounter.packet.roundLimit) {
-      settleStoryPool(0, false);
+      const partialPayout = settlePartialReward();
       encounter.phase = "resolved-loss";
-      setMessage("ROUND 用盡，BOSS 防守成功。換下一隻再戰。", "lose");
+      setMessage(partialPayout > 0 ? `挑戰結束｜已解鎖 ${stageReward().unlockedStars}/${encounter.packet.star} ★，獲得 ${partialPayout} CREDITS。` : "ROUND 用盡，BOSS 防守成功。換下一隻再戰。", partialPayout > 0 ? "win" : "lose");
       return;
     }
     encounter.phase = "round-result";
@@ -2067,6 +2118,7 @@
           story: encounter.packet.storyRecord,
           actionSequence: encounter.pendingFightOperation?.sequence || encounter.operationSequence,
           suppressionActive: encounter.suppressionActive,
+          assistanceActive: encounter.assistanceActive,
           suppressionPolicy: encounter.packet.storyConfig?.suppressionPolicy
         })
         : { breakdown: Rules.damageBreakdown(state.playerEval, state.magicCards), values: [], suppressionActive: false };
@@ -2244,7 +2296,12 @@
     els.combatFx.hidden = true;
     clearAttackSpine();
     encounter.phase = "damage";
+    const previousUnlockedStars = stageReward().unlockedStars;
     encounter.hpLeft = Math.max(0, encounter.hpLeft - result.damage);
+    encounter.handPayoutX += Math.max(0, Number(encounter.packet.storyConfig?.handRows?.find((row) => row[0] === state.playerHand.key)?.[3]) || 0);
+    encounter.unlockedStars = stageReward().unlockedStars;
+    encounter.lastUnlockedStars = previousUnlockedStars;
+    if (encounter.unlockedStars > previousUnlockedStars) addHistory("STAR UNLOCKED", `${encounter.unlockedStars}/${encounter.packet.star} ★`, "win");
     setMessage(`-${result.damage} HP`, "win");
     playBossSequence("17_damage", null);
     render();
@@ -2351,7 +2408,7 @@
 
   function beginPrizeReveal() {
     if (!encounter || encounter.phase !== "boss-defeat" || encounter.hpLeft > 0) return;
-    const organicPayoutCredits = (encounter.packet.dice.total + encounter.coinBonusX) * activeBet;
+    const organicPayoutCredits = organicEncounterPayoutCredits();
     settleStoryPool(organicPayoutCredits, true);
     els.bossDefeatFx.hidden = true;
     encounter.phase = "prize-reveal";
@@ -2418,7 +2475,7 @@
   function finishPrizeTotal(state) {
     if (!state || state !== prizeRevealState || state.encounter !== encounter || encounter.phase !== "prize-reveal") return;
     const dice = encounter.packet.dice;
-    const totalRewardX = dice.total + encounter.coinBonusX;
+    const totalRewardX = encounter.poolSettlement.actualPayoutCredits / activeBet;
     setRewardTotal(totalRewardX);
     els.rewardTotalBlock.hidden = false;
     settlePrizePayout(totalRewardX);
@@ -2426,13 +2483,8 @@
 
   function settlePrizePayout(totalRewardX) {
     if (!encounter || encounter.payoutSettled) return;
-    encounter.payoutSettled = true;
-    const payout = totalRewardX * activeBet;
-    session.credits += payout;
-    session.payout += payout;
-    playerState.payoutX += payout;
-    activeBetLedger().payoutX += payout;
-    savePlayerState();
+    const payout = NaturalCore.roundMoney(totalRewardX * activeBet);
+    creditEncounterPayout(payout);
     encounter.phase = "resolved-win";
     const rewardTier = totalRewardX >= 40 ? "full" : totalRewardX >= 30 ? "mega" : totalRewardX >= 20 ? "big" : totalRewardX >= 10 ? "medium" : "small";
     els.rewardPanel.querySelector(".reward-card").dataset.winTier = rewardTier;
@@ -2484,19 +2536,17 @@
   }
 
   function openRerollConfirm() {
-    if (!encounter || !["ready", "round-result"].includes(encounter.phase) || encounter.hpLeft <= 0 || encounter.payoutSettled || encounter.poolSettlement) return;
-    els.rerollConfirmCost.textContent = (runtimeConfig.entryCostX * activeBet).toFixed((runtimeConfig.entryCostX * activeBet) % 1 ? 2 : 0);
+    if (!encounter || encounter.phase !== "ready" || encounter.round !== 0 || encounter.payoutSettled || encounter.poolSettlement) return;
+    els.rerollConfirmCost.textContent = "FREE";
     els.rerollConfirm.hidden = false;
   }
 
   function rerollBoss() {
-    if (!encounter || !["ready", "round-result"].includes(encounter.phase) || encounter.hpLeft <= 0 || encounter.payoutSettled || encounter.poolSettlement || els.rerollConfirm.hidden) return;
+    if (!encounter || encounter.phase !== "ready" || encounter.round !== 0 || encounter.payoutSettled || encounter.poolSettlement || els.rerollConfirm.hidden) return;
     const leavingFixedStory = encounter.packet.storyRuntimeMode === "FIXED";
     els.rerollConfirm.hidden = true;
-    if (!spend(runtimeConfig.entryCostX, { storySpend: false, targetRtpPct: encounter.poolTargetRtpPct })) return;
-    if (encounter.round > 0 && !encounter.poolSettlement) settleStoryPool(0, false);
     const rerollOperation = beginOperation("REROLL_BOSS");
-    completeOperation(rerollOperation, { costX: runtimeConfig.entryCostX, bet: activeBet });
+    completeOperation(rerollOperation, { costX: 0, bet: activeBet, previewOnly: true });
     const previousStar = encounter.packet.star;
     if (leavingFixedStory) storyExperience = null;
     playerState.index += 1;
@@ -2505,36 +2555,34 @@
       playerState.index = 0;
     }
     savePlayerState();
-    archiveEncounterAudit("ABANDON", { trigger: "REROLL_BOSS", terminationReason: "REROLL", payoutCredits: 0 });
+    archiveEncounterAudit("PREVIEW_REROLL", { trigger: "REROLL_BOSS", previewOnly: true, payoutCredits: 0 });
     spawnBoss(previousStar);
-    setMessage(leavingFixedStory ? "已離開指定劇本並支付更換 BOSS 費用，改抽下一隻。" : "已支付更換 BOSS 費用，改抽下一隻。", "");
+    setMessage(leavingFixedStory ? "已離開指定劇本，免費抽出下一隻 BOSS。" : "已免費抽出下一隻 BOSS。", "");
   }
 
   function changeBet(direction) {
-    if (!encounter || !["ready", "round-result"].includes(encounter.phase)) return;
+    if (!encounter || encounter.phase !== "ready") return;
     const previousBet = activeBet;
-    const previousStar = encounter.packet.star;
+    const betLimit = NaturalCore.betLimitForAssets(session.credits, encounter.packet.star);
     let index = betSteps.findIndex((value) => value >= activeBet);
     if (index < 0) index = betSteps.length - 1;
     index = Math.max(0, Math.min(betSteps.length - 1, index + direction));
     const nextBet = betSteps[index];
+    if (direction > 0 && nextBet > betLimit.maxBet) {
+      setMessage(`目前資產可用 Bet 上限 ${betLimit.maxBet}｜本星平均花費 ${betLimit.averageSpendX.toFixed(2)}× Bet。`, "");
+      return;
+    }
     if (nextBet === previousBet) {
       render();
       return;
     }
-    if (encounter.round > 0 && !encounter.poolSettlement) settleStoryPool(0, false);
     const betOperation = beginOperation("BET_CHANGE");
     activeBet = nextBet;
+    encounter.replayContract.storyBetContract = storyCreditsForBet(encounter.packet.storyRecord, activeBet);
     completeOperation(betOperation, { previousBet, nextBet });
-    playerState.index += 1;
-    if (playerState.index >= runtimeConfig.cycleSize) {
-      playerState.epoch += 1;
-      playerState.index = 0;
-    }
     savePlayerState();
-    archiveEncounterAudit("BET_CHANGE");
-    spawnBoss(previousStar);
-    setMessage(`BET ${activeBet.toFixed(activeBet % 1 ? 2 : 0)}｜已切換對手。`, "");
+    render();
+    setMessage(`BET ${activeBet.toFixed(activeBet % 1 ? 2 : 0)}`, "");
   }
 
   function recommendationText() {
@@ -2563,15 +2611,15 @@
     return result.magicCards.map((card, index) => {
       const freeAvailable = card.key === "freeDraw" && !result.freeUsed;
       const freeUsed = card.key === "freeDraw" && result.freeUsed;
-      const coinBanked = card.key === "coin";
+      const coinBanked = card.key === "coin" && card.value > 1;
       const active = activeKeys.has(card.key) || freeAvailable || coinBanked;
       return {
         ...Rules.magicDisplay(card),
         key: card.key,
         index,
         active,
-        spent: freeUsed,
-        statusLabel: coinBanked ? "BANKED" : freeUsed ? "USED" : freeAvailable ? "FREE" : active ? "ACTIVE" : ""
+        spent: freeUsed || (card.key === "coin" && card.value === 1),
+        statusLabel: card.key === "coin" && card.value === 1 ? "BROKEN" : coinBanked ? `×${card.value}` : freeUsed ? "USED" : freeAvailable ? "FREE" : active ? "ACTIVE" : ""
       };
     });
   }
@@ -2581,6 +2629,7 @@
     encounter.compareOutcome = "";
     encounter.cardsCleared = false;
     encounter.pendingFightOperation = null;
+    encounter.assistanceActive = false;
     const bankedCoinBonusX = encounter.coinBonusX;
     const storyConfig = encounter.packet.storyConfig || runtimeNaturalConfig(runtimeConfig);
     const tieIndex = encounter.tieRedeals || 0;
@@ -2600,7 +2649,7 @@
     if (storyStep?.initialKeepCardIds?.length) {
       Rules.applyRecommendedKeepCards(encounter.presentation, storyStep.initialKeepCardIds);
     }
-    encounter.coinBonusX += encounter.presentation.coinX;
+    encounter.coinBonusX = Rules.combineCoinMultiplier(encounter.coinBonusX, encounter.presentation.coinX);
     encounter.revealedCoinBonusX = bankedCoinBonusX;
     encounter.revealedMagicIndexes = new Set();
     encounter.playerCardOrder = buildCardOrder(encounter.presentation.playerCards, encounter.presentation.playerEval, encounter.presentation.discardIndexes);
@@ -2867,7 +2916,7 @@
     const dice = packet.dice;
     const entryCompositionVisible = encounter.entryStarsAnimating || encounter.entryStarsRevealed;
     const treasurePresentation = treasurePresentationForStar(packet.star);
-    const lockedTreasureMaximum = maximumRewardForDice(dice);
+    const lockedTreasureMaximum = (maximumRewardForDice(dice) + encounter.handPayoutX) * encounter.revealedCoinBonusX;
     const treasureMaximum = encounter.treasureMaximumRevealed
       ? lockedTreasureMaximum
       : treasurePresentation.maximum;
@@ -2892,11 +2941,11 @@
     els.betValue.textContent = totalBet
       ? totalBet.toFixed(totalBet % 1 ? 2 : 0)
       : "0";
-    const revealedCoinBonusX = Math.max(0, Number(encounter.revealedCoinBonusX) || 0);
+    const revealedCoinBonusX = Math.max(1, Number(encounter.revealedCoinBonusX) || 1);
     const revealedCoinLabel = revealedCoinBonusX.toFixed(revealedCoinBonusX % 1 ? 2 : 0);
-    els.coinBonusPanel.hidden = revealedCoinBonusX <= 0;
-    els.coinBonusValue.textContent = `+${revealedCoinLabel}X`;
-    els.coinBonusPanel.setAttribute("aria-label", `本隻 BOSS 已累積金幣獎勵加 ${revealedCoinLabel} 倍`);
+    els.coinBonusPanel.hidden = revealedCoinBonusX <= 1;
+    els.coinBonusValue.textContent = `×${revealedCoinLabel}`;
+    els.coinBonusPanel.setAttribute("aria-label", `本隻 BOSS 最終得分乘 ${revealedCoinLabel} 倍`);
     els.sessionSpend.textContent = session.spend.toFixed(2);
     els.sessionPayout.textContent = session.payout.toFixed(2);
     els.sessionRtp.textContent = session.spend > 0 ? `${(session.payout / session.spend * 100).toFixed(2)}%` : "—";
@@ -2917,19 +2966,26 @@
     const extraPremiumDice = Math.max(0, rainbowStars - guaranteedPremiumDice);
     const normalStars = packet.star - rainbowStars;
     const guaranteedStart = packet.star - guaranteedPremiumDice;
+    const progress = Rules.bossStageProgress(packet.star, packet.hp, encounter.hpLeft);
+    els.bossStars.dataset.unlocked = String(progress.unlockedStars);
+    els.bossStars.dataset.total = String(packet.star);
     els.bossStars.className = `boss-stars${encounter.entryStarsAnimating ? extraPremiumDice ? " entry-star-reveal" : " entry-star-check" : ""}`;
     els.bossStars.innerHTML = Array.from({ length: packet.star }, (_value, index) => {
       const premium = index >= normalStars;
       const guaranteedPremium = index >= guaranteedStart;
       const newlyRevealedPremium = premium && !guaranteedPremium;
       const delay = Math.max(0, index - normalStars) * (isTurbo() ? 80 : 140);
-      return `<span class="boss-star-slot${premium ? " premium" : ""}${guaranteedPremium ? " guaranteed-premium" : ""}${newlyRevealedPremium ? " revealed-premium" : ""}" style="--star-delay:${delay}ms"><img class="yellow-star" src="assets/mobile/ui-supplied/star.png" alt="">${premium ? '<img class="rainbow-star" src="assets/mobile/ui-supplied/star-rainbow.png" alt="">' : ""}</span>`;
+      const unlocked = index < progress.unlockedStars;
+      const newlyUnlocked = encounter.phase === "damage" && unlocked && index >= (encounter.lastUnlockedStars || 0);
+      return `<span class="boss-star-slot ${unlocked ? "unlocked" : "locked"}${newlyUnlocked ? " newly-unlocked" : ""}${premium ? " premium" : ""}${guaranteedPremium ? " guaranteed-premium" : ""}${newlyRevealedPremium ? " revealed-premium" : ""}" title="${unlocked ? "已解鎖" : `HP ≤ ${progress.thresholds[index].toFixed(2)}`}" style="--star-delay:${delay}ms"><img class="yellow-star" src="assets/mobile/ui-supplied/star.png" alt="">${premium ? '<img class="rainbow-star" src="assets/mobile/ui-supplied/star-rainbow.png" alt="">' : ""}</span>`;
     }).join("");
     els.bossStars.setAttribute("aria-label", entryCompositionVisible
       ? `${packet.star} 星，${dice.normalDice} 顆普通骰，${dice.multiplierDice} 顆倍數骰`
       : guaranteedPremiumDice
         ? `${packet.star} 星，保底 ${guaranteedPremiumDice} 顆倍數骰；額外倍數骰尚未揭示`
         : `${packet.star} 星，額外倍數骰尚未揭示`);
+    els.bossStars.setAttribute("aria-label", `${progress.unlockedStars}/${packet.star} 星已解鎖；一般星星優先`);
+    els.stageProgress.textContent = `${progress.unlockedStars} / ${packet.star} ★`;
     els.bossName.textContent = bossSkin.name;
     els.bossName.className = "sr-only";
     els.bossNameArt.hidden = false;
@@ -2946,6 +3002,7 @@
     els.roundCount.setAttribute("aria-label", `${roundsLeft} / ${packet.roundLimit}`);
     els.hpText.textContent = `${encounter.hpLeft} / ${packet.hp}`;
     els.hpFill.style.width = `${Math.max(0, encounter.hpLeft / packet.hp * 100)}%`;
+    els.hpMilestones.innerHTML = Array.from({ length: packet.star - 1 }, (_v, index) => `<i style="left:${(index + 1) / packet.star * 100}%"></i>`).join("");
     els.diceFormula.textContent = encounter.entryStarsRevealed
       ? dice.multiplierDice > 0 ? `${dice.normalDice}D6 × ${dice.multiplierDice}D6` : `${dice.normalDice}D6`
       : "尚未揭示";
@@ -2993,6 +3050,11 @@
       return `<button type="button" class="magic-card magic-${card.key} ${card.spent ? "spent" : card.active ? "active" : "inactive"}${artVariables ? " has-card-art" : ""}" style="${style}" data-magic-preview="${card.index}" aria-label="查看 ${card.label} 大卡說明；${card.spent ? "已使用" : card.active ? "目前生效" : "條件尚未成立"}"><span>${card.type}</span><strong>${card.label}</strong>${card.statusLabel ? `<i>${card.statusLabel}</i>` : ""}</button>`;
     }).join("");
     els.prestartBet.textContent = activeBet.toFixed(activeBet % 1 ? 2 : 0);
+    const assetBetLimit = NaturalCore.betLimitForAssets(session.credits, packet.star);
+    els.betLimitHint.textContent = `BET MAX ${assetBetLimit.maxBet}`;
+    els.betLimitHint.title = `本星平均花費 ${assetBetLimit.averageSpendX.toFixed(2)} × Bet`;
+    els.betDown.disabled = activeBet <= betSteps[0];
+    els.betUp.disabled = activeBet >= assetBetLimit.maxBet;
 
     if (encounter.presentation) {
       renderCards(els.playerCards, encounter.presentation.playerCards);
@@ -3043,7 +3105,7 @@
     const roundResult = encounter.phase === "round-result";
     const comparing = encounter.phase === "compare-reveal";
 
-    els.rerollButton.hidden = !(ready || roundResult);
+    els.rerollButton.hidden = !ready;
     els.entryButton.hidden = !(ready || roundResult);
     els.betButton.hidden = !((ready && session.hasStarted) || hand || betReady || magicRevealing || comparing || roundResult);
     els.drawButton.hidden = !((ready && session.hasStarted) || hand || betReady || magicRevealing || comparing || roundResult);
@@ -3057,15 +3119,15 @@
     } else {
       els.entryButton.innerHTML = buttonMarkup("text-start.png", "START", `${(currentConfig.entryCostX * activeBet).toFixed(2)} CREDITS`);
     }
-    els.entryButton.disabled = !(ready || roundResult);
+    els.entryButton.disabled = !(ready || roundResult) || (ready && activeBet > assetBetLimit.maxBet);
     const compactBet = activeBet.toFixed(activeBet % 1 ? 2 : 0);
     // 原站藍色 REROLL BOSS 籤不顯示價格；費用只在確認窗揭示。
-    els.rerollButton.querySelector("small").textContent = "";
+    els.rerollButton.querySelector("small").textContent = "FREE";
     els.betButton.classList.toggle("fold-action", hand);
     els.betButton.innerHTML = hand
       ? buttonMarkup("text-fold.png", "FOLD", "")
       : `${buttonMarkup("text-bet.png", "BET", compactBet)}<span class="bet-hit bet-hit-left" data-bet-direction="-1" aria-hidden="true"></span><span class="bet-hit bet-hit-right" data-bet-direction="1" aria-hidden="true"></span>`;
-    els.betButton.disabled = !((ready && session.hasStarted) || hand || betReady || roundResult) || magicRevealing;
+    els.betButton.disabled = !((ready && session.hasStarted) || hand || betReady) || magicRevealing;
     const discardCount = hand ? encounter.presentation.discardIndexes.size : 0;
     const deckCanDraw = hand && encounter.presentation.playerDeck.length - discardCount >= 10;
     els.drawButton.disabled = !hand || !discardCount || !deckCanDraw;
@@ -3087,6 +3149,7 @@
     els.compareButton.setAttribute("aria-label", localeText("fight"));
     els.nextButton.setAttribute("aria-label", localeText("nextBoss"));
     if (!els.deckPanel.hidden) renderDeckPanel();
+    syncReplayAuditDom();
   }
 
   function resetExperience() {
@@ -3244,7 +3307,12 @@
     setMessage(localeText("language"), "");
   });
   els.exitButton.addEventListener("click", () => {
-    if (window.confirm(currentLocale === "en" ? "Exit Boss Duel Demo?" : "確定離開 Boss Duel Demo？")) location.assign("about:blank");
+    if (window.confirm(currentLocale === "en" ? "Exit and collect unlocked rewards?" : "結束挑戰並領取已解鎖獎勵？")) {
+      if (encounter.poolSettlement && !encounter.payoutSettled) creditEncounterPayout(encounter.poolSettlement.actualPayoutCredits);
+      else if (encounter.round > 0 && !encounter.poolSettlement) settlePartialReward();
+      archiveEncounterAudit("USER_EXIT");
+      location.assign("about:blank");
+    }
   });
   els.deckStackButton.addEventListener("click", () => {
     if (!encounter?.presentation) return;
